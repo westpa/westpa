@@ -20,7 +20,6 @@ from westpa.core.propagators import WESTPropagator
 from westpa.core.states import BasisState, InitialState
 from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
-from westpa.core.h5io import WESTIterationFile
 
 from westpa.core.trajectory import load_trajectory
 
@@ -318,10 +317,10 @@ class ExecutablePropagator(WESTPropagator):
         ``subprocess.Popen()``. Every child process executed by ``exec_child()`` gets these.'''
 
         return {
-            self.ENV_RAND16: str(random.randint(0, 2 ** 16)),
-            self.ENV_RAND32: str(random.randint(0, 2 ** 32)),
-            self.ENV_RAND64: str(random.randint(0, 2 ** 64)),
-            self.ENV_RAND128: str(random.randint(0, 2 ** 128)),
+            self.ENV_RAND16: str(random.randint(0, 2**16)),
+            self.ENV_RAND32: str(random.randint(0, 2**32)),
+            self.ENV_RAND64: str(random.randint(0, 2**64)),
+            self.ENV_RAND128: str(random.randint(0, 2**128)),
             self.ENV_RANDFLOAT: str(random.random()),
         }
 
@@ -689,69 +688,6 @@ class ExecutablePropagator(WESTPropagator):
             initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
 
     def prepare_iteration(self, n_iter, segments):
-
-        if n_iter == 1:
-            westpa.rc.pstatus(f"Current iteration is {self.rc.get_sim_manager().n_iter}, preparing sstates")
-
-            # When a segment runs, a common first step is to link in $WEST_PARENT_DATA_REF.
-            # So, each start-state structure that's actually in use needs to be accessible in a file
-            #   via $WEST_PARENT_DATA_REF.
-
-            # That means to prepare the first iteration, we need to make sure that's populated with valid paths.
-            # This will *probably* consist of:
-            #   1. Get all initial states
-            #   2. Remove all istate/bstates, keep only sstates
-            #   3. For each, write the structure as a file to the appropriate traj_segs segment directory, OR write it
-            #       somewhere central and set $WEST_PARENT_DATA_REF (probably better)
-            istates = self.rc.get_data_manager().get_initial_states(n_iter=1)
-            bstates = self.rc.get_data_manager().get_basis_states(n_iter=1)
-
-            # These are read by update_args_env_segment.. However, that
-            self.initial_states = {istate.state_id: istate for istate in istates}
-            self.basis_states = {bstate.state_id: bstate for bstate in bstates}
-
-            for segment in segments.values():
-
-                print(f"\nProcessing segment with pcoord {segment.pcoord.flatten()[:5]}")
-
-                template_args, environ = {}, {}
-                self.update_args_env_iter(template_args, environ, segment.n_iter)
-                self.update_args_env_segment(template_args, environ, segment)
-
-                initial_state = istates[segment.initial_state_id]
-                basis_state = bstates[initial_state.basis_state_id]
-
-                #  TODO: Turbo duplicated code from get_pcoord, make a generic implementation
-                if basis_state.auxref[:4] == 'hdf:':
-                    westpa.rc.pstatus('\t This is an HDF-style state -- additional processing needed')
-
-                    _, h5path, iteration, seg_id = basis_state.auxref.split(':')
-                    westpa.rc.pstatus(f"\t Looking for segment {seg_id} in iteration {iteration} of h5file {h5path}")
-
-                    # Get the pcoord from the H5 file (assume it's formatted the same as this one!)
-                    with h5py.File(h5path, 'r') as prev_h5:
-                        #  TODO: Get this in some non-hardcoded way
-                        iter_group = f'iterations/iter_{int(iteration):08d}'
-                        iter_h5 = prev_h5[iter_group]['trajectories']
-
-                        with WESTIterationFile(iter_h5.file.filename) as iterh5file:
-
-                            # The segment we're looking for as the start-state is not the segment we have now -- the
-                            #   seg_id and iteration correspond to this basis/start-states seg_id and iteration in the
-                            #   simulation it was generated from.
-                            # We make a dummy segment with those, populate the restart data, then copy the restart
-                            #   data to the actual segment.
-                            bstate_segment = Segment(n_iter=iteration, seg_id=seg_id)
-                            iterh5file.read_restart(bstate_segment)
-
-                            segment.data['iterh5/restart'] = bstate_segment.data['iterh5/restart']
-
-                # This calls the restart writer
-                # Before calling this, the segment has to have segment.data['iterh5/restart'] prepared
-                # I actually don't need to manually call this (and shouldn't) because it's called in the normal flow.
-                # self.prepare_file_system(segment, environ)
-
-        westpa.rc.pstatus("*** Pre-iteration complete ***")
 
         child_info = self.exe_info.get('pre_iteration')
         if child_info and child_info['enabled']:

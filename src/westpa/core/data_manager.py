@@ -59,6 +59,7 @@ from .segment import Segment
 from .states import BasisState, TargetState, InitialState
 from .we_driver import NewWeightEntry
 from .propagators.executable import ExecutablePropagator
+from .h5io import WESTIterationFile
 
 import westpa
 
@@ -1191,6 +1192,8 @@ class WESTDataManager:
         for propagating the simulation. ``basis_states`` and ``initial_states`` should be provided if the
         segments are newly created'''
 
+        westpa.rc.pstatus("Preparing segment restarts!")
+
         if not self.store_h5:
             return
 
@@ -1213,16 +1216,51 @@ class WESTDataManager:
                 parent = Segment(n_iter=segment.n_iter - 1, seg_id=segment.parent_id)
 
             try:
-                parent_iter_ref_h5_file = makepath(self.iter_ref_h5_template, {'n_iter': parent.n_iter})
 
-                with h5io.WESTIterationFile(parent_iter_ref_h5_file, 'r') as outf:
-                    outf.read_restart(parent)
+                if segment.parent_id < 0 and basis_state.auxref[:4] == 'hdf:':
+                    westpa.rc.pstatus(f"Parent bstate auxref is {basis_state.auxref}")
+                    _, h5path, iteration, seg_id = basis_state.auxref.split(':')
 
-                segment.data['iterh5/restart'] = parent.data['iterh5/restart']
+                    westpa.rc.pstatus(f"\n\t Looking for segment {seg_id} in iteration {iteration} of h5file {h5path}")
+
+                    with h5py.File(h5path, 'r') as prev_h5:
+                        # TODO: Don't hard-code groups
+                        iter_group = f'iterations/iter_{int(iteration):08d}'
+                        iter_h5 = prev_h5[iter_group]['trajectories']
+
+                        with WESTIterationFile(iter_h5.file.filename) as iterh5file:
+
+                            westpa.rc.pstatus(
+                                f"Attempting to read restart data from {iter_group}/trajectories "
+                                f"in {iter_h5} "
+                                f"of {iter_h5.file.filename}"
+                            )
+
+                            # The segment we're looking for as the start-state is not the segment we have now -- the
+                            #   seg_id and iteration correspond to this basis/start-states seg_id and iteration in the
+                            #   simulation it was generated from.
+                            # We make a dummy segment with those, populate the restart data, then copy the restart
+                            #   data to the actual segment.
+                            bstate_segment = Segment(n_iter=iteration, seg_id=seg_id)
+                            iterh5file.read_restart(bstate_segment)
+                            segment.data['iterh5/restart'] = bstate_segment.data['iterh5/restart']
+
+                else:
+
+                    parent_iter_ref_h5_file = makepath(self.iter_ref_h5_template, {'n_iter': parent.n_iter})
+                    with h5io.WESTIterationFile(parent_iter_ref_h5_file, 'r') as outf:
+                        outf.read_restart(parent)
+
+                    segment.data['iterh5/restart'] = parent.data['iterh5/restart']
+
+                    westpa.rc.pstatus(f"Successfully read parent data from {parent_iter_ref_h5_file}")
+
             except h5io.NoRestartError as e:
+                raise e
                 # Segment did not contain restart data
                 log.debug('No restart data provided for segment {}/{}: {}'.format(segment.n_iter, segment.seg_id, str(e)))
             except Exception as e:
+                raise e
                 # Segment contained restart data, but there was a problem loading it
                 log.error('Error preparing restart data for segment {}/{}: {}'.format(segment.n_iter, segment.seg_id, str(e)))
 
