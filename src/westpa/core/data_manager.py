@@ -596,7 +596,6 @@ class WESTDataManager:
             steps_per_seg = westpa.rc.config.get(['west', 'system', 'system_options', 'pcoord_len']) - 1
 
             # For the ibstates in iter 0, just link to the ibstates iteration H5 file and do nothing else.
-            # TODO: These aren't written correctly for SynD? Is that a problem with SynD, or in the H5 framework?
             if n_iter == 0:
                 return
 
