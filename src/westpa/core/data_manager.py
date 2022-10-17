@@ -633,7 +633,18 @@ class WESTDataManager:
 
                 # If all the segments have been processed, create the virtual dataset of sorted segments
                 with h5py.File(iter_ref_h5_file, 'a') as outf:
-                    outf.create_virtual_dataset('/sorted_segment_trajectories', iter_layout, fillvalue=-1)
+
+                    # TODO: Cleaner way of handling this error -- can probably delete the dataset without
+                    #   raising an error at all, and replace it with the new one, but we have to check earlier on.
+                    try:
+                        outf.create_virtual_dataset('/sorted_segment_trajectories', iter_layout, fillvalue=-1)
+                    except ValueError as e:
+
+                        raise ValueError(
+                            "If you're seeing this error, it's likely you've initialized a new WE run while "
+                            "traj_segs/iter_*.h5 from a prior run still exist. "
+                            "If that's the case, try deleting the contents of your traj_segs folder and run again."
+                        ) from e
 
     def get_basis_states(self, n_iter=None):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
