@@ -13,7 +13,6 @@ on:
   pull_request:
     branches:
       - 'westpa2'
-      - 'develop'
   release:
     types:
       - published
