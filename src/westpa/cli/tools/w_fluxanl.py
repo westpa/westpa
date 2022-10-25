@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 from scipy.signal import fftconvolve
+from warnings import warn
 
 import westpa
 
@@ -369,6 +370,7 @@ the true value of ``tau``.
 
 
 def entry_point():
+    warn('w_fluxanl is being deprecated.  Please use w_assign and w_direct instead.')
     WFluxanlTool().main()
 
 
