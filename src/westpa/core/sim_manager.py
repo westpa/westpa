@@ -176,7 +176,7 @@ class WESimManager:
         norm = seg_probs.sum()
 
         target_n_segments = sum(target_counts)
-        assert abs(1 - norm) < EPS * (target_n_segments + n_active_bins)
+        assert abs(1 - norm) < 10 * (EPS * (target_n_segments + n_active_bins))
 
         min_seg_prob = seg_probs[seg_probs != 0].min()
         max_seg_prob = seg_probs.max()
