@@ -7,5 +7,6 @@ version: 2
 updates:
   - package-ecosystem: "github-actions" # See documentation for possible values
     directory: "/" # Location of package manifests
+    target-branch: "develop" # PRs go to develop instead.
     schedule:
       interval: "monthly"
