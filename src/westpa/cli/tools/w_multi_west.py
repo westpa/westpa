@@ -4,7 +4,7 @@ import pickle
 
 log = logging.getLogger(__name__)
 from westpa.tools.core import WESTTool
-from westpa.core.data_manager import n_iter_dtype
+from westpa.core.data_manager import n_iter_dtype, istate_dtype
 from westpa.tools.progress import ProgressIndicatorComponent
 from westpa.core import h5io
 from westpa.tools.core import WESTMultiTool
@@ -205,7 +205,7 @@ Command-line options
                     try:
                         check[0] = np.array_equal(bstate_index, west['ibstates/0/bstate_index'][:])
                         check[1] = np.array_equal(bstate_pcoord, west['ibstates/0/bstate_pcoord'][:])
-                        if not numpy.all(check):
+                        if not np.all(check):
                             print(f'File {ifile} used different bstates than the first file. Will skip exporting ibstates dataset.')
                             self.ibstates = False
                     except NameError:
@@ -213,12 +213,12 @@ Command-line options
                         bstate_pcoord = west['ibstates/0/bstate_pcoord'][:]  # noqa: F841
 
                     # Check to see if the istates dataset is the same...
-                    try:
-                        if not np.array_equal(istate_pcoord, west['ibstates/0/istate_pcoord'][:]):  # noqa: F821
-                            self.istate = False
-                            self.ibstates = False
-                    except UnboundLocalError:
-                        istate_pcoord = west['ibstates/0/istate_pcoord'][:]  # noqa: F841
+                    # try:
+                    #    if not np.array_equal(istate_pcoord, west['ibstates/0/istate_pcoord'][:]):  # noqa: F821
+                    #        self.istate = False
+                    #        self.ibstates = False
+                    # except UnboundLocalError:
+                    #    istate_pcoord = west['ibstates/0/istate_pcoord'][:]  # noqa: F841
 
             start_point = []
             self.source_sinks = list(set(self.source_sinks))
@@ -240,14 +240,23 @@ Command-line options
             if self.ibstates:
                 # Copying the ibstates group from the first file as base...
                 self.output_file.copy(self.westH5[1]['ibstates'], self.output_file)
+                del self.output_file['ibstates/0/istate_pcoord']
+                del self.output_file['ibstates/0/istate_index']
 
                 for ifile, (key, west) in enumerate(self.westH5.items()):
                     if ifile == 0:
-                        pass
+                        final_istate_index = west['ibstates/0/istate_index']
+                        final_istate_pcoord = west['ibstates/0/istate_pcoord']
                     else:
-                        self.output_file['ibstates/0/istate_index']['iter_used', :] += west['ibstates/0/istate_index'][
-                            'iter_used', :
-                        ]
+                        final_istate_index = np.append(final_istate_index, west['ibstates/0/istate_index'][:])
+                        final_istate_pcoord = np.append(final_istate_pcoord, west['ibstates/0/istate_pcoord'][:])
+                        # self.output_file['ibstates/0/istate_index']['iter_used', :] += west['ibstates/0/istate_index'][
+                        #    'iter_used', :
+                        # ]
+                # final_istate_index['basis_auxref'] = final_istate_index['basis_auxref'].astype(vstr_datatype)
+                # self.output_file['ibstates/0/istate_index'] = final_istate_index
+                self.output_file['ibstates/0'].create_dataset('istate_index', data=final_istate_index, dtype=istate_dtype)
+                self.output_file['ibstates/0'].create_dataset('istate_pcoord', data=final_istate_pcoord)
 
             for iter in range(self.niters):
                 # We have the following datasets in each iteration:
