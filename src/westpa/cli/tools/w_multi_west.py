@@ -235,7 +235,7 @@ Command-line options
                 del self.output_file['ibstates/0/istate_pcoord']
                 del self.output_file['ibstates/0/istate_index']
 
-                # Combining athe rest of the istate datasets
+                # Combining the rest of the istate datasets
                 for ifile, (key, west) in enumerate(self.westH5.items()):
                     if ifile == 0:
                         final_istate_index = west['ibstates/0/istate_index']
