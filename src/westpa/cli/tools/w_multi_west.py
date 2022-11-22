@@ -212,14 +212,6 @@ Command-line options
                         bstate_index = west['ibstates/0/bstate_index'][:]  # noqa: F841
                         bstate_pcoord = west['ibstates/0/bstate_pcoord'][:]  # noqa: F841
 
-                    # Check to see if the istates dataset is the same...
-                    # try:
-                    #    if not np.array_equal(istate_pcoord, west['ibstates/0/istate_pcoord'][:]):  # noqa: F821
-                    #        self.istate = False
-                    #        self.ibstates = False
-                    # except UnboundLocalError:
-                    #    istate_pcoord = west['ibstates/0/istate_pcoord'][:]  # noqa: F841
-
             start_point = []
             self.source_sinks = list(set(self.source_sinks))
             # We'll need a global list of walkers to add to and take care of during the next round of simulations, as well as the current one.
@@ -238,11 +230,12 @@ Command-line options
             # self.output_file.close()
 
             if self.ibstates:
-                # Copying the ibstates group from the first file as base...
+                # Copying the ibstates group from the first file as base
                 self.output_file.copy(self.westH5[1]['ibstates'], self.output_file)
                 del self.output_file['ibstates/0/istate_pcoord']
                 del self.output_file['ibstates/0/istate_index']
 
+                # Combining athe rest of the istate datasets
                 for ifile, (key, west) in enumerate(self.westH5.items()):
                     if ifile == 0:
                         final_istate_index = west['ibstates/0/istate_index']
@@ -250,17 +243,14 @@ Command-line options
                     else:
                         final_istate_index = np.append(final_istate_index, west['ibstates/0/istate_index'][:])
                         final_istate_pcoord = np.append(final_istate_pcoord, west['ibstates/0/istate_pcoord'][:])
-                        # self.output_file['ibstates/0/istate_index']['iter_used', :] += west['ibstates/0/istate_index'][
-                        #    'iter_used', :
-                        # ]
-                # final_istate_index['basis_auxref'] = final_istate_index['basis_auxref'].astype(vstr_datatype)
-                # self.output_file['ibstates/0/istate_index'] = final_istate_index
+
+                # Saving them into self.output_file
                 self.output_file['ibstates/0'].create_dataset('istate_index', data=final_istate_index, dtype=istate_dtype)
                 self.output_file['ibstates/0'].create_dataset('istate_pcoord', data=final_istate_pcoord)
 
             for iter in range(self.niters):
                 # We have the following datasets in each iteration:
-                # ibstates, which aren't important.
+                # ibstates, which can now be combined with --ibstates
                 # pcoord
                 # seg_index
                 # wtgraph
@@ -343,6 +333,7 @@ Command-line options
                 # We need to weight everything by 1/N, then just normalize if that normalization was wrong.  Keep the relative weights sane.
                 # ... or actually, no, that's fine, nevermind, what's wrong with me?  But we'll leave it in for now.
 
+                # Normalize weight of each iteration, done unless specified not to.
                 if not self.reweight:
                     mseg['weight'] /= mseg['weight'].sum()
 
@@ -354,6 +345,7 @@ Command-line options
                 curr_iter = self.output_file.create_group('iterations/iter_{0:08d}'.format(iter))
                 curr_iter.attrs['n_iter'] = iter
 
+                # Hard-link ibstates dataset to the main one
                 if self.ibstates:
                     curr_iter['ibstates'] = self.output_file['ibstates/0']
 
