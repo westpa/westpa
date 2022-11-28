@@ -21,6 +21,7 @@ from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
 
 from westpa.core.trajectory import load_trajectory
+from westpa.core.h5io import safe_extract
 
 log = logging.getLogger(__name__)
 
@@ -119,26 +120,8 @@ def restart_writer(path, segment):
 
         d = BytesIO(restart[:-1])  # remove tail protection
         with tarfile.open(fileobj=d, mode='r:gz') as t:
-
-            def is_within_directory(directory, target):
-
-                abs_directory = os.path.abspath(directory)
-                abs_target = os.path.abspath(target)
-
-                prefix = os.path.commonprefix([abs_directory, abs_target])
-
-                return prefix == abs_directory
-
-            def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-
-                for member in tar.getmembers():
-                    member_path = os.path.join(path, member.name)
-                    if not is_within_directory(path, member_path):
-                        raise Exception("Attempted Path Traversal in Tar File")
-
-                tar.extractall(path, members, numeric_owner=numeric_owner)
-
             safe_extract(t, path=path)
+
     except ValueError as e:
         log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
         d = BytesIO()
