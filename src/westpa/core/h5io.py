@@ -491,7 +491,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
             frame_slice = slice(None)
             self._frame_index += frame_slice.stop - frame_slice.start
         else:
-            frame_slice = ensure_type(frame_indices, dtype=np.int, ndim=1, name='frame_indices', warn_on_cast=False)
+            frame_slice = ensure_type(frame_indices, dtype=int, ndim=1, name='frame_indices', warn_on_cast=False)
             if not np.all(frame_slice < self._handle.root.coordinates.shape[0]):
                 raise ValueError(
                     'As a zero-based index, the entries in '
@@ -506,7 +506,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
             # get all of the atoms
             atom_slice = slice(None)
         else:
-            atom_slice = ensure_type(atom_indices, dtype=np.int, ndim=1, name='atom_indices', warn_on_cast=False)
+            atom_slice = ensure_type(atom_indices, dtype=int, ndim=1, name='atom_indices', warn_on_cast=False)
             if not np.all(atom_slice < self._handle.root.coordinates.shape[1]):
                 raise ValueError(
                     'As a zero-based index, the entries in '
