@@ -61,7 +61,7 @@ class UncertContainer:
         if isinstance(vals, ma.core.MaskedConstant):
             dum = np.zeros((1,))
             return UncertContainer(dum.copy(), dum.copy(), dum.copy())
-        elif isinstance(vals, (float, int, np.float, np.int)):
+        elif isinstance(vals, (float, int, np.floating, np.integer)):
             return UncertContainer(np.array([vals]), np.array([dmin]), np.array([dmax]))
         elif isinstance(vals, np.ndarray):
             return UncertContainer(vals, dmin, dmax, mask=vals.mask)
@@ -90,7 +90,7 @@ class UncertContainer:
             dmax = self.dmax + value.dmax
 
             return UncertContainer(vals, dmin, dmax, mask=vals.mask)
-        elif isinstance(value, (float, int, np.float, np.int)):
+        elif isinstance(value, (float, int, np.floating, np.integer)):
             vals = self.vals + value
             dmin = self.dmin + value
             dmax = self.dmax + value
@@ -117,7 +117,7 @@ class UncertContainer:
 
             return UncertContainer(vals, dmin, dmax, mask=vals.mask)
 
-        elif isinstance(value, (float, int, np.float, np.int)):
+        elif isinstance(value, (float, int, np.floating, np.integer)):
             vals = self.vals * value
             dmin = self.dmin * value
             dmax = self.dmax * value
@@ -237,7 +237,7 @@ class UncertContainer:
 
         dev = 0.5 * np.sqrt(dsum / (norm * neff))
 
-        if isinstance(avg, (float, np.float)):
+        if isinstance(avg, (float, np.floating)):
             avg = avg_ex
 
         tmp_min = avg - dev

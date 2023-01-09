@@ -11,7 +11,7 @@ class ClusterList:
         self.ratios = ratios
 
         # Create an array to hold bin assignments and initial set all to -1 == not clustered
-        self.bin_assign = np.empty((nbins,), dtype=np.int)
+        self.bin_assign = np.empty((nbins,), dtype=int)
         self.bin_assign.fill(-1)
 
         # Initialize an ucert container to hold per bin information; initially mask all elements
