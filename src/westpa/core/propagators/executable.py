@@ -153,6 +153,18 @@ def seglog_loader(fieldname, log_file, segment, single_point):
         d.close()
 
 
+# Dictionary with all the possible loaders
+data_loaders = {
+    'default': aux_data_loader,
+    'auxdata_loader': aux_data_loader,
+    'aux_data_loader': aux_data_loader,
+    'npy_loader': npy_data_loader,
+    'npy_data_loader': npy_data_loader,
+    'pickle_loader': pickle_data_loader,
+    'pickle_data_loader': pickle_data_loader,
+}
+
+
 class ExecutablePropagator(WESTPropagator):
     ENV_CURRENT_ITER = 'WEST_CURRENT_ITER'
 
@@ -278,21 +290,17 @@ class ExecutablePropagator(WESTPropagator):
                 dsinfo['enabled'] = True
 
             loader_directive = dsinfo.get('loader')
-            if loader_directive:
-                if loader_directive == 'default':
-                    if dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
-                        loader = aux_data_loader
-                elif loader_directive == 'npy_loader':
-                    loader = npy_data_loader
-                elif loader_directive == 'pickle_loader':
-                    loader = pickle_data_loader
+            if callable(loader_directive):
+                loader = loader_directive
+            elif loader_directive in data_loaders.keys():
+                if dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
+                    loader = data_loaders[loader_directive]
                 else:
                     loader = get_object(loader_directive)
-                dsinfo['loader'] = loader
             elif dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
                 loader = aux_data_loader
-                dsinfo['loader'] = loader
 
+            dsinfo['loader'] = loader
             self.data_info.setdefault(dsname, {}).update(dsinfo)
 
         log.debug('data_info: {!r}'.format(self.data_info))
