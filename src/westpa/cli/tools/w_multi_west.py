@@ -176,6 +176,7 @@ Command-line options
             westh5 = []
             self.source_sinks = []
             self.n_sims = {}
+            istate_addition = [0]
             for ifile, (key, west) in enumerate(self.westH5.items()):
                 d = {'west': west, 'wm': None, 'rt': None, 'remove_next_cycle': [], 'seg_index': None}
                 # We're getting the bin mapper, then setting the recycling target...
@@ -199,6 +200,8 @@ Command-line options
                     self.niters = west.attrs['west_current_iteration'] - 1
                 else:
                     self.niters = min(west.attrs['west_current_iteration'] - 1, self.niters)
+
+                istate_addition.append(istate_addition[-1] + len(west['ibstates/0/istate_index']))
                 # Check to see if all the bstates are identical
                 if self.ibstates:
                     check = [False, False]  # Assuming they're false, so not accidentally outputing anything that errors out.
@@ -309,7 +312,7 @@ Command-line options
                         else:
                             addition = mseg.shape[0]
                         seg_index['parent_id'][np.where(seg_index['parent_id'] >= 0)] += addition
-                        seg_index['parent_id'][np.where(seg_index['parent_id'] < 0)] -= addition
+                        seg_index['parent_id'][np.where(seg_index['parent_id'] < 0)] -= istate_addition[ifile]
                         seg_index['wtg_offset'] += mwtg.shape[0]
                         start_point.append(mseg.shape[0])
                         wtgraph += mwtg.shape[0]
