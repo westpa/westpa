@@ -1,27 +1,10 @@
-# Copyright (C) 2013 Matthew C. Zwier and Lillian T. Chong
-#
-# This file is part of WESTPA.
-#
-# WESTPA is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# WESTPA is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with WESTPA.  If not, see <http://www.gnu.org/licenses/>.
-
 import logging
 import numpy as np
 import pickle
 
 log = logging.getLogger(__name__)
 from westpa.tools.core import WESTTool
-from westpa.core.data_manager import n_iter_dtype
+from westpa.core.data_manager import n_iter_dtype, istate_dtype
 from westpa.tools.progress import ProgressIndicatorComponent
 from westpa.core import h5io
 from westpa.tools.core import WESTMultiTool
@@ -126,6 +109,9 @@ Command-line options
         iogroup.add_argument('-a', '--aux', action='append', help='''Names of additional auxiliary datasets to be combined''')
         iogroup.add_argument('-aa', '--auxall', action='store_true', help='''Combine all auxiliary datasets. Default: False''')
         iogroup.add_argument('-nr', '--no-reweight', action='store_true', help='''Do not reweight. Default: False''')
+        iogroup.add_argument(
+            '-ib', '--ibstates', action='store_true', help='''Attempt to combine ibstates dataset. Default: False'''
+        )
 
     def open_files(self):
         self.output_file = h5io.WESTPAH5File(self.output_file, 'w', creating_program=True)
@@ -150,6 +136,7 @@ Command-line options
         self.aux = args.aux
         self.auxall = args.auxall
         self.reweight = args.no_reweight
+        self.ibstates = args.ibstates
 
     def total_number_of_walkers(self):
         self.total_walkers = [0] * self.niters
@@ -169,6 +156,7 @@ Command-line options
 
     def go(self):
         pi = self.progress.indicator
+        self.istates = True  # Assume serendipitously istates is same between runs...
         with pi:
             pi.new_operation('Initializing')
             self.open_files()
@@ -188,6 +176,7 @@ Command-line options
             westh5 = []
             self.source_sinks = []
             self.n_sims = {}
+            istate_addition = [0]
             for ifile, (key, west) in enumerate(self.westH5.items()):
                 d = {'west': west, 'wm': None, 'rt': None, 'remove_next_cycle': [], 'seg_index': None}
                 # We're getting the bin mapper, then setting the recycling target...
@@ -211,6 +200,21 @@ Command-line options
                     self.niters = west.attrs['west_current_iteration'] - 1
                 else:
                     self.niters = min(west.attrs['west_current_iteration'] - 1, self.niters)
+
+                istate_addition.append(istate_addition[-1] + len(west['ibstates/0/istate_index']))
+                # Check to see if all the bstates are identical
+                if self.ibstates:
+                    check = [False, False]  # Assuming they're false, so not accidentally outputing anything that errors out.
+                    try:
+                        check[0] = np.array_equal(bstate_index, west['ibstates/0/bstate_index'][:])
+                        check[1] = np.array_equal(bstate_pcoord, west['ibstates/0/bstate_pcoord'][:])
+                        if not np.all(check):
+                            print(f'File {ifile} used different bstates than the first file. Will skip exporting ibstates dataset.')
+                            self.ibstates = False
+                    except NameError:
+                        bstate_index = west['ibstates/0/bstate_index'][:]  # noqa: F841
+                        bstate_pcoord = west['ibstates/0/bstate_pcoord'][:]  # noqa: F841
+
             start_point = []
             self.source_sinks = list(set(self.source_sinks))
             # We'll need a global list of walkers to add to and take care of during the next round of simulations, as well as the current one.
@@ -227,9 +231,29 @@ Command-line options
             print(pi.new_operation('Recreating...', self.niters))
             # tracker = SummaryTracker()
             # self.output_file.close()
+
+            if self.ibstates:
+                # Copying the ibstates group from the first file as base
+                self.output_file.copy(self.westH5[1]['ibstates'], self.output_file)
+                del self.output_file['ibstates/0/istate_pcoord']
+                del self.output_file['ibstates/0/istate_index']
+
+                # Combining the rest of the istate datasets
+                for ifile, (key, west) in enumerate(self.westH5.items()):
+                    if ifile == 0:
+                        final_istate_index = west['ibstates/0/istate_index']
+                        final_istate_pcoord = west['ibstates/0/istate_pcoord']
+                    else:
+                        final_istate_index = np.append(final_istate_index, west['ibstates/0/istate_index'][:])
+                        final_istate_pcoord = np.append(final_istate_pcoord, west['ibstates/0/istate_pcoord'][:])
+
+                # Saving them into self.output_file
+                self.output_file['ibstates/0'].create_dataset('istate_index', data=final_istate_index, dtype=istate_dtype)
+                self.output_file['ibstates/0'].create_dataset('istate_pcoord', data=final_istate_pcoord)
+
             for iter in range(self.niters):
                 # We have the following datasets in each iteration:
-                # ibstates, which aren't important.
+                # ibstates, which can now be combined with --ibstates
                 # pcoord
                 # seg_index
                 # wtgraph
@@ -253,6 +277,7 @@ Command-line options
                     seg_index = westdict['iterations/iter_{0:08d}'.format(iter)]['seg_index'][...]
                     pcoord = westdict['iterations/iter_{0:08d}'.format(iter)]['pcoord'][...]
                     wtgraph = westdict['iterations/iter_{0:08d}'.format(iter)]['wtgraph'][...]
+                    # new_weight = westdict['iterations/iter_{0:08d}'.format(iter)]['new_weight'][...]
                     if self.aux:
                         auxdata = {}
                         for i in self.aux:
@@ -287,7 +312,7 @@ Command-line options
                         else:
                             addition = mseg.shape[0]
                         seg_index['parent_id'][np.where(seg_index['parent_id'] >= 0)] += addition
-                        seg_index['parent_id'][np.where(seg_index['parent_id'] < 0)] -= addition
+                        seg_index['parent_id'][np.where(seg_index['parent_id'] < 0)] -= istate_addition[ifile]
                         seg_index['wtg_offset'] += mwtg.shape[0]
                         start_point.append(mseg.shape[0])
                         wtgraph += mwtg.shape[0]
@@ -311,6 +336,7 @@ Command-line options
                 # We need to weight everything by 1/N, then just normalize if that normalization was wrong.  Keep the relative weights sane.
                 # ... or actually, no, that's fine, nevermind, what's wrong with me?  But we'll leave it in for now.
 
+                # Normalize weight of each iteration, done unless specified not to.
                 if not self.reweight:
                     mseg['weight'] /= mseg['weight'].sum()
 
@@ -321,6 +347,11 @@ Command-line options
 
                 curr_iter = self.output_file.create_group('iterations/iter_{0:08d}'.format(iter))
                 curr_iter.attrs['n_iter'] = iter
+
+                # Hard-link ibstates dataset to the main one
+                if self.ibstates:
+                    curr_iter['ibstates'] = self.output_file['ibstates/0']
+
                 ds_rate_evol = curr_iter.create_dataset('wtgraph', data=mwtg, shuffle=True, compression=9)
                 ds_rate_evol = curr_iter.create_dataset('seg_index', data=mseg, shuffle=True, compression=9)
                 ds_rate_evol = curr_iter.create_dataset('pcoord', data=mpco, shuffle=True, compression=9)

@@ -9,7 +9,7 @@ Overview
 usage::
 
  w_multi_west [-h] [-m master] [-n sims] [--quiet | --verbose | --debug] [--version] 
-              [-W WEST_H5FILE] [-a aux] [--auxall]
+              [-W WEST_H5FILE] [-a aux] [--auxall] [--ibstates]
               [--serial | --parallel | --work-manager WORK_MANAGER] [--n-workers N_WORKERS]
               [--zmq-mode MODE] [--zmq-comm-mode COMM_MODE] [--zmq-write-host-info INFO_FILE]
               [--zmq-read-host-info INFO_FILE] [--zmq-upstream-rr-endpoint ENDPOINT]
@@ -63,6 +63,10 @@ Both input and output files are *hdf5* format::
 
   -nr, --no-reweight
     Do not perform reweighting. (Default: False)
+
+  -ib, --ibstates
+    Attempt to combine ``ibstates`` dataset if the basis states are identical across 
+    all simulations. Needed when tracing with ``westpa.analysis``. (Default: False)
 
 Examples
 --------

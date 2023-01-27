@@ -100,6 +100,26 @@ def tostr(b):
         return str(b)
 
 
+def is_within_directory(directory, target):
+
+    abs_directory = os.path.abspath(directory)
+    abs_target = os.path.abspath(target)
+
+    prefix = os.path.commonprefix([abs_directory, abs_target])
+
+    return prefix == abs_directory
+
+
+def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+
+    for member in tar.getmembers():
+        member_path = os.path.join(path, member.name)
+        if not is_within_directory(path, member_path):
+            raise Exception("Attempted Path Traversal in Tar File")
+
+    tar.extractall(path, members, numeric_owner=numeric_owner)
+
+
 #
 # Group and dataset manipulation functions
 #
@@ -471,7 +491,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
             frame_slice = slice(None)
             self._frame_index += frame_slice.stop - frame_slice.start
         else:
-            frame_slice = ensure_type(frame_indices, dtype=np.int, ndim=1, name='frame_indices', warn_on_cast=False)
+            frame_slice = ensure_type(frame_indices, dtype=int, ndim=1, name='frame_indices', warn_on_cast=False)
             if not np.all(frame_slice < self._handle.root.coordinates.shape[0]):
                 raise ValueError(
                     'As a zero-based index, the entries in '
@@ -486,7 +506,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
             # get all of the atoms
             atom_slice = slice(None)
         else:
-            atom_slice = ensure_type(atom_indices, dtype=np.int, ndim=1, name='atom_indices', warn_on_cast=False)
+            atom_slice = ensure_type(atom_indices, dtype=int, ndim=1, name='atom_indices', warn_on_cast=False)
             if not np.all(atom_slice < self._handle.root.coordinates.shape[1]):
                 raise ValueError(
                     'As a zero-based index, the entries in '

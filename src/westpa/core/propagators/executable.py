@@ -21,6 +21,7 @@ from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
 
 from westpa.core.trajectory import load_trajectory
+from westpa.core.h5io import safe_extract
 
 log = logging.getLogger(__name__)
 
@@ -119,7 +120,8 @@ def restart_writer(path, segment):
 
         d = BytesIO(restart[:-1])  # remove tail protection
         with tarfile.open(fileobj=d, mode='r:gz') as t:
-            t.extractall(path=path)
+            safe_extract(t, path=path)
+
     except ValueError as e:
         log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
         d = BytesIO()
@@ -149,6 +151,18 @@ def seglog_loader(fieldname, log_file, segment, single_point):
         log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
     finally:
         d.close()
+
+
+# Dictionary with all the possible loaders
+data_loaders = {
+    'default': aux_data_loader,
+    'auxdata_loader': aux_data_loader,
+    'aux_data_loader': aux_data_loader,
+    'npy_loader': npy_data_loader,
+    'npy_data_loader': npy_data_loader,
+    'pickle_loader': pickle_data_loader,
+    'pickle_data_loader': pickle_data_loader,
+}
 
 
 class ExecutablePropagator(WESTPropagator):
@@ -276,21 +290,17 @@ class ExecutablePropagator(WESTPropagator):
                 dsinfo['enabled'] = True
 
             loader_directive = dsinfo.get('loader')
-            if loader_directive:
-                if loader_directive == 'default':
-                    if dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
-                        loader = aux_data_loader
-                elif loader_directive == 'npy_loader':
-                    loader = npy_data_loader
-                elif loader_directive == 'pickle_loader':
-                    loader = pickle_data_loader
+            if callable(loader_directive):
+                loader = loader_directive
+            elif loader_directive in data_loaders.keys():
+                if dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
+                    loader = data_loaders[loader_directive]
                 else:
                     loader = get_object(loader_directive)
-                dsinfo['loader'] = loader
             elif dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
                 loader = aux_data_loader
-                dsinfo['loader'] = loader
 
+            dsinfo['loader'] = loader
             self.data_info.setdefault(dsname, {}).update(dsinfo)
 
         log.debug('data_info: {!r}'.format(self.data_info))

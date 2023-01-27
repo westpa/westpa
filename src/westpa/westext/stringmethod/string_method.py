@@ -228,7 +228,7 @@ class DefaultStringMethod(WESTStringMethod):
             # if avgcoords has missing values fill them by linearly interpolating
             # present data
             if occupied[0].shape != N:
-                notocc = np.ones((N,), dtype=np.bool)  # unoccupied
+                notocc = np.ones((N,), dtype=bool)  # unoccupied
                 notocc[occupied] = False
 
                 # marked paired centers as occupied to avoid reseting averaged value if
