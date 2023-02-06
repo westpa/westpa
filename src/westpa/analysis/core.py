@@ -500,11 +500,7 @@ class Walker:
 
         return df.iloc[0]
 
-    @property
-    def parent(self):
-        """Walker or InitialState: The parent of the walker."""
-        parent_id = self.iteration.h5group['seg_index']['parent_id'][self.index]
-
+    def _create_parent_object(self, parent_id):
         if parent_id >= 0:
             return Walker(parent_id, self.iteration.prev)
 
@@ -531,6 +527,30 @@ class Walker:
         )
 
     @property
+    def parent(self):
+        """Walker or InitialState: The parent of the walker."""
+        parent_id = self.iteration.h5group['seg_index']['parent_id'][self.index]
+
+        return self._create_parent_object(parent_id)
+
+    def _get_wtg_parent_ids(self):
+        all_parent_ids = self.iteration.h5group['wtgraph'][...]
+        seg_index = self.iteration.h5group['seg_index']
+        wtg_n_parents = seg_index['wtg_n_parents'][self.index]
+        wtg_offset = seg_index['wtg_offset'][self.index]
+        wtg_parent_ids = all_parent_ids[wtg_offset : wtg_offset + wtg_n_parents]
+
+        return set(wtg_parent_ids)
+
+    @property
+    def wtg_parents(self):
+        """Iterable[Walker or InitialState]: The wtg parents of the walker."""
+        wtg_parent_ids = self._get_wtg_parent_ids()
+
+        for pid in wtg_parent_ids:
+            yield self._create_parent_object(pid)
+
+    @property
     def children(self):
         """Iterable[Walker]: The children of the walker."""
         next = self.iteration.next
@@ -538,6 +558,27 @@ class Walker:
             return ()
         indices = np.flatnonzero(next.h5group['seg_index']['parent_id'] == self.index)
         return (Walker(index, next) for index in indices)
+
+    @property
+    def wtg_children(self):
+        """Iterable[Walker]: The wtg children of the walker."""
+        next = self.iteration.next
+        if next is None:
+            return ()
+
+        children = []
+        for walker in next:
+            if walker.initial:
+                # a walker can be initial while also have wtg_parents
+                # when its parents were merged and recycled in the last iteration
+                continue
+
+            wtg_parent_ids = walker._get_wtg_parent_ids()
+
+            if self.index in wtg_parent_ids:
+                children.append(walker)
+
+        return tuple(children)
 
     @property
     def recycled(self):
