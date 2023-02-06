@@ -205,7 +205,7 @@ class StringDriver:
                 for indx in uniq_indices:
                     avg_pos[indx, :] += pcoord_w[bin_indices == indx].sum(axis=0)
 
-                sum_bin_weight += np.bincount(bin_indices.astype(np.int), weights=weights, minlength=nbins)
+                sum_bin_weight += np.bincount(bin_indices.astype(int), weights=weights, minlength=nbins)
 
         # Some bins might have zero samples so exclude to avoid divide by zero
         occ_ind = np.nonzero(sum_bin_weight)

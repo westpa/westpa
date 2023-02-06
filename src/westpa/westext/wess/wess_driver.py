@@ -201,7 +201,7 @@ class WESSDriver:
 
         assert (
             abs(1 - np.fromiter(map(operator.attrgetter('weight'), bins), dtype=np.float64, count=n_bins).sum())
-            < EPS * np.fromiter(map(len, bins), dtype=np.int, count=n_bins).sum()
+            < EPS * np.fromiter(map(len, bins), dtype=int, count=n_bins).sum()
         )
 
         westpa.rc.pflush()

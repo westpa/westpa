@@ -12,5 +12,6 @@ westpa.cli package
     w_postanalysis_matrix    <deprecated/w_postanalysis_matrix>
     w_postanalysis_reweight  <deprecated/w_postanalysis_reweight>
     w_reweight               <deprecated/w_reweight>
+    w_fluxanl                <deprecated/w_fluxanl>
 
 

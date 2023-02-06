@@ -90,7 +90,7 @@ def mapper_from_hdf5(topol_group, hashval):
 def mapper_from_yaml(yamlfilename):
     import yaml
 
-    ydict = yaml.load(open(yamlfilename, 'rt'))
+    ydict = yaml.load(open(yamlfilename, 'rt'), Loader=yaml.Loader)
     ybins = ydict['bins']
     from westpa.core._rc import bins_from_yaml_dict
 
@@ -435,7 +435,7 @@ class BinMappingComponent(WESTToolComponent):
 
             if len(self.bin_target_counts) == 1:
                 flat_target_count = self.bin_target_counts
-                self.bin_target_counts = np.empty((self.mapper.nbins,), np.int)
+                self.bin_target_counts = np.empty((self.mapper.nbins,), int)
                 self.bin_target_counts[:] = flat_target_count
             log.debug('bin target counts = {!r}'.format(self.bin_target_counts))
 
