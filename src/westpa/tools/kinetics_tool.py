@@ -204,6 +204,13 @@ class AverageCommands(WESTKineticsBase):
         if not self.iter_range.check_data_iter_range_least(self.assignments_file):
             raise ValueError('assignments data do not span the requested iterations')
 
+    def close_files(self):
+        self.output_file.flush()
+        self.output_file.close()
+
+        self.assignments_file.close()
+        self.kinetics_file.close()
+
     def open_assignments(self):
         # Actually, I should rename this, as we're not OPENING assignments.
         # This seems to be stuff we're going to be using a lot, so.

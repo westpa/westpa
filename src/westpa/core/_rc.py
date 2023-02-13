@@ -161,7 +161,10 @@ class WESTRC:
         self.rcfile = os.environ.get(self.ENV_RUNTIME_CONFIG) or self.RC_DEFAULT_FILENAME
 
         self.config = YAMLConfig()
-        self.process_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+        try:
+            self.process_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+        except TypeError:
+            self.process_name = "unknown"
 
         # Crucial simulation and analysis drivers
         self._system = None

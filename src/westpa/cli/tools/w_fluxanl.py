@@ -288,7 +288,7 @@ the true value of ``tau``.
             #                                                     autocorrel_alpha=self.autocorrel_alpha, subsample=np.mean)
             avg, lb_ci, ub_ci, sterr, correl_len = mclib.mcbs_ci_correl(
                 {'dataset': fluxes},
-                estimator=(lambda stride, dataset: np.mean(dataset)),
+                estimator=mclib.arithmetic_average,
                 alpha=self.alpha,
                 n_sets=self.n_sets,
                 autocorrel_alpha=self.autocorrel_alpha,
@@ -341,7 +341,7 @@ the true value of ``tau``.
                 #                                                     subsample=np.mean)
                 avg, ci_lb, ci_ub, sterr, correl_len = mclib.mcbs_ci_correl(
                     {'dataset': fluxes},
-                    estimator=(lambda stride, dataset: np.mean(dataset)),
+                    estimator=mclib.arithmetic_average,
                     alpha=self.alpha,
                     n_sets=self.n_sets,
                     autocorrel_alpha=self.autocorrel_alpha,

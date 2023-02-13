@@ -3,6 +3,7 @@ YAML-based configuration files for WESTPA
 '''
 
 import os
+from typing import Type
 import warnings
 
 import yaml
