@@ -1128,7 +1128,8 @@ class WESTDataManager:
                         ds = None
 
                     if ds is not None:
-                        for (seg_id, segment) in enumerate(segments):
+                        for segment in segments:
+                            seg_id = segment.seg_id
                             segment.data[dsname] = ds[seg_id]
 
         return segments
