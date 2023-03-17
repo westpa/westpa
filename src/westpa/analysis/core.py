@@ -542,9 +542,23 @@ class Walker:
 
         return set(wtg_parent_ids)
 
-    @property
-    def wtg_parents(self):
-        """Iterable[Walker or InitialState]: The wtg parents of the walker."""
+    def get_wtg_parents(self, allow_recycled=True):
+        """
+        Iterable[Walker or InitialState]: The parents of the walker according to 
+        the weight transfer graph.
+
+        Parameters
+        ----------
+        allow_recycled : bool
+            A walker that is just created can have weight transfer parents
+            when the parents were merged and recycled in the last iteration.
+            Set to ``False`` to disallow returning weight transfer parents if 
+            the current walker was recycled in the last iteration.
+        """
+
+        if not allow_recycled and self.initial:
+            return
+
         wtg_parent_ids = self._get_wtg_parent_ids()
 
         for pid in wtg_parent_ids:
@@ -559,20 +573,28 @@ class Walker:
         indices = np.flatnonzero(next.h5group['seg_index']['parent_id'] == self.index)
         return (Walker(index, next) for index in indices)
 
-    @property
-    def wtg_children(self):
-        """Iterable[Walker]: The wtg children of the walker."""
+    def get_wtg_children(self, allow_recycled=True):
+        """
+        Iterable[Walker]: The children of the walker according to the weight transfer graph.
+
+        Parameters
+        ----------
+        allow_recycled : bool
+            A walker that is just created can have weight transfer parents
+            when the parents were merged and recycled in the last iteration.
+            Set to ``False`` to disallow returning weight transfer children 
+            if the current walker is recycled.
+        """
+
+        if not allow_recycled and self.recycled:
+            return tuple()
+
         next = self.iteration.next
         if next is None:
             return ()
 
         children = []
         for walker in next:
-            if walker.initial:
-                # a walker can be initial while also have wtg_parents
-                # when its parents were merged and recycled in the last iteration
-                continue
-
             wtg_parent_ids = walker._get_wtg_parent_ids()
 
             if self.index in wtg_parent_ids:
