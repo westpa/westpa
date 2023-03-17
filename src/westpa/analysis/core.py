@@ -552,7 +552,7 @@ class Walker:
         allow_recycled : bool
             A walker that is just created can have weight transfer parents
             when the parents were merged and recycled in the last iteration.
-            Set to ``False`` to disallow returning weight transfer parents if 
+            Set to ``False`` to disallow returning weight transfer parents if
             the current walker was recycled in the last iteration.
         """
 
@@ -582,7 +582,7 @@ class Walker:
         allow_recycled : bool
             A walker that is just created can have weight transfer parents
             when the parents were merged and recycled in the last iteration.
-            Set to ``False`` to disallow returning weight transfer children 
+            Set to ``False`` to disallow returning weight transfer children
             if the current walker is recycled.
         """
 
