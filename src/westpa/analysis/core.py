@@ -544,7 +544,7 @@ class Walker:
 
     def get_wtg_parents(self, allow_recycled=True):
         """
-        Iterable[Walker or InitialState]: The parents of the walker according to 
+        Iterable[Walker or InitialState]: The parents of the walker according to
         the weight transfer graph.
 
         Parameters
