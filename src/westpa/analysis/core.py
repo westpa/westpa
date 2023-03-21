@@ -542,21 +542,24 @@ class Walker:
 
         return set(wtg_parent_ids)
 
-    def get_wtg_parents(self, allow_recycled=True):
+    def get_wtg_parents(self, include_recycling_events=True):
         """
-        Iterable[Walker or InitialState]: The parents of the walker according to
-        the weight transfer graph.
+        Return the parents of the walker according to the weight transfer graph.
 
         Parameters
         ----------
-        allow_recycled : bool
-            A walker that is just created can have weight transfer parents
-            when the parents were merged and recycled in the last iteration.
-            Set to ``False`` to disallow returning weight transfer parents if
-            the current walker was recycled in the last iteration.
+        include_recycling_events : bool, default True
+            Whether to include weight transfers from recycled walkers to initial
+            walkers.
+
+        Returns
+        -------
+        Iterable[Walker or InitialState]
+            The parents of the walker.
+
         """
 
-        if not allow_recycled and self.initial:
+        if not include_recycling_events and self.initial:
             return
 
         wtg_parent_ids = self._get_wtg_parent_ids()
@@ -573,20 +576,24 @@ class Walker:
         indices = np.flatnonzero(next.h5group['seg_index']['parent_id'] == self.index)
         return (Walker(index, next) for index in indices)
 
-    def get_wtg_children(self, allow_recycled=True):
+    def get_wtg_children(self, include_recycling_events=True):
         """
-        Iterable[Walker]: The children of the walker according to the weight transfer graph.
+        Return the children of the walker according to the weight transfer graph.
 
         Parameters
         ----------
-        allow_recycled : bool
-            A walker that is just created can have weight transfer parents
-            when the parents were merged and recycled in the last iteration.
-            Set to ``False`` to disallow returning weight transfer children
-            if the current walker is recycled.
+        include_recycling_events : bool, default True
+            Whether to include weight transfers from recycled walkers to initial
+            walkers.
+
+        Returns
+        -------
+        Iterable[Walker]
+            The children of the walker.
+
         """
 
-        if not allow_recycled and self.recycled:
+        if not include_recycling_events and self.recycled:
             return tuple()
 
         next = self.iteration.next
