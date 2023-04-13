@@ -78,7 +78,10 @@ def create_idtype_array(input_array):
     '''Return a new array with the new istate_dtype while preserving old data.'''
     new_array = np.zeros(input_array.shape, dtype=istate_dtype)
     for j in input_array.dtype.names:
-        new_array[j] = input_array[j]
+        new_array[j] = input_array[j].copy()
+
+    # Need to turn 'basis_auxref' to empty bytestrings...
+    new_array['basis_auxref'] = b''
 
     return new_array
 
@@ -260,6 +263,8 @@ Command-line options
                             addition = create_idtype_array(addition)
                         final_istate_index = np.append(final_istate_index, addition)
                         final_istate_pcoord = np.append(final_istate_pcoord, west['ibstates/0/istate_pcoord'][:])
+
+                print(final_istate_index)
 
                 # Saving them into self.output_file
                 self.output_file['ibstates/0'].create_dataset('istate_index', data=final_istate_index, dtype=istate_dtype)
