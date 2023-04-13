@@ -264,8 +264,6 @@ Command-line options
                         final_istate_index = np.append(final_istate_index, addition)
                         final_istate_pcoord = np.append(final_istate_pcoord, west['ibstates/0/istate_pcoord'][:])
 
-                print(final_istate_index)
-
                 # Saving them into self.output_file
                 self.output_file['ibstates/0'].create_dataset('istate_index', data=final_istate_index, dtype=istate_dtype)
                 self.output_file['ibstates/0'].create_dataset('istate_pcoord', data=final_istate_pcoord)
