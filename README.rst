@@ -47,7 +47,7 @@ Wong, K.F., Xia, J., Copperman, J., Adelman, J.L., Zwier, M.C., LeBard, D.N., Zu
 WESTPA 2.0: High-Performance Upgrades for Weighted Ensemble Simulations and Analysis of Longer-Timescale Applications. 
 J. Chem. Theory Comput., 18 (2): 638–649 (2022).
 
-See this page_ and this powerpoint_ for an overview of weighted ensemble simulation.
+See this page_ for an overview of weighted ensemble simulation.
 
 To help us fund development and improve WESTPA please fill out a one-minute survey_ and consider 
 contributing documentation or code to the WESTPA community.
@@ -56,7 +56,6 @@ WESTPA is free software, licensed under the terms of the MIT License. See the fi
 
 .. _survey: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
 .. _page: https://westpa.github.io/westpa/overview.html
-.. _powerpoint: https://pitt.box.com/s/metui7tsfwh3bcv1xgbbj4g6fe0uokag
 
 ------------
 Requirements
@@ -64,7 +63,7 @@ Requirements
 
 WESTPA is written in Python and requires version 3.7 or later. WESTPA also requires a number of Python scientific software packages. 
 The simplest way to meet these requirements is to download the
-Anaconda Python distribution from www.continuum.io (free for all users).
+Anaconda Python distribution from www.anaconda.com (free for all users).
 
 WESTPA currently runs on Unix-like operating systems, including Linux and
 Mac OS X. It is developed and tested on x86_64 machines running Linux.
@@ -100,7 +99,7 @@ To install from source (**not recommended**), start by downloading the correspon
 
 .. _`releases page`: https://github.com/westpa/westpa/releases
 .. _`Anaconda Python distribution`: https://www.anaconda.com/products/individual
-.. _`wiki`: https://github.com/westpa/westpa/wiki/WESTPA-Quick-Installation
+.. _`wiki`: https://github.com/westpa/westpa/wiki/WESTPA-Quick-Install
 
 ---------------
 Getting started
@@ -131,8 +130,8 @@ if a question one has was previously addressed). This is the preferred means
 for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
 
-.. _FAQ: https://westpa.github.io/westpa/users_guide/faq.html
-
+.. _FAQ: https://westpa.readthedocs.io/en/latest/users_guide/faq.html
+ 
 ----------
 Developers
 ----------
