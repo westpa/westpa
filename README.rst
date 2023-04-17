@@ -14,13 +14,9 @@ WESTPA 2.0
          :target: https://westpa.readthedocs.io/en/latest/?badge=latest
          :alt: Documentation Status
 
-.. |tutorial1| image:: https://img.shields.io/badge/WESTPA-tutorials-brightgreen.svg
-        :target: https://github.com/westpa/westpa_tutorials 
+.. |tutorial2| image:: https://img.shields.io/badge/WESTPA-tutorials-blueviolet.svg
+        :target: https://github.com/westpa/tutorials
         :alt: WESTPA Tutorials GitHub
-
-.. |tutorial2| image:: https://img.shields.io/badge/WESTPA2-tutorials-blueviolet.svg
-        :target: https://github.com/westpa/westpa2_tutorials
-        :alt: WESTPA 2.0 Tutorials GitHub
 
 .. |usersgroup| image:: https://img.shields.io/badge/Google%20Group-Users-lightgrey.svg
         :target: http://groups.google.com/group/westpa-users 
