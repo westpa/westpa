@@ -2,7 +2,7 @@
 WESTPA 2.0 
 ===============
 
-|ghactions| |anaconda| |tutorial2| 
+|ghactions| |anaconda| |tutorial| 
 
 |docs| |usersgroup| |develgroup| 
 
