@@ -2,7 +2,7 @@
 WESTPA 2.0 
 ===============
 
-|ghactions| |anaconda| |tutorial1| |tutorial2| 
+|ghactions| |anaconda| |tutorial2| 
 
 |docs| |usersgroup| |develgroup| 
 
@@ -14,7 +14,7 @@ WESTPA 2.0
          :target: https://westpa.readthedocs.io/en/latest/?badge=latest
          :alt: Documentation Status
 
-.. |tutorial2| image:: https://img.shields.io/badge/WESTPA-tutorials-blueviolet.svg
+.. |tutorial| image:: https://img.shields.io/badge/WESTPA-tutorials-blueviolet.svg
         :target: https://github.com/westpa/tutorials
         :alt: WESTPA Tutorials GitHub
 
