@@ -1,34 +1,6 @@
-===============
-WESTPA 2.0 
-===============
-
-|ghactions| |anaconda| |tutorial| 
-
-|docs| |usersgroup| |develgroup| 
-
-.. |ghactions| image:: https://github.com/westpa/westpa/actions/workflows/test.yaml/badge.svg?branch=westpa-2.0-restruct
-              :target: https://github.com/westpa/westpa/actions/workflows/test.yaml
-              :alt: GitHub Actions
-
-.. |docs| image:: https://readthedocs.org/projects/westpa/badge/?version=latest
-         :target: https://westpa.readthedocs.io/en/latest/?badge=latest
-         :alt: Documentation Status
-
-.. |tutorial| image:: https://img.shields.io/badge/WESTPA-tutorials-blueviolet.svg
-        :target: https://github.com/westpa/tutorials
-        :alt: WESTPA Tutorials GitHub
-
-.. |usersgroup| image:: https://img.shields.io/badge/Google%20Group-Users-lightgrey.svg
-        :target: http://groups.google.com/group/westpa-users 
-        :alt: Users Google Group
-
-.. |develgroup| image:: https://img.shields.io/badge/Google%20Group-Developers-lightgrey.svg
-        :target: https://groups.google.com/g/westpa-devel 
-        :alt: Developers Google Group
-
-.. |anaconda| image:: https://anaconda.org/conda-forge/westpa/badges/version.svg
-   :alt: Anaconda
-   :target: https://anaconda.org/conda-forge/westpa
+==========
+WESTPA 2.0
+==========
 
 
 --------
@@ -56,15 +28,16 @@ WESTPA is free software, licensed under the terms of the MIT License. See the fi
 
 .. _survey: https://docs.google.com/forms/d/e/1FAIpQLSfWaB2aryInU06cXrCyAFmhD_gPibgOfFk-dspLEsXuS9-RGQ/viewform
 .. _page: https://westpa.github.io/westpa/overview.html
-.. _powerpoint: https://docs.google.com/presentation/d/1PKsklN5aYLlLSTDOLdNGti6pcGs4Rgxm/edit?usp=sharing&ouid=117278498028744119802&rtpof=true&sd=true
+.. _powerpoint: https://pitt.box.com/s/metui7tsfwh3bcv1xgbbj4g6fe0uokag
 
 ------------
 Requirements
 ------------
 
-WESTPA is written in Python and requires version 3.7 or later. WESTPA also requires a number of Python scientific software packages. 
-The simplest way to meet these requirements is to download the
-Anaconda Python distribution from www.anaconda.com (free for all users).
+WESTPA is written in Python and requires version 3.7 or later. WESTPA further
+requires a large number of scientific software libraries for Python and other
+languages. The simplest way to meet these requirements is to download the
+Anaconda Python distribution from www.continuum.io (free for all users).
 
 WESTPA currently runs on Unix-like operating systems, including Linux and
 Mac OS X. It is developed and tested on x86_64 machines running Linux.
@@ -100,7 +73,7 @@ To install from source (**not recommended**), start by downloading the correspon
 
 .. _`releases page`: https://github.com/westpa/westpa/releases
 .. _`Anaconda Python distribution`: https://www.anaconda.com/products/individual
-.. _`wiki`: https://github.com/westpa/westpa/wiki/WESTPA-Quick-Install
+.. _`wiki`: https://github.com/westpa/westpa/wiki/WESTPA-Quick-Installation
 
 ---------------
 Getting started
@@ -131,10 +104,51 @@ if a question one has was previously addressed). This is the preferred means
 for obtaining help and support. See http://groups.google.com/group/westpa-users
 to sign up or search archived messages.
 
-.. _FAQ: https://github.com/westpa/westpa/wiki/Frequently-Asked-Questions
- 
+.. _FAQ: https://westpa.github.io/westpa/users_guide/faq.html
+
 ----------
 Developers
 ----------
 
 Search archived messages or post to the westpa-devel Google group: https://groups.google.com/group/westpa-devel.
+
+-------------------------------------------------------
+Copyright, license, and warranty information
+-------------------------------------------------------
+
+For WESTPA
+###########
+
+The WESTPA package is copyright (c) 2013, WESTPA Developers.
+
+WESTPA is free software: you can redistribute it and/or modify
+it under the terms of the MIT License.
+
+WESTPA is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+'LICENSE' file for more details.
+
+Unless otherwise noted, source files included in this distribution and
+lacking a more specific attribution are subject to the above copyright,
+terms, and conditions.
+
+
+For included software
+######################
+
+Distributions of WESTPA include a number of components without modification,
+each of which is subject to its own individual terms and conditions. Please
+see each package's documentation for the most up-to-date possible information
+on authorship and licensing. Such packages include:
+
+  h5py
+    See lib/h5py/docs/source/licenses.rst
+    
+  blessings
+    See lib/blessings/LICENSE
+    
+In addition, the ``wwmgr`` work manager is derived from the
+``concurrent.futures`` module (as included in Python 3.2) by Brian Quinlan and
+copyright 2011 the Python Software Foundation. See 
+http://docs.python.org/3/license.html for more information.
