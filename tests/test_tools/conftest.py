@@ -149,6 +149,27 @@ def ref_multi(request, tmpdir):
     request.addfinalizer(clear_state)
 
 
+@pytest.fixture
+def ref_idtype(request):
+    """
+    Fixture that prepares the west.h5 file and also links in the "correct" istate dtype array.
+    """
+    test_dir = tempfile.mkdtemp()
+    os.chdir(test_dir)
+
+    copy_ref(test_dir)
+
+    copyfile(os.path.join(REFERENCE_PATH, 'west_ref.h5'), H5_FILENAME)
+    copyfile(os.path.join(REFERENCE_PATH, 'ref_dtype.pickle'), 'ref_dtype.pickle')
+
+    request.cls.h5_filepath = H5_FILENAME
+    request.cls.correct_pkl = 'ref_dtype.pickle'
+
+    os.environ['WEST_SIM_ROOT'] = test_dir
+
+    request.addfinalizer(clear_state)
+
+
 def clear_state():
     os.chdir(STARTING_PATH)
     del os.environ['WEST_SIM_ROOT']
