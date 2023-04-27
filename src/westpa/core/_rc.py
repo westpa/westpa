@@ -14,7 +14,6 @@ import westpa
 import westpa.core.data_manager
 from westpa.core.binning.assign import BinMapper
 from westpa.core.binning import RectilinearBinMapper, RecursiveBinMapper, MABBinMapper, BinlessMapper
-from westpa.core.extloader import get_object
 from .yamlcfg import YAMLConfig
 from .yamlcfg import YAMLSystem
 from . import extloader
@@ -31,7 +30,7 @@ def bins_from_yaml_dict(bin_dict):
         mapper_type = getattr(sys.modules['westpa.core.binning'], typename)
     except AttributeError:
         try:
-            mapper_type = get_object(typename)
+            mapper_type = extloader.get_object(typename)
         except AttributeError:
             raise KeyError('unknown bin mapper type {!r}'.format(typename))
 
