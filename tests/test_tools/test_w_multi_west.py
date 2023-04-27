@@ -27,7 +27,7 @@ class Test_W_Multi_West:
                 aux=None,
                 auxall=True,
                 no_reweight=False,
-                ibstates=False,
+                ibstates=True,
             ),
         ):
             entry_point()
