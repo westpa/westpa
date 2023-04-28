@@ -74,11 +74,23 @@ def get_bin_mapper(we_h5file, hashval):
         raise KeyError('hash {} not found'.format(hashval))
 
 
+def create_idtype_array(input_array):
+    '''Return a new array with the new istate_dtype while preserving old data.'''
+    new_array = np.zeros(input_array.shape, dtype=istate_dtype)
+    for j in input_array.dtype.names:
+        new_array[j] = input_array[j].copy()
+
+    # Need to turn 'basis_auxref' to empty bytestrings...
+    new_array['basis_auxref'] = b''
+
+    return new_array
+
+
 class WMultiWest(WESTMultiTool):
     prog = 'w_multi_west'
     description = '''\
 Tool designed to combine multiple WESTPA simulations while accounting for
-reweighting.  Test code thus far.
+reweighting.
 -----------------------------------------------------------------------------
 Command-line options
 -----------------------------------------------------------------------------
@@ -243,8 +255,13 @@ Command-line options
                     if ifile == 0:
                         final_istate_index = west['ibstates/0/istate_index']
                         final_istate_pcoord = west['ibstates/0/istate_pcoord']
+                        if final_istate_index.dtype != istate_dtype:
+                            final_istate_index = create_idtype_array(final_istate_index)
                     else:
-                        final_istate_index = np.append(final_istate_index, west['ibstates/0/istate_index'][:])
+                        addition = west['ibstates/0/istate_index'][:]
+                        if addition.dtype != istate_dtype:
+                            addition = create_idtype_array(addition)
+                        final_istate_index = np.append(final_istate_index, addition)
                         final_istate_pcoord = np.append(final_istate_pcoord, west['ibstates/0/istate_pcoord'][:])
 
                 # Saving them into self.output_file

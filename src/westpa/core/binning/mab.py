@@ -24,6 +24,9 @@ def map_mab(coords, mask, output, *args, **kwargs):
     if not np.any(mask):
         return output
 
+    if skip is None:
+        skip = [0] * ndim
+
     allcoords = np.copy(coords)
     allmask = np.copy(mask)
 
