@@ -56,10 +56,10 @@ jobs:
             echo "All done with the import tests!"
             # Currently blocked by https://github.com/westpa/westpa/issues/70
             #python -c "import westpa.trajtree"
-        with:
-          package-dir: .
-          output-dir: wheelhouse
-          config-file: "{package}/pyproject.toml"
+        # with:
+        #  package-dir: .
+        #  output-dir: wheelhouse
+        #  config-file: "{package}/pyproject.toml"
 
       - uses: actions/upload-artifact@v3
         with:
