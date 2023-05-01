@@ -8,6 +8,7 @@ on:
     branches:
       - 'westpa2'
       - 'develop'
+      - 'build-fix'
     tags:
       - 'v*'
   pull_request:
