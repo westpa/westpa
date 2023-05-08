@@ -37,6 +37,7 @@ jobs:
           CIBW_ARCHS_MACOS: "auto64" # x86_64 only
           CIBW_ARCHS_LINUX: "auto64" # x86_64 only
           CIBW_TEST_SKIP: "*-macosx_arm64"
+          CIBW_DEPENDENCY_VERSIONS: "latest"
           CIBW_TEST_COMMAND: > 
             python -c "import westpa; print(westpa.__version__)" && 
             python -c "import westpa.core.propagators" &&
