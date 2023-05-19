@@ -325,10 +325,10 @@ Full-Width Styles
 
 .pub_link {
   float: left;
-  width: 80px;
+  width: 50px;
   height: 40px;
   display: block;
-  padding-right: 30px;
+  padding-right: 0px;
   color: black;
   font-size: 18px;
 }
@@ -353,10 +353,10 @@ Full-Width Styles
 
 .doc_link {
   float: left;
-  width: 60px;
+  width: 40px;
   height: 40px;
   display: block;
-  padding-right: 0px;
+  padding-right: 20px;
   color: black;
   font-size: 18px;
 }
@@ -367,10 +367,10 @@ Full-Width Styles
 
 .sphinx_link {
   float: left;
-  width: 150px;
+  width: 60px;
   height: 40px;
   display: block;
-  padding-right: 0px;
+  padding-right: 20px;
   color: black;
   font-size: 18px;
 }
@@ -381,10 +381,10 @@ Full-Width Styles
 
 .gh_link {
   float: left;
-  width: 160px;
+  width: 150px;
   height: 40px;
   display: block;
-  padding-right: 0px;
+  padding-right: 20px;
   color: black;
   font-size: 18px;
 }
@@ -398,7 +398,7 @@ Full-Width Styles
   bottom: 60px;
   float: left;
   width: 125px;
-  height: 59.6 
+  height: 59.6;
   display: block;
   padding-right: 20px;
   padding-top: 10px;
