@@ -80,7 +80,7 @@ jobs:
         file: ./coverage.xml
         flags: unittests
         name: codecov-{{ '${{ matrix.os }}' }}-py{{ '${{ matrix.python-version }}' }}
-        fail_ci_if_error: true
+        fail_ci_if_error: false
 
   install-dev:
     strategy:
