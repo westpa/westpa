@@ -162,7 +162,7 @@ class WESTRC:
         self.config = YAMLConfig()
         try:
             self.process_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-        except TypeError:
+        except (TypeError, IndexError):
             self.process_name = "unknown"
 
         # Crucial simulation and analysis drivers
