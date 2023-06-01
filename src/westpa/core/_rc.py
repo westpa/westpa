@@ -390,6 +390,7 @@ class WESTRC:
 
         if drivername.lower() == 'default':
             from .we_driver import WEDriver
+
             we_driver = WEDriver()
         else:
             we_driver = extloader.get_object(drivername)(rc=self)
@@ -628,7 +629,6 @@ class WESTRC:
         return self.work_manager
 
     def clear_state(self):
-
         self._sim_manager = None
         self._system = None
         self._data_manager = None
