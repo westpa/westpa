@@ -87,6 +87,9 @@ class WEDriver:
         self.rc = rc or westpa.rc
         self.system = system or self.rc.get_system_driver()
 
+        self._use_mab = self.rc.detect_mab_mapper()
+        self._use_binless = self.rc.detect_binless_mapper()
+
         # Whether to adjust counts to exactly match target count
         self.do_adjust_counts = True
 
@@ -334,18 +337,25 @@ class WEDriver:
         pre-existing segments.'''
 
         # collect initial and final coordinates into one place
-        all_pcoords = np.empty((2, len(segments), self.system.pcoord_ndim), dtype=self.system.pcoord_dtype)
-
-        for iseg, segment in enumerate(segments):
-            all_pcoords[0, iseg] = segment.pcoord[0, :]
-            all_pcoords[1, iseg] = segment.pcoord[-1, :]
+        n_segments = len(segments)
+        if self._use_mab or self._use_binless:
+            all_pcoords = np.empty((n_segments * 2, self.system.pcoord_ndim + 2), dtype=self.system.pcoord_dtype)
+            for iseg, segment in enumerate(segments):
+                all_pcoords[iseg] = np.append(segment.pcoord[0, :], [segment.weight, 0.0])
+                all_pcoords[n_segments + iseg] = np.append(segment.pcoord[-1, :], [segment.weight, 1.0])
+        else:
+            all_pcoords = np.empty((2 * n_segments, self.system.pcoord_ndim), dtype=self.system.pcoord_dtype)
+            for iseg, segment in enumerate(segments):
+                all_pcoords[iseg] = segment.pcoord[0, :]
+                all_pcoords[n_segments + iseg] = segment.pcoord[-1, :]
 
         # assign based on initial and final progress coordinates
-        initial_assignments = self.bin_mapper.assign(all_pcoords[0, :, :])
+        assignments = self.bin_mapper.assign(all_pcoords)
+        initial_assignments = assignments[:n_segments]
         if initializing:
             final_assignments = initial_assignments
         else:
-            final_assignments = self.bin_mapper.assign(all_pcoords[1, :, :])
+            final_assignments = assignments[n_segments:]
 
         initial_binning = self.initial_binning
         final_binning = self.final_binning
