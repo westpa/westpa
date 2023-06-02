@@ -1,3 +1,4 @@
+from collections import deque
 from datetime import timedelta
 from itertools import zip_longest
 import logging
@@ -11,6 +12,7 @@ import time
 import numpy as np
 
 import westpa
+from .binning import BinlessMapper, MABBinMapper
 from .data_manager import weight_dtype
 from .segment import Segment
 from .states import InitialState
@@ -53,21 +55,22 @@ class WESimManager:
         self.we_driver = self.rc.get_we_driver()
         self.system = self.rc.get_system_driver()
 
+        self._use_mab = self.rc.detect_mab_mapper()
+        self._use_binless = self.rc.detect_binless_mapper()
+
         # A table of function -> list of (priority, name, callback) tuples
         self._callback_table = {}
-        self._valid_callbacks = set(
-            (
-                self.prepare_run,
-                self.finalize_run,
-                self.prepare_iteration,
-                self.finalize_iteration,
-                self.pre_propagation,
-                self.post_propagation,
-                self.pre_we,
-                self.post_we,
-                self.prepare_new_iteration,
-            )
-        )
+        self._valid_callbacks = {
+            self.prepare_run,
+            self.finalize_run,
+            self.prepare_iteration,
+            self.finalize_iteration,
+            self.pre_propagation,
+            self.post_propagation,
+            self.pre_we,
+            self.post_we,
+            self.prepare_new_iteration,
+        }
         self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
         self.n_propagated = 0
 
@@ -268,6 +271,10 @@ class WESimManager:
         states from each of the given ``basis_states``.
 
         ``w_init`` is the forward-facing version of this function'''
+        if len(target_states) > 0:
+            if isinstance(self.system.bin_mapper, (BinlessMapper, MABBinMapper)):
+                mapper_type = type(self.system.bin_mapper).__name__
+                log.error(f'{mapper_type} cannot be an outer binning scheme with a target state\n')
 
         data_manager = self.data_manager
         work_manager = self.work_manager
@@ -473,21 +480,30 @@ class WESimManager:
         log.debug('This iteration uses {:d} initial states'.format(len(self.current_iter_istates)))
 
         # Assign this iteration's segments' initial points to bins and report on bin population
-        initial_pcoords = self.system.new_pcoord_array(len(segments))
+        if self._use_mab:
+            # It doesn't really make sense to report pre-propagation bin statistics when
+            # using MAB, since the "initial" bin assignments will change after propagation.
+            # But this is what the MABSimManager did, so we'll do it here.
+            initial_pcoords = np.empty((len(segments), self.system.pcoord_ndim + 2), dtype=self.system.pcoord_dtype)
+            for iseg, segment in enumerate(segments.values()):
+                initial_pcoords[iseg] = np.append(segment.pcoord[0], [segment.weight, 1.0])
+        else:
+            initial_pcoords = self.system.new_pcoord_array(len(segments))
+            for iseg, segment in enumerate(segments.values()):
+                initial_pcoords[iseg] = segment.pcoord[0]
+
         initial_binning = self.system.bin_mapper.construct_bins()
-        for iseg, segment in enumerate(segments.values()):
-            initial_pcoords[iseg] = segment.pcoord[0]
         initial_assignments = self.system.bin_mapper.assign(initial_pcoords)
-        for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
+        for segment, assignment in zip(segments.values(), initial_assignments):
             initial_binning[assignment].add(segment)
         self.report_bin_statistics(initial_binning, [], save_summary=True)
         del initial_pcoords, initial_binning
 
-        self.rc.pstatus('Waiting for segments to complete...')
-
-        # Let the WE driver assign completed segments
-        if completed_segments:
-            self.we_driver.assign(list(completed_segments.values()))
+        if self._use_mab:
+            self.rc.pstatus("MAB binning in use")
+            self.rc.pstatus("Bottleneck bin occupancy may not be accurately reported")
+        elif self._use_binless:
+            self.rc.pstatus("Binless scheme in use")
 
         # load restart data
         self.data_manager.prepare_segment_restarts(
@@ -585,6 +601,8 @@ class WESimManager:
             futures.add(future)
             segment_futures.add(future)
 
+        self.rc.pstatus('Waiting for segments to complete...')
+
         while futures:
             # TODO: add capacity for timeout or SIGINT here
             future = self.work_manager.wait_any(futures)
@@ -598,7 +616,6 @@ class WESimManager:
                 self.segments.update({segment.seg_id: segment for segment in incoming})
                 self.completed_segments.update({segment.seg_id: segment for segment in incoming})
 
-                self.we_driver.assign(incoming)
                 new_istate_futures = self.get_istate_futures()
                 istate_gen_futures.update(new_istate_futures)
                 futures.update(new_istate_futures)
@@ -617,6 +634,15 @@ class WESimManager:
             else:
                 log.error('unknown future {!r} received from work manager'.format(future))
                 raise AssertionError('untracked future {!r}'.format(future))
+
+        # Assign bins only when all segments have completed. This is necessary to
+        # accommodate "global" binning schemes (e.g., MAB) that require all the
+        # segments at the same time.
+        self.we_driver.assign(self.segments.values())
+
+        istate_gen_futures = self.get_istate_futures()
+        if any(istate_gen_futures):
+            deque(self.work_manager.as_completed(istate_gen_futures), maxlen=0)  # wait on results
 
         log.debug('done with propagation')
         self.save_bin_data()

@@ -344,21 +344,9 @@ class WESTRC:
         drivername = self.config.get(['west', 'drivers', 'sim_manager'], 'default')
 
         if drivername.lower() == 'default':
-            use_mab = self.detect_mab_mapper()
-            use_binless = self.detect_binless_mapper()
+            from .sim_manager import WESimManager
 
-            if use_mab:
-                from .binning.mab_manager import MABSimManager
-
-                sim_manager = MABSimManager(rc=self)
-            elif use_binless:
-                from .binning.binless_manager import BinlessSimManager
-
-                sim_manager = BinlessSimManager(rc=self)
-            else:
-                from .sim_manager import WESimManager
-
-                sim_manager = WESimManager(rc=self)
+            sim_manager = WESimManager(rc=self)
         else:
             sim_manager = extloader.get_object(drivername)(rc=self)
 
