@@ -1,4 +1,3 @@
-from collections import deque
 from datetime import timedelta
 from itertools import zip_longest
 import logging
