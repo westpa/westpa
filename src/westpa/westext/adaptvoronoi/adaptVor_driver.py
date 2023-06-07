@@ -191,22 +191,22 @@ class AdaptiveVoronoiDriver:
 
         westpa.rc.pstatus('westext.adaptvoronoi: Updating Voronoi centers\n')
         westpa.rc.pflush()
-        
+
         # Pull the current coordinates to find distances
-        curr_pcoords = list(iter_group['pcoord'][:,-1,:])
-        curr_pcoords_2 = list(iter_group['pcoord'][:,-1,:2])
-        
+        curr_pcoords = list(iter_group['pcoord'][:, -1, :])
+        curr_pcoords_2 = list(iter_group['pcoord'][:, -1, :2])
+
         if self.mode == "maintain":
             # now we re-center everything
             new_centers = []
             dist_centers = []
             # select a random configuration
-            first_ind = np.random.randint(0,high=len(curr_pcoords))
+            first_ind = np.random.randint(0, high=len(curr_pcoords))
             # this is our first configuration
             new_centers.append(curr_pcoords.pop(first_ind))
             dist_centers.append(curr_pcoords_2.pop(first_ind))
             # now we loop over the rest
-            for next_ind in range(1,self.max_centers):
+            for next_ind in range(1, self.max_centers):
                 if len(curr_pcoords) < 1:
                     break
                 # we need to calculate distances to
@@ -267,4 +267,3 @@ class AdaptiveVoronoiDriver:
             westpa.rc.pstatus(f'westext.adaptvoronoi: Mode {self.mode} is not implemented.\n')
             westpa.rc.pflush()
             raise NotImplementedError
-        
