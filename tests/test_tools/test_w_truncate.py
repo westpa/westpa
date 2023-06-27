@@ -18,7 +18,7 @@ class Test_W_Truncate:
 
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
-            return_value=argparse.Namespace(verbosity='debug', rcfile=self.cfg_filepath, n_iter=2),
+            return_value=argparse.Namespace(verbosity='debug', rcfile=self.cfg_filepath, n_iter=2, we_h5filename=None),
         ):
             entry_point()
 
