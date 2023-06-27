@@ -23,10 +23,21 @@ def entry_point():
     )
 
     westpa.rc.add_args(parser)
+    parser.add_argument(
+        '-W',
+        '--west-data',
+        dest='we_h5filename',
+        metavar='WEST_H5FILE',
+        help='''Take WEST data from WEST_H5FILE (default: read from the HDF5 file specified in west.cfg).''',
+    )
     parser.add_argument('-n', '--iter', dest='n_iter', type=int, help='Truncate this iteration and those following.')
+
     args = parser.parse_args()
     westpa.rc.process_args(args, config_required=False)
     dm = westpa.rc.get_data_manager()
+    if args.we_h5filename:
+        dm.we_h5filename = args.we_h5filename
+
     dm.open_backing()
     # max_iter = dm.current_iteration
     n_iter = args.n_iter if args.n_iter > 0 else dm.current_iteration
