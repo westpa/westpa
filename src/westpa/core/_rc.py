@@ -15,7 +15,7 @@ import westpa.core.data_manager
 from westpa.core.binning.assign import BinMapper
 from westpa.core.binning import RectilinearBinMapper, RecursiveBinMapper, MABBinMapper, BinlessMapper
 from .yamlcfg import YAMLConfig
-from westpa.core.systems import WESTSystem
+from .systems import WESTSystem
 from . import extloader
 from ..work_managers import SerialWorkManager
 
