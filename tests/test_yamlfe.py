@@ -2,10 +2,11 @@ import numpy as np
 
 import westpa
 import westpa.core.yamlcfg as ycf
+from westpa.core.systems import WESTSystem
 from westpa.core.binning import RectilinearBinMapper
 
 
-class TESTSystem(ycf.YAMLSystem):
+class TESTSystem(WESTSystem):
     def initialize(self):
         self.pcoord_ndim = 1
         self.pcoord_dtype = np.float32
