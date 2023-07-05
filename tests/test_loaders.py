@@ -7,7 +7,7 @@ import pickle
 
 
 class Test_Loaders:
-    '''Class to test if the npy_data_loader and test_pickle_loader is able to successfully add data into a dummy segment object.'''
+    '''Class to test if npy_data_loader and pickle_date_loader are able to successfully add data into a dummy segment object.'''
 
     def test_npy_loader(self, ref_idtype):
         '''Test if data loaded with npy_data_loader is consistent.'''
