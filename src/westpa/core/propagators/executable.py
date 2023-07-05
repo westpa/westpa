@@ -68,7 +68,7 @@ def aux_data_loader(fieldname, data_filename, segment, single_point):
 
 def npy_data_loader(fieldname, coord_file, segment, single_point):
     log.debug('using npy_data_loader')
-    data = np.load(coord_file)
+    data = np.load(coord_file, allow_pickle=True)
     segment.data[fieldname] = data
     if data.nbytes == 0:
         raise ValueError('could not read any data for {}'.format(fieldname))
