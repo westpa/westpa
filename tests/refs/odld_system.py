@@ -1,6 +1,8 @@
 import numpy as np
 from numpy.random import RandomState
 
+# from numpy.random import normal as random_normal
+
 from westpa.core.binning import RectilinearBinMapper
 from westpa.core.propagators import WESTPropagator
 from westpa.core.systems import WESTSystem

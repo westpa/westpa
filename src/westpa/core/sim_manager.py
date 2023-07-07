@@ -289,7 +289,7 @@ class WESimManager:
 
         # Process start states
         # Unlike the above, does not create an ibstate group.
-        # TODO: Should it? I don't think so, if needed it can be traced back through basis_auxref
+        # Should it? I don't think so, if needed it can be traced back through basis_auxref
 
         # Here, we are trying to assign a state_id to the start state to be initialized, without actually
         # saving it to the ibstates records in any of the h5 files. It might actually be a problem

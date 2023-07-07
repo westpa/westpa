@@ -279,7 +279,6 @@ class WEDriver:
 
         self.initial_binning = self.bin_mapper.construct_bins()
         self.final_binning = self.bin_mapper.construct_bins()
-        self.next_iter_binning = None
 
         flux_matrix = self.flux_matrix = np.zeros((nbins, nbins), dtype=np.float64)
         transition_matrix = self.transition_matrix = np.zeros((nbins, nbins), np.uint)
