@@ -7,8 +7,6 @@ from westpa.work_managers.processes import ProcessWorkManager
 from .tsupport import CommonParallelTests, CommonWorkManagerTests
 from .tsupport import will_busyhang, will_busyhang_uninterruptible, get_process_index
 
-from nose.tools import raises
-
 
 class TestProcessWorkManager(unittest.TestCase, CommonParallelTests, CommonWorkManagerTests):
     def setUp(self):
@@ -51,7 +49,6 @@ class TestProcessWorkManagerAux:
             assert not worker.is_alive()
 
     @pytest.mark.timeout(2)
-    @raises(KeyboardInterrupt)
     def test_sigint_shutdown(self):
         work_manager = ProcessWorkManager()
         work_manager.install_sigint_handler()
@@ -60,12 +57,13 @@ class TestProcessWorkManagerAux:
         for i in range(5):
             work_manager.submit(will_busyhang)
 
-        try:
-            os.kill(os.getpid(), signal.SIGINT)
-        except KeyboardInterrupt:
-            for worker in work_manager.workers:
-                assert not worker.is_alive()
-            raise
+        with pytest.raises(KeyboardInterrupt):
+            try:
+                os.kill(os.getpid(), signal.SIGINT)
+            except KeyboardInterrupt:
+                for worker in work_manager.workers:
+                    assert not worker.is_alive()
+                raise
 
     @pytest.mark.timeout(2)
     def test_worker_ids(self):
