@@ -1,12 +1,12 @@
 import os
 import signal
 import unittest
+import pytest
 
 from westpa.work_managers.processes import ProcessWorkManager
 from .tsupport import CommonParallelTests, CommonWorkManagerTests
 from .tsupport import will_busyhang, will_busyhang_uninterruptible, get_process_index
 
-import nose.tools
 from nose.tools import raises
 
 
@@ -20,7 +20,7 @@ class TestProcessWorkManager(unittest.TestCase, CommonParallelTests, CommonWorkM
 
 
 class TestProcessWorkManagerAux:
-    @nose.tools.timed(2)
+    @pytest.mark.timeout(2)
     def test_shutdown(self):
         work_manager = ProcessWorkManager()
         work_manager.startup()
@@ -28,7 +28,7 @@ class TestProcessWorkManagerAux:
         for worker in work_manager.workers:
             assert not worker.is_alive()
 
-    @nose.tools.timed(2)
+    @pytest.mark.timeout(2)
     def test_hang_shutdown(self):
         work_manager = ProcessWorkManager()
         work_manager.shutdown_timeout = 0.1
@@ -39,7 +39,7 @@ class TestProcessWorkManagerAux:
         for worker in work_manager.workers:
             assert not worker.is_alive()
 
-    @nose.tools.timed(2)
+    @pytest.mark.timeout(2)
     def test_hang_shutdown_ignoring_sigint(self):
         work_manager = ProcessWorkManager()
         work_manager.shutdown_timeout = 0.1
@@ -50,7 +50,7 @@ class TestProcessWorkManagerAux:
         for worker in work_manager.workers:
             assert not worker.is_alive()
 
-    @nose.tools.timed(2)
+    @pytest.mark.timeout(2)
     @raises(KeyboardInterrupt)
     def test_sigint_shutdown(self):
         work_manager = ProcessWorkManager()
@@ -67,7 +67,7 @@ class TestProcessWorkManagerAux:
                 assert not worker.is_alive()
             raise
 
-    @nose.tools.timed(2)
+    @pytest.mark.timeout(2)
     def test_worker_ids(self):
         work_manager = ProcessWorkManager()
         with work_manager:
