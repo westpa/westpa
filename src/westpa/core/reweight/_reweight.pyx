@@ -12,8 +12,8 @@ import warnings
 from collections import Counter
 cimport numpy
 cimport numpy as np
-cimport scipy.linalg.cython_lapack as cl
 cimport scipy.linalg
+cimport scipy.linalg.cython_lapack as cl
 import scipy.linalg
 from libc.math cimport isnan
 
