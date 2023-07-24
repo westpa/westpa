@@ -1,4 +1,4 @@
-from nose.tools import assert_raises, raises  # @UnresolvedImport
+import pytest
 
 from westpa.work_managers.serial import SerialWorkManager
 from .tsupport import will_succeed, will_fail, ExceptionForTest
@@ -14,13 +14,14 @@ class TestWMFuture:
         with SerialWorkManager() as work_manager:
             future = work_manager.submit(will_succeed)
             assert future.get_result(discard=True) is True
-            assert_raises(AttributeError, getattr, future, '_result')
+            with pytest.raises(AttributeError):
+                future.getattr(future, '_result')
 
-    @raises(ExceptionForTest)
     def test_exception_raise(self):
-        with SerialWorkManager() as work_manager:
-            future = work_manager.submit(will_fail)
-            future.get_result()
+        with pytest.raises(ExceptionForTest):
+            with SerialWorkManager() as work_manager:
+                future = work_manager.submit(will_fail)
+                future.get_result()
 
     def test_exception_retrieve(self):
         with SerialWorkManager() as work_manager:
