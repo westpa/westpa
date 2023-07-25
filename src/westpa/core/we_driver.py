@@ -81,7 +81,7 @@ class WEDriver:
     weight_split_threshold = 2.0
     weight_merge_cutoff = 1.0
     largest_allowed_weight = 1.0
-    smallest_allowed_weight = 1e-323
+    smallest_allowed_weight = 1e-310
 
     def __init__(self, rc=None, system=None):
         self.rc = rc or westpa.rc
