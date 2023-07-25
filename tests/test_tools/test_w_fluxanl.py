@@ -1,9 +1,8 @@
 import math
 import unittest
-
+import pytest
 
 import h5py
-from nose.plugins.skip import SkipTest
 
 from common import CommonToolTest, cycle_args, make_args
 from westpa.cli.tools.w_fluxanl import WFluxanlTool
@@ -123,7 +122,7 @@ class Test_W_Fluxanl_Args(unittest.TestCase, CommonToolTest):
     '''
 
 
-@SkipTest
+@pytest.mark.skip
 class Test_W_Fluxanl_System(CommonToolTest):
     '''System level tests for w_fluxanl'''
 

@@ -1,4 +1,4 @@
-from nose.tools import raises
+import pytest
 
 
 class ExceptionForTest(Exception):
@@ -117,10 +117,10 @@ class CommonWorkManagerTests:
         output = set(future.get_result() for future in self.work_manager.wait_all(futures))
         assert test_input == output
 
-    @raises(ExceptionForTest)
     def test_exception_raise(self):
-        future = self.work_manager.submit(will_fail)
-        future.get_result()
+        with pytest.raises(ExceptionForTest):
+            future = self.work_manager.submit(will_fail)
+            future.get_result()
 
     def test_exception_retrieve(self):
         future = self.work_manager.submit(will_fail)

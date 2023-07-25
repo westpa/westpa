@@ -9,11 +9,11 @@ on:
     branches:
       - "westpa2"
       - "develop"
-  #schedule:
-    # Nightly tests run on master by default:
+  schedule:
+    # Weekly tests run on "westpa2" and "develop" on Thursdays 3:30 PM UTC (which is 10:30/11:30 EST/EDT)
     #   Scheduled workflows run on the latest commit on the default or base branch.
     #   (from https://help.github.com/en/actions/reference/events-that-trigger-workflows#scheduled-events-schedule)
-    #- cron: "0 0 * * *"
+    - cron: "30 15 * * 4"
 
 jobs:
   lint:
@@ -94,7 +94,7 @@ jobs:
       - uses: "actions/checkout@v3"
       - uses: "actions/setup-python@v4"
         with:
-          python-version: "3.8"
+          python-version: "3.11"
       - name: "Install in dev mode"
         run: "python -m pip install -e .[dev]"
       - name: "Import package"
