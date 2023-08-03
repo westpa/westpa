@@ -83,14 +83,19 @@ class MABSimManager(WESimManager):
         istate_gen_futures = self.get_istate_futures()
         futures.update(istate_gen_futures)
 
+        # Wait for istate_gen_futures and catch untracked futures.
         while futures:
-            istate_gen_futures.remove(future)
-            _basis_state, initial_state = future.get_result()
-            log.debug('received newly-prepared initial state {!r}'.format(initial_state))
-            initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
-            with self.data_manager.expiring_flushing_lock():
-                self.data_manager.update_initial_states([initial_state], n_iter=self.n_iter + 1)
-            self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
+            if future in istate_gen_futures:
+                istate_gen_futures.remove(future)
+                _basis_state, initial_state = future.get_result()
+                log.debug('received newly-prepared initial state {!r}'.format(initial_state))
+                initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
+                with self.data_manager.expiring_flushing_lock():
+                    self.data_manager.update_initial_states([initial_state], n_iter=self.n_iter + 1)
+                self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
+            else:
+                log.error('unknown future {!r} received from work manager'.format(future))
+                raise AssertionError('untracked future {!r}'.format(future))
 
         log.debug('done with propagation')
         self.save_bin_data()
