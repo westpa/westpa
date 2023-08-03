@@ -19,5 +19,5 @@ dependencies:
   # testing
   - pytest
   - pytest-cov
-  - nose
+  - pytest-rerunfailures
   - codecov
