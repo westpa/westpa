@@ -75,8 +75,23 @@ class MABSimManager(WESimManager):
                 log.error('unknown future {!r} received from work manager'.format(future))
                 raise AssertionError('untracked future {!r}'.format(future))
 
+        # Collectively assign all segments to their bins...
         self.we_driver.assign(self.segments.values())
-        self.get_istate_futures()
+
+        # For cases where we need even more istates for recycled trajectories
+        # futures should be empty at this point.
+        istate_gen_futures = self.get_istate_futures()
+        futures.update(istate_gen_futures)
+
+        while futures:
+            istate_gen_futures.remove(future)
+            _basis_state, initial_state = future.get_result()
+            log.debug('received newly-prepared initial state {!r}'.format(initial_state))
+            initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
+            with self.data_manager.expiring_flushing_lock():
+                self.data_manager.update_initial_states([initial_state], n_iter=self.n_iter + 1)
+            self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
+
         log.debug('done with propagation')
         self.save_bin_data()
         self.data_manager.flush_backing()
