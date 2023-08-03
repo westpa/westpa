@@ -30,10 +30,11 @@ jobs:
           pre-commit run --all-files
 
   test:
-    name: Test on Linux, Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}
+    runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
+        os: ["ubuntu-latest", "macos-latest"]
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
 
     steps:
