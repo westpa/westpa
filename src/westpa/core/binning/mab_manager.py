@@ -85,6 +85,9 @@ class MABSimManager(WESimManager):
 
         # Wait for istate_gen_futures and catch untracked futures.
         while futures:
+            future = self.work_manager.wait_any(futures)
+            futures.remove(future)
+
             if future in istate_gen_futures:
                 istate_gen_futures.remove(future)
                 _basis_state, initial_state = future.get_result()
