@@ -43,7 +43,7 @@ general options::
 westpa.cli.tools.w\_fork module
 -------------------------------
 
-.. automodule:: westpa.cli.tools.w_fork
+.. automodule:: westpa.cli.core.w_fork
    :members:
    :undoc-members:
    :show-inheritance:

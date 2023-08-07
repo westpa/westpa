@@ -14,3 +14,6 @@ dependencies:
   - blessings
   - ipykernel
   - mpi4py
+  - sphinx
+  - sphinx-rtd-theme
+  - pip
