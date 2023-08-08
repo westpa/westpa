@@ -3,19 +3,19 @@ WESTPA Modules API
 
 Binning
 #######
-.. automodule:: westpa.binning.assign
+.. automodule:: westpa.core.binning.assign
 
-.. automodule:: westpa.binning.bins
+.. automodule:: westpa.core.binning.bins
 
 YAMLCFG
 ########
-.. automodule:: westpa.yamlcfg
+.. automodule:: westpa.core.yamlcfg
 
 RC
 ##
-.. autoclass:: westpa._rc.WESTRC
+.. autoclass:: westpa.core._rc.WESTRC
 
 WESTPA Tools 
 ============
 
-.. automodule:: westtools
+.. automodule:: westpa.westtools
