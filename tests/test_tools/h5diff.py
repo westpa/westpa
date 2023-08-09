@@ -17,7 +17,7 @@ class H5Diff:
         assert ref_object is not None, f"Element {ref_object} did not exist in test file"
 
         # If it's a dataset, compare the actual contents
-        if type(test_object) == h5py._hl.dataset.Dataset:
+        if isinstance(test_object, h5py._hl.dataset.Dataset):
             if name in self.excluded_datasets:
                 return None
 
@@ -55,7 +55,7 @@ class H5Diff:
             if type(non_reference_ref_elements) is ndarray and issubdtype(non_reference_ref_elements.dtype, floating):
                 comparison = isclose(non_reference_test_elements, non_reference_ref_elements, atol=self.float_thresh)
 
-            if type(comparison) == bool:
+            if isinstance(comparison, bool):
                 assert non_reference_test_elements == non_reference_ref_elements, f"Elements didn't match in {name}"
             else:
                 try:
@@ -69,7 +69,7 @@ class H5Diff:
 
         # If it's a group, do nothing
         # TODO: Is it sufficient to check only the datasets? The groups should just be organizational units
-        elif type(test_object) == h5py._hl.group.Group:
+        elif isinstance(test_object, h5py._hl.group.Group):
             pass
 
         # Returning None every loop makes visititems() iterate through every element.
