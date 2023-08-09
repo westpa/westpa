@@ -178,3 +178,97 @@ class TestSimManager(TestCase):
 
     def test_post_we(self):
         self.sim_manager.post_we()
+
+
+class TestMABSimManager(TestSimManager):
+    def setUp(self):
+        parser = argparse.ArgumentParser()
+        westpa.rc.add_args(parser)
+
+        here = os.path.dirname(__file__)
+        os.environ['WEST_SIM_ROOT'] = os.path.join(here, 'fixtures', 'odld')
+
+        config_file_name = os.path.join(here, 'fixtures', 'odld', 'west_mab.cfg')
+        args = parser.parse_args(['-r={}'.format(config_file_name)])
+        westpa.rc.process_args(args)
+        self.sim_manager = westpa.rc.get_sim_manager()
+        self.test_dir = tempfile.mkdtemp()
+        self.hdf5 = os.path.join(self.test_dir, "west.h5")
+        self.basis_states = [BasisState(label="label", probability=1.0)]
+        self.segments = [self.segment(0.0, 1.5, weight=0.125) for _i in range(4)] + [
+            self.segment(1.5, 0.5, weight=0.125) for _i in range(4)
+        ]
+        self.sim_manager.we_driver.new_iteration()
+        self.sim_manager.we_driver.assign(self.segments)
+        self.sim_manager.we_driver.construct_next()
+        self.sim_manager.segments = {segment.seg_id: segment for segment in self.segments}
+        self.sim_manager.incomplete_segments = self.sim_manager.segments
+        self.sim_manager.current_iter_istates = self.sim_manager.segments
+        self.sim_manager.completed_segments = self.sim_manager.segments
+        self.sim_manager.report_bin_statistics = MagicMock(return_value=True)
+
+        data = self.sim_manager.we_driver.rc.get_data_manager()
+        data.we_h5filename = self.hdf5
+        data.prepare_backing()
+        data.create_ibstate_group([])
+        data.create_initial_states(1)
+        data.save_target_states([])
+        data.update_segments = MagicMock(return_value=None)
+
+        n_iter = 0
+        it_name = data.iter_group_name(n_iter)
+        for group in ["seg_index", "parents", "ibstates", "pcoord"]:
+            data.we_h5file.create_group(it_name + "/" + group)
+        data.get_new_weight_data = MagicMock(return_value=None)
+        data.get_segments = MagicMock(return_value=self.segments)
+        self.sim_manager.we_driver.rc.get_data_manager = MagicMock(return_value=data)
+        self.sim_manager.n_iter = n_iter
+
+
+class TestBinlessSimManager(TestSimManager):
+    def setUp(self):
+        parser = argparse.ArgumentParser()
+        westpa.rc.add_args(parser)
+
+        here = os.path.dirname(__file__)
+        os.environ['WEST_SIM_ROOT'] = os.path.join(here, 'fixtures', 'odld')
+
+        config_file_name = os.path.join(here, 'fixtures', 'odld', 'west_binless.cfg')
+        args = parser.parse_args(['-r={}'.format(config_file_name)])
+        westpa.rc.process_args(args)
+        self.sim_manager = westpa.rc.get_sim_manager()
+        self.test_dir = tempfile.mkdtemp()
+        self.hdf5 = os.path.join(self.test_dir, "west.h5")
+        self.basis_states = [BasisState(label="label", probability=1.0)]
+        self.segments = [self.segment(0.0, 1.5, weight=0.125) for _i in range(4)] + [
+            self.segment(1.5, 0.5, weight=0.125) for _i in range(4)
+        ]
+        self.sim_manager.we_driver.new_iteration()
+        self.sim_manager.we_driver.assign(self.segments)
+        self.sim_manager.we_driver.construct_next()
+        self.sim_manager.segments = {segment.seg_id: segment for segment in self.segments}
+        self.sim_manager.incomplete_segments = self.sim_manager.segments
+        self.sim_manager.current_iter_istates = self.sim_manager.segments
+        self.sim_manager.completed_segments = self.sim_manager.segments
+        self.sim_manager.report_bin_statistics = MagicMock(return_value=True)
+
+        data = self.sim_manager.we_driver.rc.get_data_manager()
+        data.we_h5filename = self.hdf5
+        data.prepare_backing()
+        data.create_ibstate_group([])
+        data.create_initial_states(1)
+        data.save_target_states([])
+        data.update_segments = MagicMock(return_value=None)
+
+        n_iter = 0
+        it_name = data.iter_group_name(n_iter)
+        for group in ["seg_index", "parents", "ibstates", "pcoord"]:
+            data.we_h5file.create_group(it_name + "/" + group)
+        data.get_new_weight_data = MagicMock(return_value=None)
+        data.get_segments = MagicMock(return_value=self.segments)
+        self.sim_manager.we_driver.rc.get_data_manager = MagicMock(return_value=data)
+        self.sim_manager.n_iter = n_iter
+
+    @pytest.mark.skip('Not configured')
+    def test_run(self):
+        self.sim_manager.run()

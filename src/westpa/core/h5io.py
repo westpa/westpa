@@ -220,7 +220,7 @@ def load_west(filename):
 
             raw_pcoord = iter_group['pcoord'][:]
             if raw_pcoord.ndim != 3:
-                log.warn('pcoord is expected to be a 3-d ndarray instead of {}-d'.format(raw_pcoord.ndim))
+                log.warning('pcoord is expected to be a 3-d ndarray instead of {}-d'.format(raw_pcoord.ndim))
                 continue
             # ignore the first frame of each segment
             if raw_pcoord.shape[1] == traj.n_frames + 1:

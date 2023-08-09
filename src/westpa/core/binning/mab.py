@@ -262,13 +262,13 @@ class MABBinMapper(FuncBinMapper):
             direction = [0] * ndim
         elif len(direction) != ndim:
             direction = [0] * ndim
-            log.warn("Direction list is not the correct dimensions, setting to defaults.")
+            log.warning("Direction list is not the correct dimensions, setting to defaults.")
 
         if skip is None:
             skip = [0] * ndim
         elif len(skip) != ndim:
             skip = [0] * ndim
-            log.warn("Skip list is not the correct dimensions, setting to defaults.")
+            log.warning("Skip list is not the correct dimensions, setting to defaults.")
 
         kwargs = dict(nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca, mab_log=mab_log)
         # the following is neccessary because functional bin mappers need to "reserve"
