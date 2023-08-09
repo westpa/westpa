@@ -439,7 +439,7 @@ class ZMQCore:
                 self.log.error('message validation falied: {!s}'.format(e))
                 sys.exit(1)
             elif self.validation_fail_action == 'warn':
-                self.log.warn('message validation falied: {!s}'.format(e))
+                self.log.warning('message validation falied: {!s}'.format(e))
 
     def recv_message(self, socket, flags=0, validate=True, timeout=None):
         '''Receive a message object from the given socket, using the given flags.
