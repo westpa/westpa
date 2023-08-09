@@ -33,7 +33,6 @@ def parse_pcoord_value(pc_str):
 def _assign_label_pop(
     n_iter, lb, ub, mapper, nstates, state_map, last_labels, parent_id_dsspec, weight_dsspec, pcoord_dsspec, subsample
 ):
-
     nbins = len(state_map) - 1
     parent_ids = parent_id_dsspec.get_iter_data(n_iter, index_exp[lb:ub])
     weights = weight_dsspec.get_iter_data(n_iter, index_exp[lb:ub])

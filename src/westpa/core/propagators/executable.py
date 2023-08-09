@@ -372,7 +372,7 @@ class ExecutablePropagator(WESTPropagator):
         return (rc, rusage)
 
     def exec_child_from_child_info(self, child_info, template_args, environ):
-        for (key, value) in child_info.get('environ', {}).items():
+        for key, value in child_info.get('environ', {}).items():
             environ[key] = self.makepath(value)
         return self.exec_child(
             executable=self.makepath(child_info['executable'], template_args),
@@ -443,7 +443,6 @@ class ExecutablePropagator(WESTPropagator):
             initial_state = self.initial_states[segment.initial_state_id]
 
             if initial_state.istate_type == InitialState.ISTATE_TYPE_START:
-
                 basis_state = BasisState(
                     label=f"sstate_{initial_state.state_id}", pcoord=initial_state.pcoord, probability=0.0, auxref=""
                 )
@@ -465,7 +464,6 @@ class ExecutablePropagator(WESTPropagator):
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
 
             elif initial_state.istate_type == InitialState.ISTATE_TYPE_START:
-
                 # This points to the start-state PDB
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF] + '/' + initial_state.basis_auxref
             else:  # initial_state.type == InitialState.ISTATE_TYPE_GENERATED

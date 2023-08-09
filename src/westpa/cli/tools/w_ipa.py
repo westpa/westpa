@@ -641,7 +641,6 @@ class WIPI(WESTParallelTool):
         return self._future
 
     class Future(WIPIDataset):
-
         # This isn't a real fancy one.
         def __getitem__(self, value):
             if isinstance(value, str):

@@ -31,7 +31,6 @@ class AdaptiveVoronoiDriver:
     '''
 
     def __init__(self, sim_manager, plugin_config):
-
         if not sim_manager.work_manager.is_master:
             return
 
@@ -200,7 +199,6 @@ class AdaptiveVoronoiDriver:
         self.centers = np.vstack((self.centers, curr_pcoords[max_ind[0][0]][-1]))
 
     def prepare_new_iteration(self):
-
         n_iter = self.sim_manager.n_iter
 
         with self.data_manager.lock:

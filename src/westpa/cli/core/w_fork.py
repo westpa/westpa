@@ -101,7 +101,7 @@ def entry_point():
     state_map = np.empty((n_segments,), dtype=state_map_dtype)
     state_map['old_n_iter'] = n_iter
 
-    for (iseg, (index_row, pcoord)) in enumerate(zip(old_index, old_final_pcoords)):
+    for iseg, (index_row, pcoord) in enumerate(zip(old_index, old_final_pcoords)):
         istate = istates[iseg]
         istate.iter_created = 0
         istate.iter_used = 1

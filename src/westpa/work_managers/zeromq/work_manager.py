@@ -161,7 +161,6 @@ class ZMQWorkManager(ZMQCore, WorkManager, IsNode):
         if mode == 'master':
             instance = ZMQWorkManager(n_workers)
         else:  # mode =='node'
-
             upstream_info = {}
             if read_host_info:
                 upstream_info.update(cls.read_host_info(read_host_info))
@@ -310,7 +309,7 @@ class ZMQWorkManager(ZMQCore, WorkManager, IsNode):
             # We are shutting down
             raise ZMQWMEnvironmentError('work manager is shutting down')
         futures = []
-        for (fn, args, kwargs) in tasks:
+        for fn, args, kwargs in tasks:
             future = WMFuture()
             task = Task(fn, args, kwargs, task_id=future.task_id)
             self.futures[task.task_id] = future

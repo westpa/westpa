@@ -102,7 +102,6 @@ def entry_point():
 
 # TODO: This would benefit from a refactor to set default args to None, and replace some of those "if <argument>" clauses
 def initialize(mode, bstates, _bstate_file, tstates, _tstate_file):
-
     work_manager = make_work_manager()
 
     system = westpa.rc.get_system_driver()
@@ -116,7 +115,6 @@ def initialize(mode, bstates, _bstate_file, tstates, _tstate_file):
 
             assert mode in ('show', 'replace', 'append')
             if mode == 'show':
-
                 basis_states = data_manager.get_basis_states(n_iter)
                 if basis_states:
                     bstate_file = sys.stdout if not _bstate_file else open(_bstate_file, 'wt')

@@ -57,7 +57,6 @@ def solve_steady_state(T, U, target_bins_index):
 
 
 def prob_adjust(binprob, rates, uncert, oldindex, targets=[]):
-
     nbins = binprob.size
 
     result = solve_steady_state(rates, uncert, targets)

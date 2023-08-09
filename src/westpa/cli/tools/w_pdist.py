@@ -51,7 +51,6 @@ def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
 
 
 def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds, ignore_out_of_range):
-
     iter_hist_shape = tuple(len(bounds) - 1 for bounds in binbounds)
     iter_hist = np.zeros(iter_hist_shape, dtype=np.float64)
 

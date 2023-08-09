@@ -28,7 +28,6 @@ class TrajTreeSet(_trajtree_base):
         return np.squeeze(np.argwhere(self.trajtable['parent_offset'] == -1))
 
     def trace_trajectories(self, visit, get_visitor_state=None, set_visitor_state=None, vargs=None, vkwargs=None):
-
         if (get_visitor_state or set_visitor_state) and not (get_visitor_state and set_visitor_state):
             raise ValueError('either both or neither of get_visitor_state and set_visitor_state must be specified')
 
@@ -67,7 +66,6 @@ class TrajTreeSet(_trajtree_base):
 
 class FakeTrajTreeSet(TrajTreeSet):
     def __init__(self):
-
         # _tt_dtype = np.dtype([('n_iter', np.uint32),
         #                         ('seg_id', np.int64),
         #                         ('parent_id', np.int64),

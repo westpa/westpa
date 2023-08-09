@@ -47,7 +47,6 @@ class KineticsAnalysisMixin(AnalysisMixin):
         )
 
     def process_args(self, args, upcall=True):
-
         self.dt = args.dt
         westpa.rc.pstatus('Assuming input data timestep of {:g}'.format(self.dt))
 

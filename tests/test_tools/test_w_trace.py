@@ -84,9 +84,7 @@ class Test_W_Trace_Args(unittest.TestCase, CommonToolTest):
         return self.check_args, test_outcome, err, args
 
     def check_output(self, arg_idx):
-
         with h5py.File(self.outfile) as f:
-
             assert 'trajectories' in list(f.keys()), "'trajectories' group not in output file"
 
             traj_group = f['trajectories']

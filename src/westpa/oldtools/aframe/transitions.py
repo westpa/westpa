@@ -200,9 +200,7 @@ class TransitionEventAccumulator:
         iibdisc = self.iibdisc
         iibins = self.iibins
         tdat_maxlen = self.max_acc
-        for (trans_ti, weight, ibin, fbin, ibinpops) in zip(
-            trans_timepoints, trans_weights, trans_ibin, trans_fbin, trans_ibinpops
-        ):
+        for trans_ti, weight, ibin, fbin, ibinpops in zip(trans_timepoints, trans_weights, trans_ibin, trans_fbin, trans_ibinpops):
             # Record this crossing event's data
             bin_pops_last_exit[ibin] = ibinpops[ibin]
             last_exit[ibin] = trans_ti

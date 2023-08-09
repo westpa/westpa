@@ -58,7 +58,7 @@ class TrajWalker:
 
         # Convert to Segment objects
         segments = []
-        for (n_iter, id_set) in root_ids.items():
+        for n_iter, id_set in root_ids.items():
             segments.extend(self.data_reader.get_segments_by_id(n_iter, id_set, include_pcoords=include_pcoords))
         return segments
 

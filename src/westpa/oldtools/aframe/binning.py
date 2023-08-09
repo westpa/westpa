@@ -92,7 +92,7 @@ class BinningMixin(AnalysisMixin):
         '''
         dest.write(header or '')
         max_iwidth = len(str(self.mapper.nbins - 1))
-        for (ibin, label) in enumerate(self.mapper.labels):
+        for ibin, label in enumerate(self.mapper.labels):
             dest.write(format.format(bin_index=ibin, label=label, max_iwidth=max_iwidth))
 
     def require_binning_group(self):
@@ -125,7 +125,7 @@ class BinningMixin(AnalysisMixin):
 
         westpa.rc.pstatus('Assigning to bins...')
 
-        for (iiter, n_iter) in enumerate(range(self.first_iter, self.last_iter + 1)):
+        for iiter, n_iter in enumerate(range(self.first_iter, self.last_iter + 1)):
             westpa.rc.pstatus('\r  Iteration {:d}'.format(n_iter), end='')
             seg_index = self.get_seg_index(n_iter)
             pcoords = self.get_iter_group(n_iter)['pcoord'][...]

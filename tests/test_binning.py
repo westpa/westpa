@@ -283,7 +283,6 @@ class TestNestingBinMapper:
     # TODO: Fix this test
     @pytest.mark.xfail(reason="known error in assign")
     def test2dRectilinearRecursion(self):
-
         '''
          0                            1                      2
          +----------------------------+----------------------+

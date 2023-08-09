@@ -68,7 +68,6 @@ modify the binning for the current iteration of a WEST simulation.
         rebin_parser.set_defaults(func=self.cmd_rebin)
 
     def process_args(self, args):
-
         self.data_reader.process_args(args)
         self.data_reader.open(mode='r+')
         self.n_iter = getattr(args, 'n_iter', None) or self.data_reader.current_iteration
