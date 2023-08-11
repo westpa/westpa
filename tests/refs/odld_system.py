@@ -44,7 +44,6 @@ class ODLDPropagator(WESTPropagator):
         return initial_state
 
     def propagate(self, segments):
-
         A, B, C, x0 = self.A, self.B, self.C, self.x0
 
         n_segs = len(segments)

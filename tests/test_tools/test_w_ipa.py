@@ -10,7 +10,6 @@ from westpa.cli.tools.w_ipa import entry_point
 
 
 class Test_W_IPA(unittest.TestCase):
-
     test_name = 'W_IPA'
 
     def test_run_w_ipa(self):

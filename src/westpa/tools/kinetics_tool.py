@@ -95,7 +95,6 @@ class AverageCommands(WESTKineticsBase):
         self.kinetics_file = None
 
     def add_args(self, parser):
-
         iogroup = parser.add_argument_group('input/output options')
         # self.default_kinetics_file will be picked up as a class attribute from the appropriate subclass
         # We can do this with the output file, too...
@@ -261,7 +260,6 @@ class AverageCommands(WESTKineticsBase):
     def run_calculation(
         self, pi, nstates, start_iter, stop_iter, step_iter, dataset, eval_block, name, dim, do_averages=False, **extra
     ):
-
         # We want to use the same codepath to run a quick average as we do the longer evolution sets, so...
         if do_averages:
             start_pts = [start_iter, stop_iter]
@@ -279,7 +277,6 @@ class AverageCommands(WESTKineticsBase):
         # This is appropriate for bootstrapped quantities, I think.
 
         if True:
-
             futures = []
             for iblock, start in enumerate(start_pts):
                 stop = min(start + step_iter, stop_iter)

@@ -30,7 +30,6 @@ class SegmentSelection:
         return tuple(pair) in self._segments
 
     def add(self, pair):
-
         (n_iter, seg_id) = int(pair[0]), int(pair[1])
         self._segments.add((n_iter, seg_id))
         self._segs_by_iter.setdefault(n_iter, set()).add(seg_id)

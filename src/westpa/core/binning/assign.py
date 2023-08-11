@@ -429,7 +429,7 @@ class RecursiveBinMapper(BinMapper):
         # Which coordinates do we need to reassign, because they landed in
         # bins with embedded mappers?
         rmasks = {}
-        for (rindex, mapper) in self._recursion_targets.items():
+        for rindex, mapper in self._recursion_targets.items():
             omask = output == rindex
             mmask |= omask
             rmasks[rindex] = omask
@@ -441,7 +441,7 @@ class RecursiveBinMapper(BinMapper):
             output_map(output, omap, mask & ~mmask)
 
         # do any recursive assignments necessary
-        for (rindex, mapper) in self._recursion_targets.items():
+        for rindex, mapper in self._recursion_targets.items():
             mapper.assign(coords, mask & rmasks[rindex], output)
 
         return output

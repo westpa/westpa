@@ -209,7 +209,6 @@ def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.st
 
 
 def write_bin_labels(mapper, dest, header='# bin labels:\n', fmt='# bin {index:{max_iwidth}d} -- {label!s}\n'):
-
     '''Print labels for all bins in ``mapper`` to the file-like object``dest``.
 
     If provided, ``header`` is printed prior to any labels. A number of expansions
@@ -229,7 +228,7 @@ def write_bin_labels(mapper, dest, header='# bin labels:\n', fmt='# bin {index:{
         dest.write(header.format(mapper=mapper, classname=mapper.__class__.__name__, nbins=mapper.bins))
 
     max_iwidth = len(str(mapper.nbins - 1))
-    for (ibin, label) in enumerate(mapper.labels):
+    for ibin, label in enumerate(mapper.labels):
         dest.write(fmt.format(index=ibin, label=label, max_iwidth=max_iwidth))
 
 
@@ -277,7 +276,6 @@ class BinMappingComponent(WESTToolComponent):
     '''
 
     def __init__(self):
-
         # The final mapper
         self.mapper = None
         self.mapper_hash = None
@@ -368,7 +366,6 @@ class BinMappingComponent(WESTToolComponent):
         )
 
     def process_args(self, args):
-
         # User may have suppressed any of these arguments
         bins_from_system = getattr(args, 'bins_from_system', None)
         bins_from_expr = getattr(args, 'bins_from_expr', None)

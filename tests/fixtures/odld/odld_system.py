@@ -4,6 +4,8 @@ from numpy.random import normal as random_normal
 from westpa.core.binning import RectilinearBinMapper
 from westpa.core.propagators import WESTPropagator
 from westpa.core.systems import WESTSystem
+from westpa.core.binning.mab import MABBinMapper
+from westpa.core.binning.binless import BinlessMapper
 
 PI = np.pi
 
@@ -42,7 +44,6 @@ class ODLDPropagator(WESTPropagator):
         return initial_state
 
     def propagate(self, segments):
-
         A, B, C, x0 = self.A, self.B, self.C, self.x0
 
         n_segs = len(segments)
@@ -101,5 +102,29 @@ class ODLDSystem(WESTSystem):
 
         # self.bin_mapper = RectilinearBinMapper([[0,1.3] + list(np.arange(1.4, 10.1, 0.1)) + [float('inf')]])
         self.bin_mapper = RectilinearBinMapper([list(np.arange(0.0, 10.1, 0.1))])
+        self.bin_target_counts = np.empty((self.bin_mapper.nbins,), np.int_)
+        self.bin_target_counts[...] = 10
+
+
+class MABODLDSystem(WESTSystem):
+    def initialize(self):
+        self.pcoord_ndim = 1
+        self.pcoord_dtype = pcoord_dtype
+        self.pcoord_len = pcoord_len
+
+        # self.bin_mapper = RectilinearBinMapper([[0,1.3] + list(np.arange(1.4, 10.1, 0.1)) + [float('inf')]])
+        self.bin_mapper = MABBinMapper([10])
+        self.bin_target_counts = np.empty((self.bin_mapper.nbins,), np.int_)
+        self.bin_target_counts[...] = 10
+
+
+class BinlessODLDSystem(WESTSystem):
+    def initialize(self):
+        self.pcoord_ndim = 1
+        self.pcoord_dtype = pcoord_dtype
+        self.pcoord_len = pcoord_len
+
+        # self.bin_mapper = RectilinearBinMapper([[0,1.3] + list(np.arange(1.4, 10.1, 0.1)) + [float('inf')]])
+        self.bin_mapper = BinlessMapper(ngroups=10, ndims=1, group_function='westpa.core.we_driver._group_walkers_identity')
         self.bin_target_counts = np.empty((self.bin_mapper.nbins,), np.int_)
         self.bin_target_counts[...] = 10

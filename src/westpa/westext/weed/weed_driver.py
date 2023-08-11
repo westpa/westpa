@@ -117,7 +117,7 @@ class WEEDDriver:
             for iseg, segment in enumerate(segments):
                 pcoords[iseg] = segment.pcoord[0]
             assignments = mapper.assign(pcoords)
-            for (segment, assignment) in zip(segments, assignments):
+            for segment, assignment in zip(segments, assignments):
                 bins[assignment].add(segment)
 
             westpa.rc.pstatus('\nReweighting using a different bin mapper than simulation:\n{}'.format(mapper))
@@ -169,7 +169,7 @@ class WEEDDriver:
             westpa.rc.pstatus('Empty bins assigned nonzero probability: {!s}.'.format(np.array_str(np.arange(n_bins)[z2nz_mask])))
         else:
             westpa.rc.pstatus('\nBin populations after reweighting:\n{!s}'.format(binprobs))
-            for (bin, newprob) in zip(bins, binprobs):
+            for bin, newprob in zip(bins, binprobs):
                 bin.reweight(newprob)
 
             weed_global_group.attrs['last_reweighting'] = n_iter

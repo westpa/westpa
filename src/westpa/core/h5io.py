@@ -101,7 +101,6 @@ def tostr(b):
 
 
 def is_within_directory(directory, target):
-
     abs_directory = os.path.abspath(directory)
     abs_target = os.path.abspath(target)
 
@@ -111,7 +110,6 @@ def is_within_directory(directory, target):
 
 
 def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-
     for member in tar.getmembers():
         member_path = os.path.join(path, member.name)
         if not is_within_directory(path, member_path):
@@ -220,7 +218,7 @@ def load_west(filename):
 
             raw_pcoord = iter_group['pcoord'][:]
             if raw_pcoord.ndim != 3:
-                log.warn('pcoord is expected to be a 3-d ndarray instead of {}-d'.format(raw_pcoord.ndim))
+                log.warning('pcoord is expected to be a 3-d ndarray instead of {}-d'.format(raw_pcoord.ndim))
                 continue
             # ignore the first frame of each segment
             if raw_pcoord.shape[1] == traj.n_frames + 1:
@@ -374,7 +372,6 @@ class WESTPAH5File(h5py.File):
     _this_fileformat_version = 8
 
     def __init__(self, *args, **kwargs):
-
         # These values are used for creating files or reading files where this
         # data is not stored. Otherwise, values stored as attributes on the root
         # group are used instead.
@@ -919,7 +916,6 @@ class MultiDSSpec(DSSpec):
 class IterBlockedDataset:
     @classmethod
     def empty_like(cls, blocked_dataset):
-
         source = blocked_dataset.data if blocked_dataset.data is not None else blocked_dataset.dataset
 
         newbds = cls(

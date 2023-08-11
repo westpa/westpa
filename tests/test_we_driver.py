@@ -222,7 +222,6 @@ class TestWEDriver(TestCase):
         assert segments[0].endpoint_type == Segment.SEG_ENDPOINT_RECYCLED
 
     def test_multiple_merge(self):
-
         # This weight and count combination is known to trigger a split to 51
         # followed by a count adjustment to 50 (thanks to Josh Adelman)
         segment = self.segment(0.0, 0.5, weight=0.9999999999970001)

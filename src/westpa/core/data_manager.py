@@ -231,7 +231,7 @@ class WESTDataManager:
     def process_config(self):
         config = self.rc.config
 
-        for (entry, type_) in [('iter_prec', int)]:
+        for entry, type_ in [('iter_prec', int)]:
             config.require_type_if_present(['west', 'data', entry], type_)
 
         self.we_h5filename = config.get_path(['west', 'data', 'west_data_file'], default=self.default_we_h5filename)
@@ -263,7 +263,6 @@ class WESTDataManager:
                 raise ValueError('cannot override pcoord storage location')
 
     def __init__(self, rc=None):
-
         self.rc = rc or westpa.rc
 
         self.we_h5filename = self.default_we_h5filename
@@ -854,7 +853,7 @@ class WESTDataManager:
             pcoord = np.empty((n_particles, pcoord_len, pcoord_ndim), pcoord_dtype)
 
             total_parents = 0
-            for (seg_id, segment) in enumerate(segments):
+            for seg_id, segment in enumerate(segments):
                 if segment.seg_id is not None:
                     assert segment.seg_id == seg_id
                 else:
@@ -895,7 +894,7 @@ class WESTDataManager:
                 wtgraph_ds = iter_group.create_dataset('wtgraph', (total_parents,), seg_id_dtype, compression='gzip', shuffle=True)
                 parents = np.empty((total_parents,), seg_id_dtype)
 
-                for (seg_id, segment) in enumerate(segments):
+                for seg_id, segment in enumerate(segments):
                     offset = seg_index_table[seg_id]['wtg_offset']
                     extent = seg_index_table[seg_id]['wtg_n_parents']
                     parent_list = list(segment.wtg_parent_ids)
@@ -986,7 +985,7 @@ class WESTDataManager:
             # read summary data so that we have valud parent and weight transfer information
             si_dsid.read(si_msel, si_fsel, seg_index_entries)
 
-            for (iseg, (segment, ientry)) in enumerate(zip(segments, seg_index_entries)):
+            for iseg, (segment, ientry) in enumerate(zip(segments, seg_index_entries)):
                 ientry['status'] = segment.status
                 ientry['endpoint_type'] = segment.endpoint_type or Segment.SEG_ENDPOINT_UNSET
                 ientry['cputime'] = segment.cputime
@@ -1021,7 +1020,7 @@ class WESTDataManager:
 
             # Then we iterate over data sets and store data
             if dsets:
-                for (dsname, (shape, dtype)) in dsets.items():
+                for dsname, (shape, dtype) in dsets.items():
                     # dset = self._require_aux_dataset(iter_group, dsname, n_total_segments, shape, dtype)
                     try:
                         dsopts = self.dataset_options[dsname]

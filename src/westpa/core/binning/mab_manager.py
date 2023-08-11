@@ -75,8 +75,31 @@ class MABSimManager(WESimManager):
                 log.error('unknown future {!r} received from work manager'.format(future))
                 raise AssertionError('untracked future {!r}'.format(future))
 
+        # Collectively assign all segments to their bins...
         self.we_driver.assign(self.segments.values())
-        self.get_istate_futures()
+
+        # For cases where we need even more istates for recycled trajectories
+        # futures should be empty at this point.
+        istate_gen_futures = self.get_istate_futures()
+        futures.update(istate_gen_futures)
+
+        # Wait for istate_gen_futures and catch untracked futures.
+        while futures:
+            future = self.work_manager.wait_any(futures)
+            futures.remove(future)
+
+            if future in istate_gen_futures:
+                istate_gen_futures.remove(future)
+                _basis_state, initial_state = future.get_result()
+                log.debug('received newly-prepared initial state {!r}'.format(initial_state))
+                initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
+                with self.data_manager.expiring_flushing_lock():
+                    self.data_manager.update_initial_states([initial_state], n_iter=self.n_iter + 1)
+                self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
+            else:
+                log.error('unknown future {!r} received from work manager'.format(future))
+                raise AssertionError('untracked future {!r}'.format(future))
+
         log.debug('done with propagation')
         self.save_bin_data()
         self.data_manager.flush_backing()
@@ -135,7 +158,7 @@ class MABSimManager(WESimManager):
         # Assign this iteration's segments' initial points to bins and report on bin population
         initial_binning = self.system.bin_mapper.construct_bins()
         initial_assignments = self.system.bin_mapper.assign(pcoords_with_weights)
-        for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
+        for segment, assignment in zip(iter(segments.values()), initial_assignments):
             initial_binning[assignment].add(segment)
         self.report_bin_statistics(initial_binning, [], save_summary=True)
         del pcoords_with_weights, initial_binning

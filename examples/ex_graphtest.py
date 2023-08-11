@@ -56,9 +56,9 @@ for leaf in tree.leaves.values():
 # print(leaves_by_branchpoint)
 print('there are {:d} branch points leading to approximately independent trajectory bundles'.format(len(leaves_by_branchpoint)))
 # for ((branch,node),leaves) in leaves_by_branchpoint.iteritems():
-for (branchnode, subtrees) in leaves_by_branchpoint.items():
+for branchnode, subtrees in leaves_by_branchpoint.items():
     print('  branch point {}:{} has {} independent subtree(s)'.format(branchnode.n_iter, branchnode.seg_id, len(subtrees)))
-    for (subtree, leaves) in subtrees.items():
+    for subtree, leaves in subtrees.items():
         leaves = list(leaves)
         weights = np.fromiter((leaf.weight for leaf in leaves), dtype=np.float64)
         max_weight_node = leaves[np.argmax(weights)]
@@ -71,7 +71,7 @@ for (branchnode, subtrees) in leaves_by_branchpoint.items():
         # print('subtree rooted at point ({},{}) contains {:d} leaves'.format(node.n_iter, node.seg_id,len(leaves)))
         # print('  of which ({},{}) has the highest weight ({!r})'.format(max_weight_node.n_iter, max_weight_node.seg_id,
         #                                                                max_weight_node.weight))
-for (root, leaves) in leftovers_by_root.items():
+for root, leaves in leftovers_by_root.items():
     print('{} trajectories from root {}:{} pruned due to shared history'.format(len(leaves), root.n_iter, root.seg_id))
 
 

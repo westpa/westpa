@@ -156,7 +156,7 @@ Command-line options
             # Sometimes, we're smaller or larger by one.  Hm.
             try:
                 self.total_walkers[:] += west['summary'][:-1]['n_particles']
-            except (ValueError):
+            except ValueError:
                 self.total_walkers[:] += west['summary'][:-1]['n_particles'][: len(self.total_walkers)]
 
     class Segment:
