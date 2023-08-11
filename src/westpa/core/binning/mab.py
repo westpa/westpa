@@ -212,7 +212,6 @@ def map_mab(coords, mask, output, *args, **kwargs):
         # the following are for the "linear" portion
         if not special:
             for n in range(ndim):
-
                 # if skipped, it's added to the same bin as the special walkers above
                 if skip[n] != 0:
                     holder = boundary_base + n

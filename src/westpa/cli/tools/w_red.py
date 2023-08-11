@@ -333,7 +333,6 @@ class RateCalculator:
         return self._dc
 
     def calc_rate(self, i_iter=None, red=False, **kwargs):
-
         if i_iter is None:
             i_iter = self.n_iters
 

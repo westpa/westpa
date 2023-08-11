@@ -158,7 +158,7 @@ class MABSimManager(WESimManager):
         # Assign this iteration's segments' initial points to bins and report on bin population
         initial_binning = self.system.bin_mapper.construct_bins()
         initial_assignments = self.system.bin_mapper.assign(pcoords_with_weights)
-        for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
+        for segment, assignment in zip(iter(segments.values()), initial_assignments):
             initial_binning[assignment].add(segment)
         self.report_bin_statistics(initial_binning, [], save_summary=True)
         del pcoords_with_weights, initial_binning

@@ -159,7 +159,6 @@ def prepare_coordinates(plugin_config, h5file, we_h5filename):
 
     n_iter = None
     for n_iter in tqdm.tqdm(range(1, model.maxIter + 1)):
-
         nS = model.numSegments[n_iter - 1].astype(int)
         coords = np.zeros((nS, 2, model.nAtoms, 3))
         dsetName = "/iterations/iter_%08d/auxdata/coord" % int(n_iter)
@@ -530,7 +529,6 @@ class RestartDriver:
         os.symlink(f'restart0/run{run_number}/seg_logs', 'seg_logs')
 
         if first_extension:
-
             # Get lines to make a new west.cfg by extending west.propagation.max_total_iterations
             with open('west.cfg', 'r') as west_config:
                 lines = west_config.readlines()
@@ -578,7 +576,6 @@ class RestartDriver:
         return
 
     def generate_plots(self, restart_directory):
-
         model = self.model
 
         log.info("Producing flux-profile, pseudocommittor, and target flux comparison plots.")
@@ -616,7 +613,6 @@ class RestartDriver:
 
         # Get WE direct flux estimate
         for _file in model.fileList:
-
             run = analysis.Run(_file)
             last_iter = run.num_iterations
             recycled = list(run.iteration(last_iter - 1).recycled_walkers)
@@ -754,7 +750,6 @@ class RestartDriver:
 
         # If we have more runs left to do in this marathon, prepare them
         elif not last_run:
-
             log.info(f"Run {restart_state['runs_completed']}/{self.n_runs} completed.")
 
             # TODO: Initialize a new run, from the same configuration as this run was
@@ -774,7 +769,6 @@ class RestartDriver:
 
             # TODO: Implement this, and get rid of the initialization_file usage right below. Placeholder for now.
             if restart_state['runs_completed'] == 1:
-
                 # Get and write basis, target, start states and segs per state for this marathon to disk
                 pass
 
@@ -826,7 +820,6 @@ class RestartDriver:
             # If we're doing an extension set
             #   Instead of w_initting a new iteration, copy the files from restart0/runXX back into ./
             elif doing_extension:
-
                 self.prepare_extension_run(run_number=restart_state['runs_completed'] + 1, restart_state=restart_state)
                 return
 
@@ -881,7 +874,6 @@ class RestartDriver:
         )
         for restart_number in usable_restarts:
             for run_number in range(1, 1 + restart_state['runs_completed']):
-
                 west_file_path = f"restart{restart_number}/run{run_number}/west.h5"
                 marathon_west_files.append(west_file_path)
 
@@ -902,12 +894,10 @@ class RestartDriver:
             # If you reached the target, clean up from the extensions and then continue as normal
             # If  extension_iters is set to 0, then don't do extensions.
             if target_reached or self.extension_iters == 0:
-
                 log.info("All runs reached target!")
 
                 # Do some cleanup from the extension run
                 if doing_extension and not self.extension_iters == 0:
-
                     # Remove the doing_extensions.lck lockfile
                     os.remove(EXTENSION_LOCKFILE)
 
@@ -918,7 +908,6 @@ class RestartDriver:
 
             # If no runs reached the target, then we need to extend them
             elif not target_reached:
-
                 log.info("Target not reached. Preparing for extensions.")
 
                 # Create the doing_extensions.lck "lockfile" to indicate we're in extend mode (or keep if exists)
@@ -953,14 +942,12 @@ class RestartDriver:
 
         flux_filename = f"{restart_directory}/JtargetSS.txt"
         with open(flux_filename, 'w') as fp:
-
             log.debug(f"Writing flux to {flux_filename}")
             fp.write(str(model.JtargetSS))
             fp.close()
 
         ss_filename = f"{restart_directory}/pSS.txt"
         with open(ss_filename, 'w') as fp:
-
             log.debug(f"Writing pSS to {ss_filename}")
             np.savetxt(fp, model.pSS)
             fp.close()
@@ -977,7 +964,6 @@ class RestartDriver:
         # TODO: Include start states from previous runs
         sstates_filename = f"{restart_directory}/startstates.txt"
         with open(sstates_filename, 'w') as fp:
-
             # Track the total number of segments iterated over
             seg_idx = 0
 
@@ -988,8 +974,7 @@ class RestartDriver:
             total_bin_weights = []
 
             # Loop over each set of (bin index, all the structures in that bin)
-            for (msm_bin_idx, structures) in tqdm.tqdm(model.cluster_structures.items()):
-
+            for msm_bin_idx, structures in tqdm.tqdm(model.cluster_structures.items()):
                 total_bin_weights.append(0)
 
                 # Don't put structures in the basis or target
@@ -1011,13 +996,11 @@ class RestartDriver:
                 # Write each structure to disk. Loop over each structure within a bin.
                 msm_bin_we_weight_tracker = 0
                 for struct_idx, structure in enumerate(structures):
-
                     structure_filename = (
                         f"{struct_directory}/bin{msm_bin_idx}_" f"struct{struct_idx}.{STRUCT_EXTENSIONS[self.struct_filetype]}"
                     )
 
                     with self.struct_filetype(structure_filename, 'w') as struct_file:
-
                         # One structure per segment
                         seg_we_weight = model.cluster_structure_weights[msm_bin_idx][struct_idx]
                         msm_bin_we_weight_tracker += seg_we_weight

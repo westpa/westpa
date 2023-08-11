@@ -64,7 +64,7 @@ significant analysis tasks).
             + '\n'
         )
         pcoord_lines = '  pcoord[0]  = {init_pcoord}\n  pcoord[-1] = {final_pcoord}' + '\n'
-        for (_seg_id, segment) in enumerate(segments):
+        for _seg_id, segment in enumerate(segments):
             parents_str = '[' + ', '.join(map(str, sorted(segment.wtg_parent_ids))) + ']'
             init_pcoord_str = '[' + ', '.join('{pcval:<12.6g}'.format(pcval=float(pce)) for pce in segment.pcoord[0]) + ']'
             final_pcoord_str = '[' + ', '.join('{pcval:<12.6g}'.format(pcval=float(pce)) for pce in segment.pcoord[-1]) + ']'

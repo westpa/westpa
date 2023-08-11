@@ -282,7 +282,6 @@ class ZMQExecutor(ZMQCore):
         self.result_endpoint = result_endpoint
 
     def comm_loop(self):
-
         task_socket = self.context.socket(zmq.PULL)
         result_socket = self.context.socket(zmq.PUSH)
 

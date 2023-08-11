@@ -174,11 +174,9 @@ class Manager(MPIWorkManager):
         assert threading.currentThread().getName() == "dispatcher"
 
         while not self.shutItDown:
-
             req = []
             # do we have work and somewhere to send it?
             while self.tasks and self.dests:
-
                 with self.lock:
                     task = self.tasks.popleft()
                     sendTo = self.dests.popleft()
@@ -201,10 +199,8 @@ class Manager(MPIWorkManager):
         assert threading.currentThread().getName() == "receiver"
 
         while not self.shutItDown:
-
             # are we waiting on any results?
             while self.nPending:
-
                 stat = MPI.Status()
                 (tid, msg, val) = self.comm.recv(source=MPI.ANY_SOURCE, tag=self.result_tag, status=stat)
                 log.debug('Manager._receiver received task: %s' % tid)
@@ -278,7 +274,6 @@ class Worker(MPIWorkManager):
         """Clock the worker in for work."""
         log.debug('Worker.startup() %s' % self.rank)
         if not self.running:
-
             self.clockIn()
 
             self.running = True
@@ -292,14 +287,12 @@ class Worker(MPIWorkManager):
         comm = self.comm
 
         while True:
-
             stat = MPI.Status()
             task = comm.recv(source=self.managerID, tag=MPI.ANY_TAG, status=stat)
 
             tag = stat.Get_tag()
 
             if tag == self.task_tag:
-
                 log.debug('Worker %s received task: %s' % (self.rank, task.task_id))
 
                 # do the work

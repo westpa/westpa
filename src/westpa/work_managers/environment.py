@@ -75,7 +75,6 @@ class WMEnvironment:
                 raise ValueError('cannot convert {!r} to {!r}: {!s}'.format(val, type_, e))
 
     def add_wm_args(self, parser):
-
         wm_group = parser.add_argument_group(self.group_title, self.group_description)
         wm_mutex = wm_group.add_mutually_exclusive_group()
         wm_mutex.add_argument(

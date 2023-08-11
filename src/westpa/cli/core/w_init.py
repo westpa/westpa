@@ -18,7 +18,6 @@ EPS = np.finfo(np.float64).eps
 
 
 def entry_point():
-
     parser = argparse.ArgumentParser(
         'w_init',
         description='''\

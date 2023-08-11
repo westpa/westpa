@@ -20,7 +20,6 @@ from .zmq_tsupport import ZMQTestBase
 
 
 class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
-
     # endpoint_type = 'tcp'
 
     '''Tests for the core task dispersal/retrieval and shutdown operations

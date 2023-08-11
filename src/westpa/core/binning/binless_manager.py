@@ -155,7 +155,7 @@ class BinlessSimManager(WESimManager):
         for iseg, segment in enumerate(segments.values()):
             initial_pcoords[iseg] = segment.pcoord[0]
         initial_assignments = self.system.bin_mapper.assign(initial_pcoords)
-        for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
+        for segment, assignment in zip(iter(segments.values()), initial_assignments):
             initial_binning[assignment].add(segment)
         self.report_bin_statistics(initial_binning, [], save_summary=True)
         del initial_pcoords, initial_binning

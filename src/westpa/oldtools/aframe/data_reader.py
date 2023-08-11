@@ -135,7 +135,7 @@ class WESTDataReaderMixin(AnalysisMixin):
         if include_pcoords:
             pcoords = self.get_pcoords(n_iter, seg_ids)
 
-        for (isegid, seg_id) in enumerate(seg_ids):
+        for isegid, seg_id in enumerate(seg_ids):
             row = seg_index[seg_id]
             parents_offset = row['wtg_offset']
             n_parents = row['wtg_n_parents']
@@ -313,7 +313,6 @@ class ExtDataReaderMixin(AnalysisMixin):
         )
 
     def process_args(self, args, upcall=True):
-
         if args.usecols:
             westpa.rc.pstatus('Using only the following columns from external input: {!s}'.format(args.usecols))
             self.ext_input_usecols = args.usecols
@@ -413,10 +412,10 @@ class ExtDataReaderMixin(AnalysisMixin):
                 )
 
             if usecols:
-                for (ifield, iifield) in enumerate(usecols):
+                for ifield, iifield in enumerate(usecols):
                     databuffer[irow, ifield] = dtype(fields[iifield])
             else:
-                for (ifield, field) in enumerate(fields):
+                for ifield, field in enumerate(fields):
                     databuffer[irow, ifield] = dtype(field)
 
             nrows += 1

@@ -21,7 +21,6 @@ log = logging.getLogger(__name__)
 
 
 class WESTStringMethod:
-
     ___metaclass__ = ABCMeta
 
     def __init__(self, centers, **kwargs):
@@ -218,7 +217,6 @@ class DefaultStringMethod(WESTStringMethod):
                 avgcoords[idx] = pavg.mean(axis=0)
 
         for sid, si in enumerate(self._strindx):
-
             x = avgcoords.copy()[si]
             centers = self.centers[si]
             occupied = np.nonzero(binprob[si[0]])

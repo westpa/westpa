@@ -135,7 +135,7 @@ class WESSDriver:
             for iseg, segment in enumerate(segments):
                 pcoords[iseg] = segment.pcoord[0]
             assignments = mapper.assign(pcoords)
-            for (segment, assignment) in zip(segments, assignments):
+            for segment, assignment in zip(segments, assignments):
                 bins[assignment].add(segment)
 
             target_states = list(we_driver.target_states.values())
@@ -193,7 +193,7 @@ class WESSDriver:
             westpa.rc.pstatus('Empty bins assigned nonzero probability: {!s}.'.format(np.array_str(np.arange(n_bins)[z2nz_mask])))
         else:
             westpa.rc.pstatus('\nBin populations after reweighting:\n{!s}'.format(binprobs))
-            for (bin, newprob) in zip(bins, binprobs):
+            for bin, newprob in zip(bins, binprobs):
                 if len(bin):
                     bin.reweight(newprob)
 

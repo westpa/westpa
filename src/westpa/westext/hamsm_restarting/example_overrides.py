@@ -20,7 +20,6 @@ def processCoordinates(self, coords):
         return data
 
     if self.dimReduceMethod == "pca" or self.dimReduceMethod == "vamp":
-
         ### NaCl dimensionality reduction
         log.warning("Hardcoded selection: Doing dim reduction for Na, Cl. This is only for testing!")
         indNA = self.reference_structure.topology.select("element Na")

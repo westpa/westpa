@@ -85,7 +85,6 @@ class WTTimesBase:
         self.add_common_output_args(output_options)
 
     def process_args(self, args, upcall=True):
-
         self.ed_stats_filename = args.ed_stats
         self.fpt_stats_filename = args.fpt_stats
         self.flux_stats_filename = args.flux_stats
@@ -201,7 +200,7 @@ class WTTimesBase:
             westpa.rc.pstatus()
             del trans_ibin
 
-        for (dsname, data) in (('duration', durations), ('fpt', fpts), ('flux', fluxes), ('rate', rates)):
+        for dsname, data in (('duration', durations), ('fpt', fpts), ('flux', fluxes), ('rate', rates)):
             try:
                 del self.ttimes_group[dsname]
             except KeyError:
@@ -234,7 +233,7 @@ class WTTimesBase:
         self.record_data_binhash(self.ttimes_group)
 
     def summarize_stats(self):
-        for (array, dsname, argname, title) in (
+        for array, dsname, argname, title in (
             (self.durations, 'duration', 'ed_stats_filename', 'event duration'),
             (self.fpts, 'fpt', 'fpt_stats_filename', 'first passage time'),
             (self.fluxes, 'flux', 'flux_stats_filename', 'flux'),
@@ -259,7 +258,6 @@ class WTTimesBase:
                 )
 
     def summarize_ci(self, filename, array, title, confidence, headers, labels):
-
         format_2d = (
             '{ibin:{mw}d}    {fbin:{mw}d}    {0:20.15g}    {1:20.15g}    {2:20.15g}    {3:20.15g}    {4:20.15g}    {5:20.15g}\n'
         )
