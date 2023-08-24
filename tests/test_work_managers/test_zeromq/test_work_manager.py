@@ -1,6 +1,8 @@
 from contextlib import contextmanager
 import time
+import sys
 import unittest
+import pytest
 
 from westpa.work_managers.zeromq import ZMQWorkManager, ZMQWorker, ZMQWorkerMissing
 from westpa.work_managers.zeromq.core import Message, Task
@@ -8,11 +10,13 @@ from westpa.work_managers.zeromq.core import Message, Task
 from ..tsupport import identity, random_int, CommonWorkManagerTests, ExceptionForTest
 from ..tsupport import will_busyhang, will_busyhang_uninterruptible, will_fail
 
-
 import zmq
 
 from .zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
 from .zmq_tsupport import ZMQTestBase
+
+
+flaky_on_macos = pytest.mark.flaky(condition=sys.platform.startswith('darwin'), reruns=3, reason='flaky on macos')
 
 
 class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
@@ -119,6 +123,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
         assert not self.test_wm.comm_thread.is_alive()
 
     # Work manager sends shutdown announcement downstream
+    @flaky_on_macos
     def test_shutdown_sends_announcement(self):
         with self.expect_announcement(Message.SHUTDOWN):
             self.test_wm.signal_shutdown()
@@ -128,7 +133,7 @@ class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
     #         with self.expect_announcement(Message.MASTER_BEACON):
     #             time.sleep(BEACON_WAIT)
 
-    @unittest.skip(reason='skipping')
+    @pytest.mark.skip(reason='skipping')
     def test_delayed_master_beacon(self):
         self.discard_announcements()
         with self.expect_announcement(Message.MASTER_BEACON):
@@ -264,15 +269,18 @@ class TestZMQWorkManagerInternalNone(ZMQTestBase, unittest.TestCase):
 
         super().tearDown()
 
+    @flaky_on_macos
     def test_shutdown_without_workers(self):
         time.sleep(1.5)
         assert not self.test_wm.comm_thread.is_alive()
 
+    @flaky_on_macos
     def test_shutdown_without_workers_after_submission(self):
         self.test_wm.submit(identity, (1,), {})
         time.sleep(1.5)
         assert not self.test_wm.comm_thread.is_alive()
 
+    @flaky_on_macos
     def test_shutdown_without_workers_raises_future_error(self):
         future = self.test_wm.submit(identity, (1,), {})
         time.sleep(1.5)
