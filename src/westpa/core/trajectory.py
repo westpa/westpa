@@ -293,12 +293,20 @@ def load_trajectory(folder):
     trajectory file contains topology data (e.g., HDF5 format).
     '''
     traj_file = top_file = None
-    for filename in os.listdir(folder):
+    file_list = [f_name for f_name in os.listdir(folder) if not f_name.startswith('.')]
+    for filename in file_list:
         filepath = os.path.join(folder, filename)
         if not os.path.isfile(filepath):
             continue
 
         ext = get_extension(filename).lower()
+        # Catching trajectory formats that can be topology and trajectories at the same time.
+        # Only activates when there is a single file.
+        if len(file_list) < 2 and ext in TOPOLOGY_EXTS and ext in TRAJECTORY_EXTS:
+            top_file = filename
+            traj_file = filename
+
+        # Assuming topology file is copied first.
         if ext in TOPOLOGY_EXTS and top_file is None:
             top_file = filename
         elif ext in TRAJECTORY_EXTS and traj_file is None:
