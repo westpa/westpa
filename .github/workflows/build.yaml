@@ -27,7 +27,7 @@ jobs:
         python-version: [8, 9, 10, 11] # sub-versions of Python
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.16.1
@@ -73,7 +73,7 @@ jobs:
 #         python-version: [8, 9, 10, 11] # sub-versions of Python, there is no py3.7-macosx_arm64
 # 
 #     steps:
-#       - uses: actions/checkout@v3
+#       - uses: actions/checkout@v4
 # 
 #       - name: Build wheels
 #         uses: pypa/cibuildwheel@v2.16.1
@@ -107,7 +107,7 @@ jobs:
     name: Build source distribution
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - uses: actions/setup-python@v4
         with:
