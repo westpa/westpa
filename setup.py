@@ -121,7 +121,7 @@ INSTALL_REQUIRES = [
     "tqdm",
     "pandas",
     "tables < 3.9; python_version < '3.9'",
-    "tables; python_version >= '3.9'"
+    "tables; python_version >= '3.9'",
 ]
 
 EXTRAS_REQUIRE = {
