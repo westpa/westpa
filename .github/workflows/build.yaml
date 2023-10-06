@@ -136,8 +136,14 @@ jobs:
           path: dist/*.tar.gz
 
   upload_testpypi:
+    name: test.pypi
     needs: [build_wheels, build_sdist] #, build_wheels_macos_arm64] # Skipping the apple silicon versions...
     runs-on: ubuntu-latest
+    environment:
+      name: test.pypi
+      url: https://test.pypi.org/p/westpa
+    permissions:
+      id-token: write
     # upload to test.PyPI on every tag starting with 'v'; only in westpa/westpa repository
     # if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     # alternatively, to publish when a GitHub Release is created, use the following rule:
@@ -154,14 +160,17 @@ jobs:
 
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          user: __token__
-          password: ${{ secrets.test_pypi_upload_token }}
-          # To test: 
           repository_url: https://test.pypi.org/legacy/
 
   upload_pypi:
+    name: PyPI
     needs: [build_wheels, build_sdist] #, build_wheels_macos_arm64] # Skipping the apple silicon versions...
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/westpa
+    permissions:
+      id-token: write
     # upload to PyPI on every tag starting with 'v'
     # if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     # alternatively, to publish when a GitHub Release is created, use the following rule:
@@ -177,8 +186,5 @@ jobs:
           path: dist
 
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.pypi_upload_token }}
           # To test: 
           #repository_url: https://test.pypi.org/legacy/
