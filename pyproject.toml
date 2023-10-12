@@ -5,7 +5,8 @@ build-backend = 'setuptools.build_meta:__legacy__'
 requires = [
     "setuptools>=40.8.0",
     "wheel",
-    "Cython>=0.29.16",  # Note: sync with setup.py
+    "Cython>=0.29.16; python_version >='3.10'",  # Note: sync with setup.py
+    "Cython<3.0.3, >=0.29.16; python_version < '3.10'",
     "oldest-supported-numpy",
     "scipy>=0.19.1",
     "versioneer-518"
