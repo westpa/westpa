@@ -212,6 +212,8 @@ def map_mab(coords, mask, output, *args, **kwargs):
                         special = True
                         break
 
+        binbounds = []
+
         # the following are for the "linear" portion
         if not special:
             for n in range(ndim):
@@ -227,6 +229,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
                 bins = np.linspace(minp, maxp, nbins + 1)
                 bin_number = np.digitize(coord, bins) - 1
+                binbounds.append(bins)
 
                 if isfinal is None or not isfinal[i]:
                     if bin_number >= nbins:
@@ -248,12 +251,15 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
     if bin_log and report:
         if westpa.rc.sim_manager.n_iter:
-            with open(expandvars("$WEST_SIM_ROOT/binbounds.log"), 'a') as file:
-                file.write(f'{westpa.rc.sim_manager.n_iter}\n{bins}\n{minlist} {maxlist}\n')
+            with open(expandvars("$WEST_SIM_ROOT/binbounds.log"), 'a') as bb_file:
+                bb_file.write(f'{westpa.rc.sim_manager.n_iter}\n')  # Iteration Number
+                for ibins in binbounds:
+                    bb_file.write(f'{ibins}\t')  # Write binbounds per dim
+                bb_file.write(f'\n{minlist} {maxlist}\n')  # Min/Max pcoord
                 if bottleneck_base > boundary_base:
-                    file.write(f'{flipdifflist} {difflist}\n')
+                    bb_file.write(f'{flipdifflist} {difflist}\n\n')  # Bottlenecks
                 else:
-                    file.write('\n')
+                    bb_file.write('\n')
 
     return output
 
