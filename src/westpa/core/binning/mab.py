@@ -1,7 +1,9 @@
-import numpy as np
-from westpa.core.binning import FuncBinMapper
 import logging
+import numpy as np
 import westpa
+from westpa.core.binning import FuncBinMapper
+from os.path import expandvars
+
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +21,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
     skip = kwargs.get("skip")
     nbins_per_dim = kwargs.get("nbins_per_dim")
     mab_log = kwargs.get("mab_log")
+    bin_log = kwargs.get("bin_log")
     ndim = len(nbins_per_dim)
 
     if not np.any(mask):
@@ -242,6 +245,11 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
         # output is the main list that, for each segment, holds the bin assignment
         output[i] = holder
+
+    if bin_log and report:
+        with expandvars("$WEST_SIM_ROOT/binbounds.log", 'a') as file:
+            file.write(westpa.rc.sim_manager.n_iter)
+            file.write(bins)
 
     return output
 
