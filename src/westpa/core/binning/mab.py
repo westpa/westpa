@@ -247,9 +247,13 @@ def map_mab(coords, mask, output, *args, **kwargs):
         output[i] = holder
 
     if bin_log and report:
-        with expandvars("$WEST_SIM_ROOT/binbounds.log", 'a') as file:
-            file.write(westpa.rc.sim_manager.n_iter)
-            file.write(bins)
+        if westpa.rc.sim_manager.n_iter:
+            with open(expandvars("$WEST_SIM_ROOT/binbounds.log"), 'a') as file:
+                file.write(f'{westpa.rc.sim_manager.n_iter}\n{bins}\n{minlist} {maxlist}\n')
+                if bottleneck_base > boundary_base:
+                    file.write(f'{flipdifflist} {difflist}\n')
+                else:
+                    file.write('\n')
 
     return output
 
@@ -259,7 +263,7 @@ class MABBinMapper(FuncBinMapper):
     the progress coordinte. Extrema and bottleneck segments are assigned
     to their own bins.'''
 
-    def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False, mab_log=False):
+    def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False, mab_log=False, bin_log=False):
         # Verifying parameters
         if nbins is None:
             raise ValueError("nbins_per_dim is missing")
@@ -277,7 +281,9 @@ class MABBinMapper(FuncBinMapper):
             skip = [0] * ndim
             log.warning("Skip list is not the correct dimensions, setting to defaults.")
 
-        kwargs = dict(nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca, mab_log=mab_log)
+        kwargs = dict(
+            nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca, mab_log=mab_log, bin_log=bin_log
+        )
         # the following is neccessary because functional bin mappers need to "reserve"
         # bins and tell the sim manager how many bins they will need to use, this is
         # determined by taking all direction/skipping info into account
