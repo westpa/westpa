@@ -82,8 +82,8 @@ class TestSimManager(TestCase):
         return segment
 
     def test_sim_manager(self):
-        self.assertEquals(self.sim_manager.n_propagated, 0)
-        self.assertEquals(len(self.sim_manager._callback_table), 0)
+        self.assertEqual(self.sim_manager.n_propagated, 0)
+        self.assertEqual(len(self.sim_manager._callback_table), 0)
 
     def test_register_callback(self):
         hook = self.sim_manager.prepare_new_iteration
@@ -110,10 +110,10 @@ class TestSimManager(TestCase):
     def test_process_config(self):
         self.sim_manager.process_config()
         self.assertTrue(self.sim_manager.do_gen_istates)
-        self.assertEquals(self.sim_manager.propagator_block_size, 10000)
+        self.assertEqual(self.sim_manager.propagator_block_size, 10000)
         self.assertFalse(self.sim_manager.save_transition_matrices)
-        self.assertEquals(self.sim_manager.max_run_walltime, 10800)
-        self.assertEquals(self.sim_manager.max_total_iterations, 100)
+        self.assertEqual(self.sim_manager.max_run_walltime, 10800)
+        self.assertEqual(self.sim_manager.max_total_iterations, 100)
 
     def test_load_plugins(self):
         self.sim_manager.load_plugins()

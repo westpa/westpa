@@ -125,7 +125,7 @@ INSTALL_REQUIRES = [
 ]
 
 EXTRAS_REQUIRE = {
-    "tests": ["pytest", "pytest-cov", "pytest-rerunfailures"],
+    "tests": ["pytest", "pytest-cov", "pytest-rerunfailures", "pytest-timeout"],
     "mpi": ["mpi4py"],
 }
 

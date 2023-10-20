@@ -15,9 +15,12 @@ dependencies:
   - ipykernel
   - mpi4py
   - tqdm
-  - mdtraj
   # testing
   - pytest
   - pytest-cov
   - pytest-rerunfailures
+  - pytest-timeout
   - codecov
+  - pip
+  - pip:
+    - mdtraj
