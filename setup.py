@@ -120,8 +120,7 @@ INSTALL_REQUIRES = [
     "ipykernel",
     "tqdm",
     "pandas",
-    "tables < 3.9; python_version < '3.9'",
-    "tables; python_version >= '3.9'",
+    "tables",
 ]
 
 EXTRAS_REQUIRE = {
