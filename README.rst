@@ -6,7 +6,7 @@ WESTPA 2.0
 
 |docs| |usersgroup| |develgroup| 
 
-.. |ghactions| image:: https://github.com/westpa/westpa/actions/workflows/test.yaml/badge.svg?branch=westpa-2.0-restruct
+.. |ghactions| image:: https://github.com/westpa/westpa/actions/workflows/test.yaml/badge.svg?branch=westpa2
               :target: https://github.com/westpa/westpa/actions/workflows/test.yaml
               :alt: GitHub Actions
 
