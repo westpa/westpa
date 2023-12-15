@@ -159,13 +159,6 @@ Command-line options
             except ValueError:
                 self.total_walkers[:] += west['summary'][:-1]['n_particles'][: len(self.total_walkers)]
 
-    class Segment:
-        def __init__(self, weight=0, iteration=0, simid=0, recycled_in=0):
-            self.weight = weight
-            self.iteration = iteration
-            self.simid = simid
-            self.recycled_in = recycled_in
-
     def go(self):
         pi = self.progress.indicator
         self.istates = True  # Assume serendipitously istates is same between runs...
