@@ -159,13 +159,6 @@ Command-line options
             except ValueError:
                 self.total_walkers[:] += west['summary'][:-1]['n_particles'][: len(self.total_walkers)]
 
-    class Segment:
-        def __init__(self, weight=0, iteration=0, simid=0, recycled_in=0):
-            self.weight = weight
-            self.iteration = iteration
-            self.simid = simid
-            self.recycled_in = recycled_in
-
     def go(self):
         pi = self.progress.indicator
         self.istates = True  # Assume serendipitously istates is same between runs...
@@ -174,7 +167,11 @@ Command-line options
             self.open_files()
             self.total_number_of_walkers()
             if self.auxall is True:
-                self.aux = list(self.westH5[1]['iterations/iter_00000001/auxdata'].keys())
+                try:
+                    self.aux = list(self.westH5[1]['iterations/iter_00000001/auxdata'].keys())
+                except KeyError:
+                    self.aux = None
+                    log.warning('No auxdata. Proceeding forward without merging auxdata.')
             # Create a giant WEST.h5 file, separating the individual walkers, and renormalizing the weights.
             # It should then be compatible with existing toolsets.
             # Isn't really going to start with auxdata, but we'll add it in.
@@ -240,7 +237,7 @@ Command-line options
                 self.futr_iter[i] = []
                 self.past_rm[i] = []
                 self.futr_rm[i] = []
-            print(pi.new_operation('Recreating...', self.niters))
+            pi.new_operation('Recreating...', self.niters)
             # tracker = SummaryTracker()
             # self.output_file.close()
 

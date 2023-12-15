@@ -150,6 +150,36 @@ def ref_multi(request, tmpdir):
 
 
 @pytest.fixture
+def ref_multi_noaux(request, tmpdir):
+    """
+    Fixture that prepares a simulation directory for w_multi_west, including a master
+    folder with sub folders 01, 02, 03 containing west_aux_ref.h5 renamed as west.h5.
+    """
+
+    test_dir = str(tmpdir)
+
+    os.chdir(test_dir)
+    copy_ref(test_dir)
+    os.mkdir('01')
+    os.mkdir('02')
+    os.mkdir('03')
+
+    copyfile(os.path.join(REFERENCE_PATH, 'west_ref.h5'), "01/west.h5")
+    copyfile(os.path.join(REFERENCE_PATH, 'west_aux_ref.h5'), "02/west.h5")
+    copyfile(os.path.join(REFERENCE_PATH, 'west_ref.h5'), "03/west.h5")
+
+    copyfile(os.path.join(REFERENCE_PATH, 'west_ref.cfg'), CFG_FILENAME)
+
+    request.cls.cfg_filepath = CFG_FILENAME
+    request.cls.h5_filepath = H5_FILENAME
+
+    os.environ['WEST_SIM_ROOT'] = test_dir
+    westpa.rc = westpa.core._rc.WESTRC()
+
+    request.addfinalizer(clear_state)
+
+
+@pytest.fixture
 def ref_idtype(request):
     """
     Fixture that prepares the west.h5 file and also links in the "correct" istate dtype array.
