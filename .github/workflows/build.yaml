@@ -56,7 +56,7 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
@@ -99,7 +99,7 @@ jobs:
 #           output-dir: wheelhouse
 #           config-file: "{package}/pyproject.toml"
 # 
-#       - uses: actions/upload-artifact@v3
+#       - uses: actions/upload-artifact@v4
 #         with:
 #           path: ./wheelhouse/*.whl
 
@@ -131,7 +131,7 @@ jobs:
           echo "All done with the import tests!"
           # Currently blocked by https://github.com/westpa/westpa/issues/70
           # python -c "import westpa.trajtree"
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: dist/*.tar.gz
 
