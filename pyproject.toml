@@ -43,4 +43,8 @@ exclude = '''
       | _version.py
      )
 )
+
+[tool.ruff.lint]
+extend-select = ["NPY201"]
+preview = true
 '''
