@@ -157,6 +157,7 @@ jobs:
           # if `name: artifact` is omitted, the action will create extra parent dir
           name: artifact
           path: dist
+          merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
@@ -184,6 +185,7 @@ jobs:
           # if `name: artifact` is omitted, the action will create extra parent dir
           name: artifact
           path: dist
+          merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@release/v1
           # To test: 
