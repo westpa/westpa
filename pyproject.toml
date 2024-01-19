@@ -45,6 +45,3 @@ exclude = '''
 )
 '''
 
-[tool.ruff.lint]
-extend-select = ["NPY201"]
-preview = true
