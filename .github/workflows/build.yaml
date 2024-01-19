@@ -155,7 +155,7 @@ jobs:
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
-          name: artifact
+          name: artifact-*
           path: dist
           merge-multiple: true
 
@@ -183,7 +183,7 @@ jobs:
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
-          name: artifact
+          name: artifact-*
           path: dist
           merge-multiple: true
 
