@@ -59,6 +59,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
+          overwrite: true
 
 #   # Split off macos arm64 building...
 #   # Disabled for now... as of 2022-10-12
@@ -102,6 +103,7 @@ jobs:
 #       - uses: actions/upload-artifact@v4
 #         with:
 #           path: ./wheelhouse/*.whl
+#           overwrite: true
 
   build_sdist:
     name: Build source distribution
@@ -134,6 +136,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           path: dist/*.tar.gz
+          overwrite: true
 
   upload_testpypi:
     name: test.pypi
