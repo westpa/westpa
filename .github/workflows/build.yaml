@@ -103,7 +103,7 @@ jobs:
 # 
 #       - uses: actions/upload-artifact@v4
 #         with:
-#           name: artifacts-wheels-macos-aarch64-${{ matrix.python-version }}
+#           name: artifact-wheels-macos-aarch64-${{ matrix.python-version }}
 #           path: ./wheelhouse/*.whl
 #           overwrite: true
 
@@ -137,7 +137,7 @@ jobs:
           # python -c "import westpa.trajtree"
       - uses: actions/upload-artifact@v4
         with:
-          name: artifacts-sdist
+          name: artifact-sdist
           path: dist/*.tar.gz
           overwrite: true
 
