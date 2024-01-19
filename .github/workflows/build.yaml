@@ -56,9 +56,11 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
+          name: artifact-wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: ./wheelhouse/*.whl
+          overwrite: true
 
 #   # Split off macos arm64 building...
 #   # Disabled for now... as of 2022-10-12
@@ -99,9 +101,11 @@ jobs:
 #           output-dir: wheelhouse
 #           config-file: "{package}/pyproject.toml"
 # 
-#       - uses: actions/upload-artifact@v3
+#       - uses: actions/upload-artifact@v4
 #         with:
+#           name: artifact-wheels-macos-aarch64-${{ matrix.python-version }}
 #           path: ./wheelhouse/*.whl
+#           overwrite: true
 
   build_sdist:
     name: Build source distribution
@@ -131,9 +135,11 @@ jobs:
           echo "All done with the import tests!"
           # Currently blocked by https://github.com/westpa/westpa/issues/70
           # python -c "import westpa.trajtree"
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
+          name: artifact-sdist
           path: dist/*.tar.gz
+          overwrite: true
 
   upload_testpypi:
     name: test.pypi
