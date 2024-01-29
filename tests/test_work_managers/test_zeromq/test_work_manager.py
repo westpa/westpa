@@ -20,7 +20,6 @@ flaky_on_macos = pytest.mark.flaky(condition=sys.platform.startswith('darwin'), 
 
 
 class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
-
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
 
