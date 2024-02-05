@@ -76,12 +76,14 @@ jobs:
         pytest -v --cov=westpa --cov-report=xml --color=yes tests
 
     - name: CodeCov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
         name: codecov-{{ '${{ matrix.os }}' }}-py{{ '${{ matrix.python-version }}' }}
         fail_ci_if_error: false
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   install-dev:
     strategy:
