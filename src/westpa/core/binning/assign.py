@@ -40,7 +40,6 @@ the total number of bins within the mapper.
 
 '''
 
-
 import hashlib
 import logging
 import pickle
