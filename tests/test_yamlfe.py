@@ -108,6 +108,6 @@ class TestYAMLFrontEnd:
         assert system.pcoord_dtype == np.float32
 
         # Test __setitem__() method of YAMLConfig()
-        rc.config['west','propagation', 'max_total_iteration'] = 1000
+        rc.config['west', 'propagation', 'max_total_iteration'] = 1000
 
         assert rc.config['west', 'propagation', 'max_total_iteration'] == 1000
