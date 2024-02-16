@@ -3,12 +3,13 @@ build-backend = 'setuptools.build_meta:__legacy__'
 # Minimum requirements for the build system to execute.
 # See current numpy pinning in https://github.com/scipy/oldest-supported-numpy
 requires = [
-    "setuptools>=40.8.0",
+    "setuptools >=40.8.0",
     "wheel",
-    "Cython>=0.29.16; python_version >='3.10'",  # Note: sync with setup.py
-    "Cython<3.0.3, >=0.29.16; python_version < '3.10'",
-    "oldest-supported-numpy",
-    "scipy>=0.19.1",
+    "Cython >=0.29.16; python_version >='3.10'",  # Note: sync with setup.py
+    "Cython <3.0.3, >=0.29.16; python_version <'3.10'",
+    "oldest-supported-numpy; python_version <'3.9'",
+    "numpy >=1.25.0, <3; python_version >='3.9'",
+    "scipy >=0.19.1",
     "versioneer-518"
 ]
 # Uncommenting this requires adding the top level of the repo to sys.path in the setup.py
