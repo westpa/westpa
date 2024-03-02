@@ -227,6 +227,9 @@ class ExecutablePropagator(WESTPropagator):
         self.initial_state_ref_template = config['west', 'data', 'data_refs', 'initial_state']
         store_h5 = config.get(['west', 'data', 'data_refs', 'iteration']) is not None
 
+        # Create a persistent RNG
+        self.rng = np.random.default_rng(config.get(['west', 'executable', 'propagator', 'rng_seed'], None))
+
         # Load additional environment variables for all child processes
         self.addtl_child_environ.update({k: str(v) for k, v in (config['west', 'executable', 'environ'] or {}).items()})
 
@@ -326,11 +329,11 @@ class ExecutablePropagator(WESTPropagator):
         ``subprocess.Popen()``. Every child process executed by ``exec_child()`` gets these.'''
 
         return {
-            self.ENV_RAND16: str(random.randint(0, 2**16)),
-            self.ENV_RAND32: str(random.randint(0, 2**32)),
-            self.ENV_RAND64: str(random.randint(0, 2**64)),
-            self.ENV_RAND128: str(random.randint(0, 2**128)),
-            self.ENV_RANDFLOAT: str(random.random()),
+            self.ENV_RAND16: str(self.rng.random(2**16, dtype=np.uint16)),
+            self.ENV_RAND32: str(self.rng.random(2**32, dtype=np.uint32)),
+            self.ENV_RAND64: str(self.rng.random(2**64, dtype=np.uint64)),
+            self.ENV_RAND128: str(random.randint(0, 2**128 - 1)),
+            self.ENV_RANDFLOAT: str(self.rng.random()),
         }
 
     def exec_child(self, executable, environ=None, stdin=None, stdout=None, stderr=None, cwd=None):
