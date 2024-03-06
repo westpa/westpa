@@ -267,9 +267,9 @@ def msmwe_compute_ss(plugin_config, west_files):
     basis_pcoord_bounds = np.array(plugin_config.get('basis_pcoord_bounds', np.nan), dtype=float)
     target_pcoord_bounds = np.array(plugin_config.get('target_pcoord_bounds', np.nan), dtype=float)
 
-    user_bin_mapper_config = plugin_config.get('user_bin_mapper', None)
-    if user_bin_mapper_config is not None:
-        user_bin_mapper = bins_from_yaml_dict(user_bin_mapper_config)
+    user_bin_mapper = plugin_config.get('user_bin_mapper', None)
+    if user_bin_mapper is not None:
+        user_bin_mapper = bins_from_yaml_dict(user_bin_mapper)
 
     if np.isnan(basis_pcoord_bounds).any() or np.isnan(target_pcoord_bounds).any():
         log.critical(
