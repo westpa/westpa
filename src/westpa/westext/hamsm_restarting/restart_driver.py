@@ -9,6 +9,7 @@ from westpa.cli.core import w_run
 from westpa.core.extloader import get_object
 from westpa.core.segment import Segment
 from westpa import analysis
+from westpa.core._rc import bins_from_yaml_dict
 
 import json
 
@@ -266,6 +267,10 @@ def msmwe_compute_ss(plugin_config, west_files):
     basis_pcoord_bounds = np.array(plugin_config.get('basis_pcoord_bounds', np.nan), dtype=float)
     target_pcoord_bounds = np.array(plugin_config.get('target_pcoord_bounds', np.nan), dtype=float)
 
+    user_bin_mapper_config = plugin_config.get('user_bin_mapper', None)
+    if user_bin_mapper_config is not None:
+        user_bin_mapper = bins_from_yaml_dict(user_bin_mapper_config)
+
     if np.isnan(basis_pcoord_bounds).any() or np.isnan(target_pcoord_bounds).any():
         log.critical(
             "Target and/or basis pcoord bounds were not specified. "
@@ -330,7 +335,7 @@ def msmwe_compute_ss(plugin_config, west_files):
     else:
         # FIXME: This gives the wrong shape, but loading from the clusterfile gives the right shape
         log.debug("clustering coordinates into " + str(n_clusters) + " clusters...")
-        model.cluster_coordinates(n_clusters, streaming=streaming)
+        model.cluster_coordinates(n_clusters, streaming=streaming, user_bin_mapper=user_bin_mapper)
 
     first_iter = 1
     model.get_fluxMatrix(n_lag, first_iter, last_iter)  # extracts flux matrix, output model.fluxMatrixRaw
