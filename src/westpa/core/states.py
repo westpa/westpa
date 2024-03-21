@@ -293,6 +293,10 @@ class TargetState:
             open_statefile = statefile
 
         for line in open_statefile:
+            line = line.partition('#')[0].strip()
+            if not line:
+                continue
+
             fields = line.split()
             labels.append(fields[0])
             pcoord_values.append(np.array(list(map(dtype, fields[1:])), dtype=dtype))
