@@ -33,11 +33,11 @@ class H5Diff:
             #   .dtype is referencing an attribute of a numpy array.
             if test_object[()].dtype.names is not None:
                 non_reference_test_elements = [
-                    x for i, x in enumerate(test_object[()][0]) if not test_object[()].dtype.names[i] in ref_names
+                    x for i, x in enumerate(test_object[()][0]) if test_object[()].dtype.names[i] not in ref_names
                 ]
 
                 non_reference_ref_elements = [
-                    x for i, x in enumerate(ref_object[()][0]) if not ref_object[()].dtype.names[i] in ref_names
+                    x for i, x in enumerate(ref_object[()][0]) if ref_object[()].dtype.names[i] not in ref_names
                 ]
 
             else:

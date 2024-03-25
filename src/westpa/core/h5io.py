@@ -342,10 +342,10 @@ def label_axes(h5object, labels, units=None):
     if len(units) and len(units) != len(labels):
         raise ValueError('number of units labels does not match number of axes')
 
-    h5object.attrs['axis_labels'] = np.array([np.string_(i) for i in labels])
+    h5object.attrs['axis_labels'] = np.array([np.bytes_(i) for i in labels])
 
     if len(units):
-        h5object.attrs['axis_units'] = np.array([np.string_(i) for i in units])
+        h5object.attrs['axis_units'] = np.array([np.bytes_(i) for i in units])
 
 
 NotGiven = object()
