@@ -42,6 +42,65 @@ class Segment:
         'Return the final progress coordinate point of this segment.'
         return segment.pcoord[-1]
 
+    def parent_segment(self, sim_manager=None, we_driver=None, data_manager=None):
+        'Return equivalent segment object in we_driver.final_binning.'
+        if self.status == self.SEG_STATUS_COMPLETE:
+            # This segment is already from final_binning
+            return self
+        elif self.status == self.SEG_STATUS_PREPARED:
+            if we_driver is None:
+                import westpa
+
+                we_driver = westpa.rc.get_we_driver()
+
+            pid = self.parent_id
+            if pid >= 0:  # Grab equivalent segment from final_binning
+                import itertools
+
+                parent_segment = itertools.islice(we_driver.current_iter_segments, pid)
+                assert parent_segment.seg_id == pid
+                return parent_segment
+
+            elif pid < 0:  # Recycled Segment.
+                # if data_manager is None:
+                #    import westpa
+                #    data_manager = westpa.rc.get_data_manager()
+                if sim_manager is None:
+                    sim_manager = we_driver.rc.get_sim_manager()
+
+                # TODO: This could potentially be really slow...
+
+                from westpa.core.segment import pare_basis_initial_states
+
+                parent_bstate, parent_istate = pare_basis_initial_states(
+                    sim_manager.next_iter_bstates, we_driver.used_initial_states, segments=self
+                )
+
+                # Grab istate
+                # istate_id = -int(pid + 1)
+                # parent_istate = we_driver.used_initial_states[istate_id]
+                # Alternate ways to get initial_states
+                # parent_istate = data_manager.get_segment_initial_states(self)[istate_id]
+
+                # from westpa.core.states import pare_basis_initial_states
+
+                # assert parent_istate.state_id == istate_id
+
+                # Grab bstate
+                # TODO: Need to take care of cases where istate is generated from a start state, which would be out of list from the bstate_id
+                # bstate_id == parent_istate.basis_state_id
+
+                # try:
+                # parent_bstate
+                #    parent_bstate = data_manager.get_basis_states(we_driver.n_iter + 1)[bstate_id]
+                # except IndexError:
+                #    parent_bstate = parent_istate
+
+                # Assuming since this is an instance method, you're only passing in one segment.
+                assert len(parent_bstate) == len(parent_istate) == 1
+
+                return (parent_bstate.pop(), parent_istate.pop())
+
     def __init__(
         self,
         n_iter=None,
