@@ -20,6 +20,7 @@
 
 import sys
 import os
+import westpa
 
 sys.path.insert(0, os.path.abspath('../src/westpa'))
 
@@ -27,7 +28,7 @@ sys.path.insert(0, os.path.abspath('../src/westpa'))
 
 # General information about the project.
 project = 'WESTPA'
-copyright = '2021, Matthew C. Zwier and Lillian T. Chong'
+copyright = '2013, Matthew C. Zwier and Lillian T. Chong'
 author = 'Matthew C. Zwier and Lillian T. Chong'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -35,9 +36,9 @@ author = 'Matthew C. Zwier and Lillian T. Chong'
 # built documents.
 #
 # The short X.Y version.
-version = '2022.05'
+version = westpa.__version__.split('+')[0]
 # The full version, including alpha/beta/rc tags.
-release = '2022.05'
+release = version
 
 
 # -- General configuration ---------------------------------------------------
