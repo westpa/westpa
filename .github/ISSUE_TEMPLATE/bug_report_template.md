@@ -22,9 +22,9 @@ assignees: ''
 
 **To Reproduce.**
 <!--- Steps to reproduce the behavior: --->
-1. [First Step]
-2. [Second Step]
-3. [and so on...]
+1. <!--- [First Step] --->
+2. <!--- [Second Step] --->
+3. <!--- [and so on...] --->
 
 **Expected behavior.**
 <!--- A clear and concise description of what you expected to happen. -->
