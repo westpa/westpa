@@ -1,15 +1,12 @@
-'''
-Created on Jun 25, 2013
-
-@author: mzwier
-'''
-
 import numpy
+from numpy.random import Generator, MT19937
 from fasthist import histnd
 
 
 def _test_double(npts=1024 * 1024, loops=3):
     from time import time
+
+    rng = Generator(MT19937())  # RNG for the rest of this function
 
     mine_times = [None] * loops
     theirs_times = [None] * loops
@@ -17,11 +14,11 @@ def _test_double(npts=1024 * 1024, loops=3):
     # though 1.0 should be sufficient, weirdness in the boundary conditions
     # for numpy.digitize appears to introduce a discrepancy, so throw something
     # greater than 1.0 in for good measure
-    binbounds = [[0, 0.5, 1, 1.1] for x in range(3)]
-    weights = numpy.random.rand(npts)
+    binbounds = [[0, 0.5, 1, 1.1] for _ in range(3)]
+    weights = rng.random(size=npts)
     # weights = numpy.ones((npts,), dtype=numpy.float64)
     for n in range(loops):
-        testdat = numpy.random.rand(npts, 3)
+        testdat = rng.rand(size=(npts, 3))
         mstart = time()
         mine = histnd(testdat, binbounds, weights=weights)
         mstop = time()
@@ -44,14 +41,16 @@ def _test_double(npts=1024 * 1024, loops=3):
 def _test_float(npts=1024 * 1024, ndim=3, loops=3):
     from time import time
 
+    rng = Generator(MT19937())  # RNG for the rest of this function
+
     mine_times = [None] * loops
     theirs_times = [None] * loops
 
-    binbounds = [[0, 0.5, 1, 1.1] for x in range(ndim)]
-    # weights = numpy.random.rand(npts)
+    binbounds = [[0, 0.5, 1, 1.1] for _ in range(ndim)]
+    # weights = rng.random(size=npts)
     weights = numpy.ones((npts,), dtype=numpy.float64)
     for n in range(loops):
-        testdat = numpy.require(numpy.random.rand(npts, ndim), numpy.float32)
+        testdat = rng.random(size=(npts, ndim), dtype=numpy.float32)
         print(testdat)
         mstart = time()
         mine = histnd(testdat, binbounds, weights=weights)
@@ -75,17 +74,18 @@ def _test_float(npts=1024 * 1024, ndim=3, loops=3):
 def _test_uint(npts=1024 * 1024, ndim=3, loops=3):
     from time import time
 
+    rng = Generator(MT19937())
     mine_times = [None] * loops
     theirs_times = [None] * loops
 
     binbounds = [[0, 1, 2, 3, 4] for x in range(ndim)]
-    # weights = numpy.random.rand(npts)
+    # weights = rng.random(size=npts)
     weights = numpy.ones((npts,), dtype=numpy.float64)
     print('binbounds: {}'.format(binbounds))
     print('weights')
     print(weights)
     for n in range(loops):
-        testdat = numpy.require(numpy.random.randint(0, 4, size=(npts, ndim)), numpy.uint16)
+        testdat = rng.integers(0, 4, size=(npts, ndim), dtype=numpy.uint16)
         print('test data')
         print(testdat)
         mstart = time()
