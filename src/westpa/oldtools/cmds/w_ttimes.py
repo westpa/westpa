@@ -2,6 +2,7 @@ import argparse
 import logging
 
 import numpy as np
+from numpy.random import Generator, MT19937
 
 import westpa
 
@@ -41,6 +42,8 @@ class WTTimesBase:
         self.fpts = None
         self.fluxes = None
         self.rates = None
+
+        self.rng = Generator(MT19937())
 
     def add_args(self, parser, upcall=True):
         '''Add arguments to a parser common to all analyses of this type.'''
@@ -162,7 +165,7 @@ class WTTimesBase:
                         end='',
                     )
                     westpa.rc.pflush()
-                    indices = np.random.randint(dlen, size=(dlen,))
+                    indices = self.rng.integers(dlen, size=(dlen,))
                     # syn_weights   = trans_weights[indices]
                     # syn_durations = trans_durations[indices]
                     # syn_fpts      = trans_fpts[indices]

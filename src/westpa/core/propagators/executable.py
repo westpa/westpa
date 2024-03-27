@@ -1,7 +1,6 @@
 import logging
 import os
 import shutil
-import random
 import signal
 import subprocess
 import sys
@@ -12,6 +11,7 @@ import pickle
 from io import BytesIO
 
 import numpy as np
+from numpy.random import MT19937, Generator
 
 import westpa
 from westpa.core.extloader import get_object
@@ -228,7 +228,7 @@ class ExecutablePropagator(WESTPropagator):
         store_h5 = config.get(['west', 'data', 'data_refs', 'iteration']) is not None
 
         # Create a persistent RNG
-        self.rng = np.random.default_rng(config.get(['west', 'executable', 'propagator', 'rng_seed'], None))
+        self.rng = Generator(MT19937(config.get(['west', 'executable', 'propagator', 'rng_seed'], None)))
 
         # Load additional environment variables for all child processes
         self.addtl_child_environ.update({k: str(v) for k, v in (config['west', 'executable', 'environ'] or {}).items()})
@@ -329,10 +329,10 @@ class ExecutablePropagator(WESTPropagator):
         ``subprocess.Popen()``. Every child process executed by ``exec_child()`` gets these.'''
 
         return {
-            self.ENV_RAND16: str(self.rng.random(2**16, dtype=np.uint16)),
-            self.ENV_RAND32: str(self.rng.random(2**32, dtype=np.uint32)),
-            self.ENV_RAND64: str(self.rng.random(2**64, dtype=np.uint64)),
-            self.ENV_RAND128: str(random.randint(0, 2**128 - 1)),
+            self.ENV_RAND16: str(self.rng.integers(2**16, dtype=np.uint16)),
+            self.ENV_RAND32: str(self.rng.integers(2**32, dtype=np.uint32)),
+            self.ENV_RAND64: str(self.rng.integers(2**64, dtype=np.uint64)),
+            self.ENV_RAND128: str(self.rng.integers(2**64, dtype=np.uint64) + self.rng.integers(2**64, dtype=np.uint64)),
             self.ENV_RANDFLOAT: str(self.rng.random()),
         }
 
