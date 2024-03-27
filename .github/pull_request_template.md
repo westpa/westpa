@@ -1,20 +1,20 @@
-## Issue Number.
+## Issue Number
 <!--- Is this pull request related to any outstanding issues? If so, list the issue number. --->
 
 
-## Describe the changes made.
+## Describe the changes made
 <!--- A clear and concise description of what the problem is and what you did to fix it. E.g. [...] was happening and I've changed [...] to fix it. -->
 
 
-## Goals and Outstanding Issues.
+## Goals and Outstanding Issues
 <!--- A clear and concise list of goals (to be) accomplished. --->
 - [ ] 
 
-## Major files changed.
+## Major files changed
 <!--- Manually list files or include a diff link in the form of: https://github.com/user/westpa/compare/<initial SHA>..<final SHA> --->
 - [ ]
 
-## Status.
+## Status
 <!--- Delete bullet points that are not relevant. --->
 - [ ] Bug fix (non-breaking change which fixes an issue)
 - [ ] New feature (non-breaking change which adds functionality)
@@ -26,7 +26,7 @@
 - [ ] I have added tests to cover my changes.
 - [ ] All new and existing tests passed.
 
-## Additional context.
+## Additional context
 <!--- Add any other context or screenshots about the pull request here. --->
 
 
