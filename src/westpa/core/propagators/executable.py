@@ -584,7 +584,7 @@ class ExecutablePropagator(WESTPropagator):
             try:
                 loader(dataset, filename, segment, single_point=single_point)
             except Exception as e:
-                log.error('could not read {} from {!r}: {!r}'.format(dataset, filename, e))
+                log.error('could not read {} for segment {} from {!r}: {!r}'.format(dataset, segment.seg_id, filename, e))
                 segment.status = Segment.SEG_STATUS_FAILED
                 break
             else:
@@ -595,9 +595,11 @@ class ExecutablePropagator(WESTPropagator):
                         else:
                             shutil.rmtree(filename)
                     except Exception as e:
-                        log.warning('could not delete {} file {!r}: {!r}'.format(dataset, filename, e))
+                        log.warning(
+                            'could not delete {} file {!r} for segment {}: {!r}'.format(dataset, filename, segment.seg_id, e)
+                        )
                     else:
-                        log.debug('deleted {} file {!r}'.format(dataset, filename))
+                        log.debug('deleted {} file {!r} for segment {}'.format(dataset, filename, segment.seg_id))
 
     # Specific functions required by the WEST framework
     def get_pcoord(self, state):
