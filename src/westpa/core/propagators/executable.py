@@ -91,7 +91,7 @@ def trajectory_loader(fieldname, coord_folder, segment, single_point):
         data = load_trajectory(coord_folder)
         segment.data['iterh5/trajectory'] = data
     except Exception as e:
-        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+        log.warning('could not read any {} data for HDF5 Framework: {}'.format(fieldname, str(e)))
 
 
 def restart_loader(fieldname, restart_folder, segment, single_point):
@@ -105,7 +105,7 @@ def restart_loader(fieldname, restart_folder, segment, single_point):
 
         segment.data['iterh5/restart'] = d.getvalue() + b'\x01'  # add tail protection
     except Exception as e:
-        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+        log.warning('could not read any {} data for HDF5 Framework: {}'.format(fieldname, str(e)))
     finally:
         d.close()
 
@@ -123,7 +123,7 @@ def restart_writer(path, segment):
             safe_extract(t, path=path)
 
     except ValueError as e:
-        log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
+        log.warning('could not write HDF5 Framework restart data for {}: {}'.format(str(segment), str(e)))
         d = BytesIO()
         if segment.n_iter == 1:
             log.warning(
@@ -132,7 +132,7 @@ def restart_writer(path, segment):
                 )
             )
     except Exception as e:
-        log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
+        log.warning('could not write HDF5 Framework restart data for {}: {}'.format(str(segment), str(e)))
     finally:
         d.close()
 
@@ -584,7 +584,7 @@ class ExecutablePropagator(WESTPropagator):
             try:
                 loader(dataset, filename, segment, single_point=single_point)
             except Exception as e:
-                log.error('could not read {} from {!r}: {!r}'.format(dataset, filename, e))
+                log.error('could not read {} for segment {} from {!r}: {!r}'.format(dataset, segment.seg_id, filename, e))
                 segment.status = Segment.SEG_STATUS_FAILED
                 break
             else:
@@ -595,9 +595,11 @@ class ExecutablePropagator(WESTPropagator):
                         else:
                             shutil.rmtree(filename)
                     except Exception as e:
-                        log.warning('could not delete {} file {!r}: {!r}'.format(dataset, filename, e))
+                        log.warning(
+                            'could not delete {} file {!r} for segment {}: {!r}'.format(dataset, filename, segment.seg_id, e)
+                        )
                     else:
-                        log.debug('deleted {} file {!r}'.format(dataset, filename))
+                        log.debug('deleted {} file {!r} for segment {}'.format(dataset, filename, segment.seg_id))
 
     # Specific functions required by the WEST framework
     def get_pcoord(self, state):
