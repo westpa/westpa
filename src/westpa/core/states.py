@@ -65,6 +65,8 @@ class BasisState:
                 )
             )
 
+        fileobj.close()
+
     @classmethod
     def states_from_file(cls, filename):
         '''Read a file defining basis states.  Each line defines a state, and contains a label, the probability,
@@ -80,27 +82,28 @@ class BasisState:
         '''
         states = []
         lineno = 0
-        for line in open(filename, 'rt'):
-            lineno += 1
+        with open(filename, 'rt') as file:
+            for line in file:
+                lineno += 1
 
-            # remove comment portion
-            line = line.partition('#')[0].strip()
-            if not line:
-                continue
+                # remove comment portion
+                line = line.partition('#')[0].strip()
+                if not line:
+                    continue
 
-            fields = line.split()
-            label = fields[0]
-            try:
-                probability = float(fields[1])
-            except ValueError:
-                raise ValueError('invalid probability ({!r}) {} line {:d}'.format(fields[1], filename, lineno))
+                fields = line.split()
+                label = fields[0]
+                try:
+                    probability = float(fields[1])
+                except ValueError:
+                    raise ValueError('invalid probability ({!r}) {} line {:d}'.format(fields[1], filename, lineno))
 
-            try:
-                auxref = fields[2].strip()
-            except IndexError:
-                auxref = None
+                try:
+                    auxref = fields[2].strip()
+                except IndexError:
+                    auxref = None
 
-            states.append(cls(state_id=None, probability=probability, label=label, auxref=auxref))
+                states.append(cls(state_id=None, probability=probability, label=label, auxref=auxref))
         return states
 
     def as_numpy_record(self):
@@ -268,6 +271,8 @@ class TargetState:
         for state in states:
             pcoord_str = '    '.join(str(field) for field in state.pcoord)
             fileobj.write('{:{max_label_len}s}    {:s}\n'.format(state.label, pcoord_str, max_label_len=max_label_len))
+
+        fileobj.close()
 
     @classmethod
     def states_from_file(cls, statefile, dtype):
