@@ -373,12 +373,6 @@ class ExecutablePropagator(WESTPropagator):
         # we are done with the process, and to get a more friendly return code
         rc = proc.wait()
 
-        for output in [stdin, stdout, stderr]:
-            try:
-                output.close()
-            except ValueError:
-                pass
-
         return (rc, rusage)
 
     def exec_child_from_child_info(self, child_info, template_args, environ):
