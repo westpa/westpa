@@ -23,7 +23,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-13, macos-14]  # macos-13 is x86_64, maxos-14 is arm64
         python-version: [8, 9, 10, 11] # sub-versions of Python
 
     steps:
@@ -34,7 +34,7 @@ jobs:
         env:
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
-          CIBW_ARCHS_MACOS: "auto64" # x86_64 only
+          CIBW_ARCHS_MACOS: "auto64" # x86_64 and arm64, depending on the os
           CIBW_ARCHS_LINUX: "auto64" # x86_64 only
           CIBW_TEST_SKIP: "*-macosx_arm64"
           CIBW_DEPENDENCY_VERSIONS: "latest"
