@@ -186,9 +186,8 @@ class TestMABSimManager(TestSimManager):
         westpa.rc.add_args(parser)
 
         here = os.path.dirname(__file__)
-        os.environ['WEST_SIM_ROOT'] = os.path.join(here, 'fixtures', 'odld')
 
-        config_file_name = os.path.join(here, 'fixtures', 'odld', 'west_mab.cfg')
+        config_file_name = os.path.join(here, 'refs', 'west_mab.cfg')
         args = parser.parse_args(['-r={}'.format(config_file_name)])
         westpa.rc.process_args(args)
         self.sim_manager = westpa.rc.get_sim_manager()
@@ -231,9 +230,8 @@ class TestBinlessSimManager(TestSimManager):
         westpa.rc.add_args(parser)
 
         here = os.path.dirname(__file__)
-        os.environ['WEST_SIM_ROOT'] = os.path.join(here, 'fixtures', 'odld')
 
-        config_file_name = os.path.join(here, 'fixtures', 'odld', 'west_binless.cfg')
+        config_file_name = os.path.join(here, 'refs', 'west_binless.cfg')
         args = parser.parse_args(['-r={}'.format(config_file_name)])
         westpa.rc.process_args(args)
         self.sim_manager = westpa.rc.get_sim_manager()
