@@ -65,8 +65,6 @@ class BasisState:
                 )
             )
 
-        fileobj.close()
-
     @classmethod
     def states_from_file(cls, statefile):
         '''Read a file defining basis states.  Each line defines a state, and contains a label, the probability,
@@ -282,8 +280,6 @@ class TargetState:
         for state in states:
             pcoord_str = '    '.join(str(field) for field in state.pcoord)
             fileobj.write('{:{max_label_len}s}    {:s}\n'.format(state.label, pcoord_str, max_label_len=max_label_len))
-
-        fileobj.close()
 
     @classmethod
     def states_from_file(cls, statefile, dtype):
