@@ -1,5 +1,4 @@
-import nose
-import nose.tools
+import pytest
 from unittest import TestCase
 
 import numpy as np
@@ -102,6 +101,7 @@ class TestWEDriver(TestCase):
                 assert segment.status == Segment.SEG_STATUS_PREPARED
 
     # this test will fail up to alpha of the time
+    @pytest.mark.flaky(reruns=3, only_rerun="AssertionError")
     def test_merge_by_weight(self):
         selected_counts = {0: 0, 1: 0}
         alpha = 0.01
@@ -222,7 +222,6 @@ class TestWEDriver(TestCase):
         assert segments[0].endpoint_type == Segment.SEG_ENDPOINT_RECYCLED
 
     def test_multiple_merge(self):
-
         # This weight and count combination is known to trigger a split to 51
         # followed by a count adjustment to 50 (thanks to Josh Adelman)
         segment = self.segment(0.0, 0.5, weight=0.9999999999970001)
@@ -246,7 +245,7 @@ class TestWEDriver(TestCase):
         self.we_driver.populate_initial([istate], [prob], system=self.system)
         assert len(self.we_driver.next_iter_binning[0]) == target_counts
 
-    @nose.SkipTest
+    @pytest.mark.skip
     def test_populate_initial(self):
         for prob in [0.1, 1.0 / 3.0, 0.9999999999970001, 1.0]:
             for tcount in range(30, 60):

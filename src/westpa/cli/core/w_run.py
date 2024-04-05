@@ -30,7 +30,6 @@ def entry_point():
 
 
 def run_simulation():
-
     work_manager = westpa.rc.work_manager = make_work_manager()
 
     # Load the sim manager and other drivers

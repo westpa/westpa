@@ -214,7 +214,6 @@ class StringDriver:
         return avg_pos, sum_bin_weight
 
     def prepare_new_iteration(self):
-
         n_iter = self.sim_manager.n_iter
 
         with self.data_manager.lock:

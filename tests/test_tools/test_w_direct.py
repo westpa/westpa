@@ -11,7 +11,6 @@ from unittest import mock
 
 
 class Test_W_Direct(unittest.TestCase):
-
     test_name = 'W_DIRECT'
 
     def test_run_w_direct(self):
@@ -30,7 +29,6 @@ class Test_W_Direct(unittest.TestCase):
 @pytest.mark.skip(reason="work-in-progress test that uses entry point")
 class Test_W_Direct_New:
     def test_run_w_direct(self, ref_50iter):
-
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
             return_value=argparse.Namespace(

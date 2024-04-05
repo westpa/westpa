@@ -93,7 +93,6 @@ class Message:
     idempotent_announcement_messages = {SHUTDOWN, TASKS_AVAILABLE, MASTER_BEACON}
 
     def __init__(self, message=None, payload=None, master_id=None, src_id=None):
-
         if isinstance(message, Message):
             self.message = message.message
             self.payload = message.payload
@@ -207,7 +206,6 @@ class PassiveMultiTimer:
         self._indices = {}  # indexes into durations/started, keyed by identifier
 
     def add_timer(self, identifier, duration):
-
         if identifier in self._identifiers:
             raise KeyError('timer {!r} already present'.format(identifier))
 
@@ -266,7 +264,6 @@ class PassiveMultiTimer:
 
 
 class ZMQCore:
-
     # The overall communication topology (socket layout, etc)
     # Cannot be updated without updating configuration files, command-line parameters,
     # etc. (Changes break user scripts.)
@@ -332,7 +329,6 @@ class ZMQCore:
             return cls.make_tcp_endpoint()
 
     def __init__(self):
-
         # Unique identifier of this ZMQ node
         self.node_id = uuid.uuid4()
 
@@ -439,7 +435,7 @@ class ZMQCore:
                 self.log.error('message validation falied: {!s}'.format(e))
                 sys.exit(1)
             elif self.validation_fail_action == 'warn':
-                self.log.warn('message validation falied: {!s}'.format(e))
+                self.log.warning('message validation falied: {!s}'.format(e))
 
     def recv_message(self, socket, flags=0, validate=True, timeout=None):
         '''Receive a message object from the given socket, using the given flags.

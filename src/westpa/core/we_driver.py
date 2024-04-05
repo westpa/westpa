@@ -81,7 +81,7 @@ class WEDriver:
     weight_split_threshold = 2.0
     weight_merge_cutoff = 1.0
     largest_allowed_weight = 1.0
-    smallest_allowed_weight = 1e-323
+    smallest_allowed_weight = 1e-310
 
     def __init__(self, rc=None, system=None):
         self.rc = rc or westpa.rc
@@ -189,7 +189,7 @@ class WEDriver:
     def recycling_segments(self):
         '''Segments designated for recycling'''
         if len(self.target_states):
-            for (ibin, tstate) in self.target_states.items():
+            for ibin, tstate in self.target_states.items():
                 for segment in self.final_binning[ibin]:
                     yield segment
         else:
@@ -297,14 +297,14 @@ class WEDriver:
             init_pcoords = np.empty((len(new_weights), self.system.pcoord_ndim), dtype=self.system.pcoord_dtype)
             prev_init_pcoords = np.empty((len(new_weights), self.system.pcoord_ndim), dtype=self.system.pcoord_dtype)
 
-            for (ientry, entry) in enumerate(new_weights):
+            for ientry, entry in enumerate(new_weights):
                 init_pcoords[ientry] = entry.new_init_pcoord
                 prev_init_pcoords[ientry] = entry.prev_init_pcoord
 
             init_assignments = self.bin_mapper.assign(init_pcoords)
             prev_init_assignments = self.bin_mapper.assign(prev_init_pcoords)
 
-            for (entry, i, j) in zip(new_weights, prev_init_assignments, init_assignments):
+            for entry, i, j in zip(new_weights, prev_init_assignments, init_assignments):
                 flux_matrix[i, j] += entry.weight
                 transition_matrix[i, j] += 1
 
@@ -350,7 +350,7 @@ class WEDriver:
         final_binning = self.final_binning
         flux_matrix = self.flux_matrix
         transition_matrix = self.transition_matrix
-        for (segment, iidx, fidx) in zip(segments, initial_assignments, final_assignments):
+        for segment, iidx, fidx in zip(segments, initial_assignments, final_assignments):
             initial_binning[iidx].add(segment)
             final_binning[fidx].add(segment)
             flux_matrix[iidx, fidx] += segment.weight
@@ -390,7 +390,7 @@ class WEDriver:
 
         used_istate_ids = set()
         istateiter = iter(self.avail_initial_states.values())
-        for (ibin, target_state) in self.target_states.items():
+        for ibin, target_state in self.target_states.items():
             target_bin = self.next_iter_binning[ibin]
             for segment in set(target_bin):
                 initial_state = next(istateiter)
@@ -656,7 +656,7 @@ class WEDriver:
         # Then and only then adjust for correct particle count
         total_number_of_subgroups = 0
         total_number_of_particles = 0
-        for (ibin, bin) in enumerate(self.next_iter_binning):
+        for ibin, bin in enumerate(self.next_iter_binning):
             if len(bin) == 0:
                 continue
 
@@ -739,7 +739,7 @@ class WEDriver:
 
         # Create dummy segments
         segments = []
-        for (seg_id, (initial_state, weight)) in enumerate(zip(initial_states, weights)):
+        for seg_id, (initial_state, weight) in enumerate(zip(initial_states, weights)):
             dummy_segment = Segment(
                 n_iter=0,
                 seg_id=seg_id,

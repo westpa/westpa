@@ -1,11 +1,11 @@
 import numpy as np
-from numpy.random import RandomState
-
-# from numpy.random import normal as random_normal
+from numpy.random import normal as random_normal
 
 from westpa.core.binning import RectilinearBinMapper
 from westpa.core.propagators import WESTPropagator
 from westpa.core.systems import WESTSystem
+from westpa.core.binning.mab import MABBinMapper
+from westpa.core.binning.binless import BinlessMapper
 
 PI = np.pi
 
@@ -29,8 +29,6 @@ class ODLDPropagator(WESTPropagator):
         self.B = 10
         self.C = 0.5
         self.x0 = 1
-
-        self.prng = RandomState(seed=8675309)
 
         # Implement a reflecting boundary at this x value
         # (or None, for no reflection)
@@ -70,8 +68,7 @@ class ODLDPropagator(WESTPropagator):
             eCx = np.exp(C * x)
             eCx_less_one = eCx - 1.0
 
-            # all_displacements[:, istep, 0] = displacements = random_normal(scale=sigma, size=(n_segs,))
-            all_displacements[:, istep, 0] = displacements = self.prng.normal(scale=sigma, size=(n_segs,))
+            all_displacements[:, istep, 0] = displacements = random_normal(scale=sigma, size=(n_segs,))
             grad = half_B / (eCx_less_one * eCx_less_one) * (twopi_by_A * eCx_less_one * np.sin(xarg) + C * eCx * np.cos(xarg))
 
             newx = x - gradfactor * grad + displacements
@@ -104,8 +101,30 @@ class ODLDSystem(WESTSystem):
         self.pcoord_len = pcoord_len
 
         # self.bin_mapper = RectilinearBinMapper([[0,1.3] + list(np.arange(1.4, 10.1, 0.1)) + [float('inf')]])
-        print(f"Creating bins with {[list(np.arange(0.0, 10.1, 0.1))]}")
-        # raise Exception
         self.bin_mapper = RectilinearBinMapper([list(np.arange(0.0, 10.1, 0.1))])
+        self.bin_target_counts = np.empty((self.bin_mapper.nbins,), np.int_)
+        self.bin_target_counts[...] = 10
+
+
+class MABODLDSystem(WESTSystem):
+    def initialize(self):
+        self.pcoord_ndim = 1
+        self.pcoord_dtype = pcoord_dtype
+        self.pcoord_len = pcoord_len
+
+        # self.bin_mapper = RectilinearBinMapper([[0,1.3] + list(np.arange(1.4, 10.1, 0.1)) + [float('inf')]])
+        self.bin_mapper = MABBinMapper([10])
+        self.bin_target_counts = np.empty((self.bin_mapper.nbins,), np.int_)
+        self.bin_target_counts[...] = 10
+
+
+class BinlessODLDSystem(WESTSystem):
+    def initialize(self):
+        self.pcoord_ndim = 1
+        self.pcoord_dtype = pcoord_dtype
+        self.pcoord_len = pcoord_len
+
+        # self.bin_mapper = RectilinearBinMapper([[0,1.3] + list(np.arange(1.4, 10.1, 0.1)) + [float('inf')]])
+        self.bin_mapper = BinlessMapper(ngroups=10, ndims=1, group_function='westpa.core.we_driver._group_walkers_identity')
         self.bin_target_counts = np.empty((self.bin_mapper.nbins,), np.int_)
         self.bin_target_counts[...] = 10

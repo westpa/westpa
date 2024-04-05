@@ -6,7 +6,7 @@ WESTPA 2.0
 
 |docs| |usersgroup| |develgroup| 
 
-.. |ghactions| image:: https://github.com/westpa/westpa/actions/workflows/test.yaml/badge.svg?branch=westpa-2.0-restruct
+.. |ghactions| image:: https://github.com/westpa/westpa/actions/workflows/test.yaml/badge.svg?branch=westpa2
               :target: https://github.com/westpa/westpa/actions/workflows/test.yaml
               :alt: GitHub Actions
 
@@ -100,7 +100,7 @@ To install from source (**not recommended**), start by downloading the correspon
 
 .. _`releases page`: https://github.com/westpa/westpa/releases
 .. _`Anaconda Python distribution`: https://www.anaconda.com/products/individual
-.. _`wiki`: https://github.com/westpa/westpa/wiki/WESTPA-Quick-Install
+.. _`wiki`: https://github.com/westpa/westpa/wiki/Installing-WESTPA
 
 ---------------
 Getting started

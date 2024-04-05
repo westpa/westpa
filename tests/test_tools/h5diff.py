@@ -4,14 +4,12 @@ from numpy import isclose, ndarray, issubdtype, floating
 
 class H5Diff:
     def __init__(self, ref_file, test_file):
-
         self.ref_file = h5py.File(ref_file, 'r')
         self.test_file = h5py.File(test_file, 'r')
 
     # TODO: I don't love that this is hardcoded to compare the test file against the ref file, but
     #   to fix that I'd have to figure out how to pass an argument when I pass this as a callable to visititems()
     def check_in_ref(self, name, obj):
-
         # print(f"\nDiffing {name}", end='\n')
 
         test_object = obj
@@ -19,8 +17,7 @@ class H5Diff:
         assert ref_object is not None, f"Element {ref_object} did not exist in test file"
 
         # If it's a dataset, compare the actual contents
-        if type(test_object) == h5py._hl.dataset.Dataset:
-
+        if isinstance(test_object, h5py._hl.dataset.Dataset):
             if name in self.excluded_datasets:
                 return None
 
@@ -35,7 +32,6 @@ class H5Diff:
             # HACK: This if statement evaluates to False if the test_object is a single value like a float or something, since
             #   .dtype is referencing an attribute of a numpy array.
             if test_object[()].dtype.names is not None:
-
                 non_reference_test_elements = [
                     x for i, x in enumerate(test_object[()][0]) if not test_object[()].dtype.names[i] in ref_names
                 ]
@@ -59,7 +55,7 @@ class H5Diff:
             if type(non_reference_ref_elements) is ndarray and issubdtype(non_reference_ref_elements.dtype, floating):
                 comparison = isclose(non_reference_test_elements, non_reference_ref_elements, atol=self.float_thresh)
 
-            if type(comparison) == bool:
+            if isinstance(comparison, bool):
                 assert non_reference_test_elements == non_reference_ref_elements, f"Elements didn't match in {name}"
             else:
                 try:
@@ -73,7 +69,7 @@ class H5Diff:
 
         # If it's a group, do nothing
         # TODO: Is it sufficient to check only the datasets? The groups should just be organizational units
-        elif type(test_object) == h5py._hl.group.Group:
+        elif isinstance(test_object, h5py._hl.group.Group):
             pass
 
         # Returning None every loop makes visititems() iterate through every element.
@@ -89,7 +85,6 @@ class H5Diff:
     # But if it's flipped, then if there's extra junk in the test file, that wouldn't be revealed.
     # This works for the time being, and as an **extremely** janky hack fix, you could do it both ways...
     def check(self, float_thresh=1e-8, excluded_datasets=[]):
-
         self.float_thresh = float_thresh
         self.excluded_datasets = excluded_datasets
         self.test_file.visititems(self.check_in_ref)
@@ -97,7 +92,6 @@ class H5Diff:
 
 # TODO: Add some simple argument handler here
 if __name__ == "__main__":
-
     diff = H5Diff("./assign_ref.h5", "./analysis_tocompare.h5")
 
     diff.check()

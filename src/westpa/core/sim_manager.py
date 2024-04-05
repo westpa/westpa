@@ -37,7 +37,7 @@ class PropagationError(RuntimeError):
 class WESimManager:
     def process_config(self):
         config = self.rc.config
-        for (entry, type_) in [('gen_istates', bool), ('block_size', int), ('save_transition_matrices', bool)]:
+        for entry, type_ in [('gen_istates', bool), ('block_size', int), ('save_transition_matrices', bool)]:
             config.require_type_if_present(['west', 'propagation', entry], type_)
 
         self.do_gen_istates = config.get(['west', 'propagation', 'gen_istates'], False)
@@ -136,7 +136,7 @@ class WESimManager:
     def invoke_callbacks(self, hook, *args, **kwargs):
         callbacks = self._callback_table.get(hook, [])
         sorted_callbacks = sorted(callbacks)
-        for (priority, name, fn) in sorted_callbacks:
+        for priority, name, fn in sorted_callbacks:
             log.debug('invoking callback {!r} for hook {!r}'.format(fn, hook))
             fn(*args, **kwargs)
 
@@ -478,7 +478,7 @@ class WESimManager:
         for iseg, segment in enumerate(segments.values()):
             initial_pcoords[iseg] = segment.pcoord[0]
         initial_assignments = self.system.bin_mapper.assign(initial_pcoords)
-        for (segment, assignment) in zip(iter(segments.values()), initial_assignments):
+        for segment, assignment in zip(iter(segments.values()), initial_assignments):
             initial_binning[assignment].add(segment)
         self.report_bin_statistics(initial_binning, [], save_summary=True)
         del initial_pcoords, initial_binning
@@ -733,7 +733,6 @@ class WESimManager:
 
         iter_elapsed = 0
         while self.n_iter <= max_iter:
-
             if max_walltime and time.time() + 1.1 * iter_elapsed >= run_killtime:
                 self.rc.pstatus('Iteration {:d} would require more than the allotted time. Ending run.'.format(self.n_iter))
                 return

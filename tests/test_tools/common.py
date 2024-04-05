@@ -71,7 +71,6 @@ class CommonToolTest:
         assert outcome, str(errmsg)
 
     def check_runs_with_args(self, **kwargs):
-
         try:
             self.w.go()  # Run tool with given args
 

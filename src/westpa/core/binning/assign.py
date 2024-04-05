@@ -40,7 +40,6 @@ the total number of bins within the mapper.
 
 '''
 
-
 import hashlib
 import logging
 import pickle
@@ -410,6 +409,9 @@ class RecursiveBinMapper(BinMapper):
 
         # we have updated our list of recursed bins, so set our own start index to trigger a recursive
         # reassignment of mappers' output values
+        # Note that we're reordering the recursion targets based on outer bin numbers (dict keys) first,
+        # so the order the mappers were added no longer matters...
+        self._recursion_targets = {k: self._recursion_targets[k] for k in sorted(self._recursion_targets)}
         self.start_index = self.start_index
 
     def assign(self, coords, mask=None, output=None):
@@ -429,7 +431,7 @@ class RecursiveBinMapper(BinMapper):
         # Which coordinates do we need to reassign, because they landed in
         # bins with embedded mappers?
         rmasks = {}
-        for (rindex, mapper) in self._recursion_targets.items():
+        for rindex, mapper in self._recursion_targets.items():
             omask = output == rindex
             mmask |= omask
             rmasks[rindex] = omask
@@ -441,7 +443,7 @@ class RecursiveBinMapper(BinMapper):
             output_map(output, omap, mask & ~mmask)
 
         # do any recursive assignments necessary
-        for (rindex, mapper) in self._recursion_targets.items():
+        for rindex, mapper in self._recursion_targets.items():
             mapper.assign(coords, mask & rmasks[rindex], output)
 
         return output

@@ -4,7 +4,6 @@ Created on Jun 11, 2015
 @author: mzwier
 '''
 
-
 import logging
 
 log = logging.getLogger(__name__)

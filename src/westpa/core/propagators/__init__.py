@@ -10,7 +10,6 @@ def blocked_iter(blocksize, iterable, fillvalue=None):
 
 class WESTPropagator:
     def __init__(self, rc=None):
-
         # For maximum flexibility, the basis states and initial states valid
         # at the point in the simulation when the propgator is used must be
         # available in several routines, and it is inconvenient to pass them

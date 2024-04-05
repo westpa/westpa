@@ -644,7 +644,6 @@ class WESTRC:
         return self.work_manager
 
     def clear_state(self):
-
         self._sim_manager = None
         self._system = None
         self._data_manager = None

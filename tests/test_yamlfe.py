@@ -27,6 +27,7 @@ class TESTSystem(WESTSystem):
 #  - returns the correct system
 #    given both
 
+
 # A class to test both paths at the same time
 # if it works we assure we can load the driver
 # AND overwrite it properly
@@ -106,3 +107,8 @@ class TestYAMLFrontEnd:
         assert (system.bin_mapper.boundaries == np.arange(0.0, 5.0, 0.5)).all()
         assert system.pcoord_len == 10
         assert system.pcoord_dtype == np.float32
+
+        # Test __setitem__() method of YAMLConfig()
+        rc.config['west', 'propagation', 'max_total_iteration'] = 1000
+
+        assert rc.config['west', 'propagation', 'max_total_iteration'] == 1000

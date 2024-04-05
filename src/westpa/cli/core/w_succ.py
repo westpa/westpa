@@ -57,7 +57,7 @@ class WSucc(CommonOutputMixin, WESTDataReaderMixin, WESTAnalysisTool):
             # The above HDF5 selection always returns a vector; we want a 2-d array
             final_pcoords.shape = (len(recycled_seg_ids), pcoord_ndim)
 
-            for (ipc, seg_id) in enumerate(recycled_seg_ids):
+            for ipc, seg_id in enumerate(recycled_seg_ids):
                 self.output_file.write('%8d    %8d    %20.14g' % (n_iter, seg_id, seg_index[seg_id]['weight']))
                 fields = ['']
                 for field in final_pcoords[ipc]:

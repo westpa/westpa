@@ -33,7 +33,7 @@ class MABDriver(WEDriver):
         final_binning = self.final_binning
         flux_matrix = self.flux_matrix
         transition_matrix = self.transition_matrix
-        for (segment, iidx, fidx) in zip(segments, initial_assignments, final_assignments):
+        for segment, iidx, fidx in zip(segments, initial_assignments, final_assignments):
             initial_binning[iidx].add(segment)
             final_binning[fidx].add(segment)
             flux_matrix[iidx, fidx] += segment.weight

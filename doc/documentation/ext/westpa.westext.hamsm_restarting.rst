@@ -10,7 +10,7 @@ as described in `[2]`_, which may accelerate convergence to steady-state.
 
 haMSM analysis is performed using the `msm_we <https://github.com/westpa/msm_we>`_ library.
 
-Sample files necessary to run the restarting plugin (as described below) can be found in the `WESTPA GitHub Repo <https://github.com/westpa/westpa/tree/westpa-2.0-restruct/src/westpa/westext/hamsm_restarting>`_.
+Sample files necessary to run the restarting plugin (as described below) can be found in the `WESTPA GitHub Repo <https://github.com/westpa/westpa/tree/westpa2/src/westpa/westext/hamsm_restarting>`_.
 
 Usage
 -----

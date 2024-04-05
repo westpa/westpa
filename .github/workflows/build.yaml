@@ -24,13 +24,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: [7, 8, 9, 10] # sub-versions of Python
+        python-version: [8, 9, 10, 11] # sub-versions of Python
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.13.0
+        uses: pypa/cibuildwheel@v2.17.0
         env:
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
@@ -56,9 +56,11 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
+          name: artifact-wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: ./wheelhouse/*.whl
+          overwrite: true
 
 #   # Split off macos arm64 building...
 #   # Disabled for now... as of 2022-10-12
@@ -70,13 +72,13 @@ jobs:
 #     strategy:
 #       matrix:
 #         os: [macos-latest]
-#         python-version: [8, 9, 10] # sub-versions of Python, there is no py3.7-macosx_arm64 
+#         python-version: [8, 9, 10, 11] # sub-versions of Python, there is no py3.7-macosx_arm64
 # 
 #     steps:
-#       - uses: actions/checkout@v3
+#       - uses: actions/checkout@v4
 # 
 #       - name: Build wheels
-#         uses: pypa/cibuildwheel@v2.13.0
+#         uses: pypa/cibuildwheel@v2.16.1
 #         env:
 #           CIBW_SKIP: "pp*"
 #           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
@@ -99,19 +101,21 @@ jobs:
 #           output-dir: wheelhouse
 #           config-file: "{package}/pyproject.toml"
 # 
-#       - uses: actions/upload-artifact@v3
+#       - uses: actions/upload-artifact@v4
 #         with:
+#           name: artifact-wheels-macos-aarch64-${{ matrix.python-version }}
 #           path: ./wheelhouse/*.whl
+#           overwrite: true
 
   build_sdist:
     name: Build source distribution
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
 
       - name: Build sdist
         run: pipx run build --sdist
@@ -131,13 +135,21 @@ jobs:
           echo "All done with the import tests!"
           # Currently blocked by https://github.com/westpa/westpa/issues/70
           # python -c "import westpa.trajtree"
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
+          name: artifact-sdist
           path: dist/*.tar.gz
+          overwrite: true
 
   upload_testpypi:
+    name: test.pypi
     needs: [build_wheels, build_sdist] #, build_wheels_macos_arm64] # Skipping the apple silicon versions...
     runs-on: ubuntu-latest
+    environment:
+      name: test.pypi
+      url: https://test.pypi.org/p/westpa
+    permissions:
+      id-token: write
     # upload to test.PyPI on every tag starting with 'v'; only in westpa/westpa repository
     # if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     # alternatively, to publish when a GitHub Release is created, use the following rule:
@@ -145,23 +157,27 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
-          name: artifact
+          pattern: artifact-*
           path: dist
+          merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          user: __token__
-          password: ${{ secrets.test_pypi_upload_token }}
-          # To test: 
           repository_url: https://test.pypi.org/legacy/
 
   upload_pypi:
+    name: PyPI
     needs: [build_wheels, build_sdist] #, build_wheels_macos_arm64] # Skipping the apple silicon versions...
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/westpa
+    permissions:
+      id-token: write
     # upload to PyPI on every tag starting with 'v'
     # if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     # alternatively, to publish when a GitHub Release is created, use the following rule:
@@ -169,16 +185,14 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
-          name: artifact
+          pattern: artifact-*
           path: dist
+          merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.pypi_upload_token }}
           # To test: 
           #repository_url: https://test.pypi.org/legacy/

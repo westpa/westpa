@@ -68,7 +68,6 @@ def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
 
 
 def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds, ignore_out_of_range):
-
     iter_hist_shape = tuple(len(bounds) - 1 for bounds in binbounds)
     iter_hist = np.zeros(iter_hist_shape, dtype=np.float64)
 
@@ -220,7 +219,6 @@ Command-line options
         self.compress_output = False
 
     def add_args(self, parser):
-
         parser.add_argument(
             '-b',
             '--bins',
@@ -300,7 +298,6 @@ Command-line options
         self.compress_output = args.compress or False
 
     def go(self):
-
         pi = self.progress.indicator
         pi.operation = 'Initializing'
         with pi:
@@ -334,7 +331,6 @@ Command-line options
 
     @staticmethod
     def parse_binspec(binspec):
-
         namespace = {'numpy': np, 'np': np, 'inf': float('inf')}
 
         try:

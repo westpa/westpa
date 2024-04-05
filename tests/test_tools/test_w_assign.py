@@ -8,7 +8,6 @@ from common import MockArgs
 
 class Test_W_Assign:
     def test_run_w_assign(self, ref_50iter):
-
         args = MockArgs(
             verbosity='debug',
             rcfile=self.cfg_filepath,
