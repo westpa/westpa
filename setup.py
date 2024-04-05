@@ -109,7 +109,7 @@ CLASSIFIERS = [
 ]
 
 INSTALL_REQUIRES = [
-    "numpy >= 1.16.0, <3",
+    "numpy >= 1.16.0, <2",
     "scipy >= 0.19.1",
     "h5py >= 2.10",
     "mdtraj >= 1.9.5",
@@ -148,6 +148,7 @@ metadata = dict(
     package_data={},
     packages=find_packages(where='src'),
     package_dir={"": "src"},
+    description='WESTPA is a package for constructing and running stochastic simulations using the "weighted ensemble" approach of Huber and Kim (1996).',
 )
 
 

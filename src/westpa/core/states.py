@@ -68,7 +68,7 @@ class BasisState:
         fileobj.close()
 
     @classmethod
-    def states_from_file(cls, filename):
+    def states_from_file(cls, statefile):
         '''Read a file defining basis states.  Each line defines a state, and contains a label, the probability,
         and optionally a data reference, separated by whitespace, as in::
 
@@ -82,28 +82,38 @@ class BasisState:
         '''
         states = []
         lineno = 0
-        with open(filename, 'rt') as file:
-            for line in file:
-                lineno += 1
 
-                # remove comment portion
-                line = line.partition('#')[0].strip()
-                if not line:
-                    continue
+        try:
+            open_statefile = open(statefile, 'rt')
+        except TypeError:
+            open_statefile = statefile
 
-                fields = line.split()
-                label = fields[0]
-                try:
-                    probability = float(fields[1])
-                except ValueError:
-                    raise ValueError('invalid probability ({!r}) {} line {:d}'.format(fields[1], filename, lineno))
+        for line in open_statefile:
+            lineno += 1
 
+            # remove comment portion
+            line = line.partition('#')[0].strip()
+            if not line:
+                continue
+
+            fields = line.split()
+            label = fields[0]
+            try:
+                probability = float(fields[1])
+            except ValueError:
+                raise ValueError('invalid probability ({!r}) {} line {:d}'.format(fields[1], statefile, lineno))
                 try:
                     auxref = fields[2].strip()
                 except IndexError:
                     auxref = None
 
-                states.append(cls(state_id=None, probability=probability, label=label, auxref=auxref))
+            states.append(cls(state_id=None, probability=probability, label=label, auxref=auxref))
+
+        try:
+            open_statefile.close()
+        except Exception:
+            pass
+
         return states
 
     def as_numpy_record(self):
@@ -298,6 +308,10 @@ class TargetState:
             open_statefile = statefile
 
         for line in open_statefile:
+            line = line.partition('#')[0].strip()
+            if not line:
+                continue
+
             fields = line.split()
             labels.append(fields[0])
             pcoord_values.append(np.array(list(map(dtype, fields[1:])), dtype=dtype))
