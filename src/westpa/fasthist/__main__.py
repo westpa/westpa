@@ -18,7 +18,7 @@ def _test_double(npts=1024 * 1024, loops=3):
     weights = rng.random(size=npts)
     # weights = numpy.ones((npts,), dtype=numpy.float64)
     for n in range(loops):
-        testdat = rng.rand(size=(npts, 3))
+        testdat = rng.random(size=(npts, 3))
         mstart = time()
         mine = histnd(testdat, binbounds, weights=weights)
         mstop = time()
