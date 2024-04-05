@@ -19,13 +19,13 @@ class BasisState:
                         with this state (usually a filesystem path).
     '''
 
-    def __init__(self, label, probability, pcoord=None, auxref=None, state_id=None):
+    def __init__(self, label, probability, pcoord=None, auxref=None, state_id=None, data={}):
         self.label = str(label, encoding="UTF-8") if type(label) is bytes else label
         self.probability = probability
         self.pcoord = np.atleast_1d(pcoord)
         self.auxref = auxref
         self.state_id = state_id
-        self.data = {}
+        self.data = data
 
     def __repr__(self):
         return '{} state_id={self.state_id!r} label={self.label!r} prob={self.probability!r} pcoord={self.pcoord!r}>'.format(
@@ -188,6 +188,7 @@ class InitialState:
         pcoord=None,
         basis_state=None,
         basis_auxref=None,
+        data={},
     ):
         self.state_id = state_id
         self.basis_state_id = basis_state_id
@@ -344,3 +345,16 @@ def pare_basis_initial_states(basis_states, initial_states, segments=None):
     )
 
     return return_bstates, return_istates
+
+
+def return_state_type(state_obj):
+    '''Convinience function for returning the state ID and type of the state_obj pointer'''
+
+    if isinstance(state_obj, Segment):
+        return type(state_obj).__name__, state_obj.seg_id
+    elif isinstance(state_obj, InitialState):
+        return type(state_obj).__name__, state_obj.basis_state_id
+    elif isinstance(state_obj, BasisState):
+        return type(state_obj).__name__, state_obj.state_id
+    else:
+        return 'Unknown', float('inf')

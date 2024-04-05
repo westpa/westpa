@@ -16,7 +16,7 @@ import numpy as np
 import westpa
 from westpa.core.extloader import get_object
 from westpa.core.propagators import WESTPropagator
-from westpa.core.states import BasisState, InitialState
+from westpa.core.states import BasisState, InitialState, return_state_type
 from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
 
@@ -303,6 +303,12 @@ class ExecutablePropagator(WESTPropagator):
             dsinfo['loader'] = loader
             self.data_info.setdefault(dsname, {}).update(dsinfo)
 
+        # For auxdata in ibstates.
+        self.ibsubset_keys = ['pcoord', 'trajectory', 'restart', 'log']
+        self.ibsubset_keys += [
+            ds for ds in self.data_info if (self.data_info[ds].get('enabled', False) and self.data_info[ds].get('ibstates', False))
+        ]
+
         log.debug('data_info: {!r}'.format(self.data_info))
 
     @staticmethod
@@ -473,6 +479,54 @@ class ExecutablePropagator(WESTPropagator):
         environ[self.ENV_CURRENT_SEG_DATA_REF] = self.makepath(self.segment_ref_template, template_args)
         return template_args, environ
 
+    def update_args_env_istate(self, template_args, environ, state):
+        template_args['istate'] = state
+
+        # This segment is initiated from a basis state; WEST_PARENT_SEG_ID and WEST_PARENT_DATA_REF are
+        # set to the basis state ID and data ref
+        initial_state = state
+
+        if initial_state.istate_type == InitialState.ISTATE_TYPE_START:
+            basis_state = BasisState(
+                label=f"sstate_{initial_state.state_id}", pcoord=initial_state.pcoord, probability=0.0, auxref=""
+            )
+
+        else:
+            basis_state = self.basis_states[initial_state.basis_state_id]
+
+        if self.ENV_BSTATE_ID not in environ:
+            self.update_args_env_basis_state(template_args, environ, basis_state)
+        if self.ENV_ISTATE_ID not in environ:
+            self.update_args_env_initial_state(template_args, environ, initial_state)
+
+        assert initial_state.istate_type in (
+            InitialState.ISTATE_TYPE_BASIS,
+            InitialState.ISTATE_TYPE_GENERATED,
+            InitialState.ISTATE_TYPE_START,
+        )
+        if initial_state.istate_type == InitialState.ISTATE_TYPE_BASIS:
+            environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
+
+        elif initial_state.istate_type == InitialState.ISTATE_TYPE_START:
+            # This points to the start-state PDB
+            environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF] + '/' + initial_state.basis_auxref
+        else:  # initial_state.type == InitialState.ISTATE_TYPE_GENERATED
+            environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
+
+        # environ[self.ENV_CURRENT_SEG_ID] = str(segment.seg_id if state.basis_state_id is not None else -1)
+        # environ[self.ENV_CURRENT_SEG_DATA_REF] = self.makepath(self.segment_ref_template, template_args)
+        return template_args, environ
+
+    def update_args_env_bstate(self, template_args, environ, state):
+        template_args['bstate'] = state
+
+        basis_state = self.basis_states[state.basis_state_id]
+
+        if self.ENV_BSTATE_ID not in environ:
+            self.update_args_env_basis_state(template_args, environ, basis_state)
+
+        return template_args, environ
+
     def template_args_for_segment(self, segment):
         template_args, environ = {}, {}
         self.update_args_env_iter(template_args, environ, segment.n_iter)
@@ -489,6 +543,20 @@ class ExecutablePropagator(WESTPropagator):
         self.prepare_file_system(segment, environ)
         child_info['cwd'] = environ[self.ENV_CURRENT_SEG_DATA_REF]
         return self.exec_child_from_child_info(child_info, template_args, environ)
+
+    def template_args_for_istates(self, state):
+        '''Create necessary environmental variables for istates'''
+        template_args, environ = {}, {}
+        self.update_args_env_iter(template_args, environ, state.iter_used)
+        self.update_args_env_istate(template_args, environ, state)
+        return template_args
+
+    def template_args_for_bstates(self, state):
+        '''Create necessary environmental variables for istates'''
+        template_args, environ = {}, {}
+        self.update_args_env_iter(template_args, environ, 0)
+        self.update_args_env_bstate(template_args, environ, state)
+        return template_args
 
     def exec_for_iteration(self, child_info, n_iter, addtl_env=None):
         '''Execute a child process with environment and template expansion from the given
@@ -525,11 +593,12 @@ class ExecutablePropagator(WESTPropagator):
         if self.data_info['restart']['enabled']:
             restart_writer(environ[self.ENV_CURRENT_SEG_DATA_REF], segment=segment)
 
-    def setup_dataset_return(self, segment=None, subset_keys=None):
-        '''Set up temporary files and environment variables that point to them for segment
-        runners to return data. ``segment`` is the ``Segment`` object that the return data
-        is associated with. ``subset_keys`` specifies the names of a subset of data to be
-        returned.'''
+    def setup_dataset_return(self, state=None, subset_keys=None):
+        '''Set up temporary files and environment variables that point to them for state
+        runners to return data. ``state`` is the ``Segment``, ``BasisState``, or ``TargetState``
+        object that the return data is associated with. ``subset_keys`` specifies the names
+        of a subset of data to be returned.'''
+
         if subset_keys is None:
             subset_keys = self.data_info.keys()
 
@@ -546,9 +615,15 @@ class ExecutablePropagator(WESTPropagator):
 
             return_template = self.data_info[dataset].get('filename')
             if return_template:
-                if segment is None:
-                    raise ValueError('segment needs to be provided for dataset return')
-                return_files[dataset] = self.makepath(return_template, self.template_args_for_segment(segment))
+                if state is None:
+                    raise ValueError('{} needs to be provided for dataset return'.format(return_state_type(state)[0]))
+                elif isinstance(state, Segment):
+                    return_files[dataset] = self.makepath(return_template, self.template_args_for_segment(state))
+                elif isinstance(state, BasisState):  # case when bstate
+                    return_files[dataset] = self.makepath(return_template, self.template_args_for_bstates(state))
+                elif isinstance(state, InitialState):  # case for istate
+                    return_files[dataset] = self.makepath(return_template, self.template_args_for_istates(state))
+
                 del_return_files[dataset] = False
             else:
                 isdir = self.data_info[dataset].get('dir', False)
@@ -564,13 +639,16 @@ class ExecutablePropagator(WESTPropagator):
 
         return addtl_env, return_files, del_return_files
 
-    def retrieve_dataset_return(self, segment, return_files, del_return_files, single_point):
+    def retrieve_dataset_return(self, state, return_files, del_return_files, single_point):
         '''Retrieve returned data from the temporary locations directed by the environment variables.
-        ``segment`` is the ``Segment`` object that the return data is associated with. ``return_files``
-        is a ``dict`` where the keys are the dataset names and the values are the paths to the temporarily
-        files that contain the returned data. ``del_return_files`` is a ``dict`` where the keys are the
-        names of datasets to be deleted (if the corresponding value is set to ``True``) once the data is
-        retrieved.'''
+        ``state`` is a ``Segment``, ``BasisState`` , or ``InitialState``object that the return data is
+        associated with. ``return_files`` is a ``dict`` where the keys are the dataset names and
+        the values are the paths to the temporarily files that contain the returned data.
+        ``del_return_files`` is a ``dict`` where the keys are the names of datasets to be deleted
+        (if the corresponding value is set to ``True``) once the data is retrieved.'''
+
+        state_name, state_id = return_state_type(state)
+
         for dataset in self.data_info:
             if dataset not in return_files:
                 continue
@@ -582,10 +660,11 @@ class ExecutablePropagator(WESTPropagator):
             filename = return_files[dataset]
             loader = self.data_info[dataset]['loader']
             try:
-                loader(dataset, filename, segment, single_point=single_point)
+                loader(dataset, filename, state, single_point=single_point)
             except Exception as e:
-                log.error('could not read {} for segment {} from {!r}: {!r}'.format(dataset, segment.seg_id, filename, e))
-                segment.status = Segment.SEG_STATUS_FAILED
+                log.error('could not read {} for {} {} from {!r}: {!r}'.format(dataset, state_name, state_id, filename, e))
+                if isinstance(state, Segment):
+                    state.status = state.SEG_STATUS_FAILED
                 break
             else:
                 if del_return_files.get(dataset, False):
@@ -596,10 +675,10 @@ class ExecutablePropagator(WESTPropagator):
                             shutil.rmtree(filename)
                     except Exception as e:
                         log.warning(
-                            'could not delete {} file {!r} for segment {}: {!r}'.format(dataset, filename, segment.seg_id, e)
+                            'could not delete {} file {!r} for {} {}: {!r}'.format(dataset, filename, state_name, state_id, e)
                         )
                     else:
-                        log.debug('deleted {} file {!r} for segment {}'.format(dataset, filename, segment.seg_id))
+                        log.debug('deleted {} file {!r} for {} {}'.format(dataset, filename, state_name, state_id))
 
     # Specific functions required by the WEST framework
     def get_pcoord(self, state):
@@ -619,9 +698,7 @@ class ExecutablePropagator(WESTPropagator):
             raise TypeError('state must be a BasisState or InitialState')
 
         child_info = self.exe_info.get('get_pcoord')
-        addtl_env, return_files, del_return_files = self.setup_dataset_return(
-            subset_keys=['pcoord', 'trajectory', 'restart', 'log']
-        )
+        addtl_env, return_files, del_return_files = self.setup_dataset_return(subset_keys=self.ibsubset_keys)
         addtl_env[self.ENV_STRUCT_DATA_REF] = struct_ref
 
         rc, rusage = execfn(child_info, state, addtl_env)
