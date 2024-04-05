@@ -109,7 +109,7 @@ CLASSIFIERS = [
 ]
 
 INSTALL_REQUIRES = [
-    "numpy >= 1.16.0, <2",
+    "numpy >=2.0.0rc1",
     "scipy >= 0.19.1",
     "h5py >= 2.10",
     "mdtraj >= 1.9.5",
