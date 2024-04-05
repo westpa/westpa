@@ -1,6 +1,5 @@
 '''Routines for configuring the work manager environment'''
 
-
 import os
 import re
 

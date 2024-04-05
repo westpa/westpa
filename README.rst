@@ -100,7 +100,7 @@ To install from source (**not recommended**), start by downloading the correspon
 
 .. _`releases page`: https://github.com/westpa/westpa/releases
 .. _`Anaconda Python distribution`: https://www.anaconda.com/products/individual
-.. _`wiki`: https://github.com/westpa/westpa/wiki/WESTPA-Quick-Install
+.. _`wiki`: https://github.com/westpa/westpa/wiki/Installing-WESTPA
 
 ---------------
 Getting started
