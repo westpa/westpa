@@ -102,10 +102,11 @@ class BasisState:
                 probability = float(fields[1])
             except ValueError:
                 raise ValueError('invalid probability ({!r}) {} line {:d}'.format(fields[1], statefile, lineno))
-                try:
-                    auxref = fields[2].strip()
-                except IndexError:
-                    auxref = None
+
+            try:
+                auxref = fields[2].strip()
+            except IndexError:
+                auxref = None
 
             states.append(cls(state_id=None, probability=probability, label=label, auxref=auxref))
 
