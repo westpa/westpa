@@ -30,7 +30,7 @@ SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) if name.star
 
 
 def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
-    """Read progress coordinate data into the ``pcoord`` field on ``destobj``.
+    """Read progress coordinate data into the ``pcoord`` field on ``destobj``
     An exception will be raised if the data is malformed.  If ``single_point`` is true,
     then only one (N-dimensional) point will be read, otherwise system.pcoord_len points
     will be read.
@@ -59,26 +59,34 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
     destobj.pcoord = pcoord
 
 
-def aux_data_loader(fieldname, data_filename, segment, single_point):
+def aux_data_loader(fieldname, data_filename, state, single_point):
+    '''Default data loader for loading auxdata as text files. ``state`` is the
+    ``Segment``, ``BasisState``, or ``InitialState`` object that the data is
+    associated with.'''
     data = np.loadtxt(data_filename)
-    segment.data[fieldname] = data
+    state.data[fieldname] = data
     if data.nbytes == 0:
         raise ValueError('could not read any data for {}'.format(fieldname))
 
 
-def npy_data_loader(fieldname, coord_file, segment, single_point):
+def npy_data_loader(fieldname, coord_file, state, single_point):
+    '''Optional data loader for loading ``.npy`` or ``pickle`` objects. ``state`` is
+    the ``Segment``, ``BasisState``, or ``InitialState`` object that the data is
+    associated with.'''
     log.debug('using npy_data_loader')
     data = np.load(coord_file, allow_pickle=True)
-    segment.data[fieldname] = data
+    state.data[fieldname] = data
     if data.nbytes == 0:
         raise ValueError('could not read any data for {}'.format(fieldname))
 
 
-def pickle_data_loader(fieldname, coord_file, segment, single_point):
+def pickle_data_loader(fieldname, coord_file, state, single_point):
+    '''Optional data loader for loading pickle objects. ``state`` is the ``Segment``,
+    ``BasisState``, or ``InitialState`` object that the data is associated with.'''
     log.debug('using pickle_data_loader')
     with open(coord_file, 'rb') as fo:
         data = pickle.load(fo)
-    segment.data[fieldname] = data
+    state.data[fieldname] = data
     if data.nbytes == 0:
         raise ValueError('could not read any data for {}'.format(fieldname))
 
