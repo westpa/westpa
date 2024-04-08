@@ -223,8 +223,9 @@ class WESimManager:
         futures = [self.work_manager.submit(wm_ops.get_pcoord, args=(basis_state,)) for basis_state in basis_states]
         fmap = {future: i for (i, future) in enumerate(futures)}
         for future in self.work_manager.as_completed(futures):
-            basis_states[fmap[future]].pcoord = future.get_result().pcoord
-            basis_states[fmap[future]].data = future.get_result().data or {}
+            result = future.get_result()
+            basis_states[fmap[future]].pcoord = result.pcoord
+            basis_states[fmap[future]].data = result.data or {}
 
     def report_basis_states(self, basis_states, label='basis'):
         pstatus = self.rc.pstatus
