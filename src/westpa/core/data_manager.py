@@ -585,6 +585,61 @@ class WESTDataManager:
         if 'trajectories' not in iter_group:
             iter_group['trajectories'] = h5py.ExternalLink(iter_ref_rel_path, '/')
 
+    def _update_auxdata(self, n_iter, states, state_type, iter_group, n_total_states):
+        '''Update segment auxdata information in the HDF5 file. Not to be called
+        directly, but part of ``data_manager.update_segments or ``data_manager.update_initial_states``.
+
+        If any state has any auxiliary data, then the aux dataset must spring into
+        existence. Each is named according to the name in state.data, and has shape
+        (n_total_states, ...) where the ... is the shape of the data in states.data (and may be empty
+        in the case of scalar data) and dtype is taken from the data type of the data entry
+        compression is on by default for datasets that will be more than 1MiB.'''
+
+        # a mapping of data set name to (per-state shape, data type) tuples
+        dsets = {}
+
+        # First we scan for presence, shape, and data type of auxiliary data sets
+        for state in states:
+            if state.data:
+                for dsname in state.data:
+                    if dsname.startswith('iterh5/'):
+                        continue
+                    data = np.asarray(state.data[dsname], order='C')
+                    state.data[dsname] = data
+                    dsets[dsname] = (data.shape, data.dtype)
+
+        # Then we iterate over data sets and store data
+        if dsets:
+            for dsname, (shape, dtype) in dsets.items():
+                # dset = self._require_aux_dataset(iter_group, dsname, n_total_states, shape, dtype)
+                try:
+                    dsopts = self.dataset_options[dsname]
+                except KeyError:
+                    dsopts = normalize_dataset_options({'name': dsname}, path_prefix=path_prefix[state_type])
+
+                shape = (n_total_states,) + shape
+                dset = require_dataset_from_dsopts(
+                    iter_group, dsopts, shape, dtype, autocompress_threshold=self.aux_compression_threshold, n_iter=n_iter
+                )
+                if dset is None:
+                    # storage is suppressed
+                    continue
+                for state in states:
+                    state_name, state_id = return_state_type(state)
+                    try:
+                        auxdataset = state.data[dsname]
+                    except KeyError:
+                        pass
+                    else:
+                        source_rank = len(auxdataset.shape)
+                        source_sel = h5s.create_simple(auxdataset.shape, (h5s.UNLIMITED,) * source_rank)
+                        source_sel.select_all()
+                        dest_sel = dset.id.get_space()
+                        dest_sel.select_hyperslab((state_id,) + (0,) * source_rank, (1,) + auxdataset.shape)
+                        dset.id.write(source_sel, dest_sel, auxdataset)
+                if 'delram' in list(dsopts.keys()):
+                    del dsets[dsname]
+
     def get_basis_states(self, n_iter=None):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
 
@@ -959,61 +1014,6 @@ class WESTDataManager:
     def del_iter_summary(self, min_iter):  # delete the iterations starting at min_iter
         with self.lock:
             self.we_h5file['summary'].resize((min_iter - 1,))
-
-    def _update_auxdata(self, n_iter, states, state_type, iter_group, n_total_states):
-        '''Update segment auxdata information in the HDF5 file. Not to be called
-        directly, but part of ``data_manager.update_segments or ``data_manager.update_initial_states``.
-
-        If any state has any auxiliary data, then the aux dataset must spring into
-        existence. Each is named according to the name in state.data, and has shape
-        (n_total_states, ...) where the ... is the shape of the data in states.data (and may be empty
-        in the case of scalar data) and dtype is taken from the data type of the data entry
-        compression is on by default for datasets that will be more than 1MiB.'''
-
-        # a mapping of data set name to (per-state shape, data type) tuples
-        dsets = {}
-
-        # First we scan for presence, shape, and data type of auxiliary data sets
-        for state in states:
-            if state.data:
-                for dsname in state.data:
-                    if dsname.startswith('iterh5/'):
-                        continue
-                    data = np.asarray(state.data[dsname], order='C')
-                    state.data[dsname] = data
-                    dsets[dsname] = (data.shape, data.dtype)
-
-        # Then we iterate over data sets and store data
-        if dsets:
-            for dsname, (shape, dtype) in dsets.items():
-                # dset = self._require_aux_dataset(iter_group, dsname, n_total_states, shape, dtype)
-                try:
-                    dsopts = self.dataset_options[dsname]
-                except KeyError:
-                    dsopts = normalize_dataset_options({'name': dsname}, path_prefix=path_prefix[state_type])
-
-                shape = (n_total_states,) + shape
-                dset = require_dataset_from_dsopts(
-                    iter_group, dsopts, shape, dtype, autocompress_threshold=self.aux_compression_threshold, n_iter=n_iter
-                )
-                if dset is None:
-                    # storage is suppressed
-                    continue
-                for state in states:
-                    state_name, state_id = return_state_type(state)
-                    try:
-                        auxdataset = state.data[dsname]
-                    except KeyError:
-                        pass
-                    else:
-                        source_rank = len(auxdataset.shape)
-                        source_sel = h5s.create_simple(auxdataset.shape, (h5s.UNLIMITED,) * source_rank)
-                        source_sel.select_all()
-                        dest_sel = dset.id.get_space()
-                        dest_sel.select_hyperslab((state_id,) + (0,) * source_rank, (1,) + auxdataset.shape)
-                        dset.id.write(source_sel, dest_sel, auxdataset)
-                if 'delram' in list(dsopts.keys()):
-                    del dsets[dsname]
 
     def update_segments(self, n_iter, segments):
         '''Update segment information in the HDF5 file; all prior information for each
