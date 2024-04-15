@@ -564,15 +564,15 @@ class ExecutablePropagator(WESTPropagator):
 
         return addtl_env, return_files, del_return_files
 
-    def retrieve_dataset_return(self, segment, return_files, del_return_files, single_point):
+    def retrieve_dataset_return(self, state, return_files, del_return_files, single_point):
         '''Retrieve returned data from the temporary locations directed by the environment variables.
-        ``segment`` is the ``Segment`` object that the return data is associated with. ``return_files``
-        is a ``dict`` where the keys are the dataset names and the values are the paths to the temporarily
-        files that contain the returned data. ``del_return_files`` is a ``dict`` where the keys are the
-        names of datasets to be deleted (if the corresponding value is set to ``True``) once the data is
-        retrieved.'''
+        ``state`` is a ``Segment``, ``BasisState`` , or ``InitialState``object that the return data is
+        associated with. ``return_files`` is a ``dict`` where the keys are the dataset names and
+        the values are the paths to the temporarily files that contain the returned data.
+        ``del_return_files`` is a ``dict`` where the keys are the names of datasets to be deleted
+        (if the corresponding value is set to ``True``) once the data is retrieved.'''
 
-        state_name, state_id = return_state_type(segment)
+        state_name, state_id = return_state_type(state)
 
         for dataset in self.data_info:
             if dataset not in return_files:
@@ -585,10 +585,11 @@ class ExecutablePropagator(WESTPropagator):
             filename = return_files[dataset]
             loader = self.data_info[dataset]['loader']
             try:
-                loader(dataset, filename, segment, single_point=single_point)
+                loader(dataset, filename, state, single_point=single_point)
             except Exception as e:
                 log.error('could not read {} for {} {} from {!r}: {!r}'.format(dataset, state_name, state_id, filename, e))
-                segment.status = Segment.SEG_STATUS_FAILED
+                if isinstance(state, Segment):
+                    state.status = state.SEG_STATUS_FAILED
                 break
             else:
                 if del_return_files.get(dataset, False):
