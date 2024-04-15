@@ -352,7 +352,7 @@ def return_state_type(state_obj):
     if isinstance(state_obj, Segment):
         return type(state_obj).__name__, state_obj.seg_id
     elif isinstance(state_obj, InitialState):
-        return type(state_obj).__name__, state_obj.basis_state_id
+        return type(state_obj).__name__, state_obj.state_id
     elif isinstance(state_obj, BasisState):
         return type(state_obj).__name__, state_obj.state_id
     else:
