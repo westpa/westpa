@@ -16,7 +16,7 @@ import numpy as np
 import westpa
 from westpa.core.extloader import get_object
 from westpa.core.propagators import WESTPropagator
-from westpa.core.states import BasisState, InitialState
+from westpa.core.states import BasisState, InitialState, return_state_type
 from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
 
@@ -571,6 +571,9 @@ class ExecutablePropagator(WESTPropagator):
         files that contain the returned data. ``del_return_files`` is a ``dict`` where the keys are the
         names of datasets to be deleted (if the corresponding value is set to ``True``) once the data is
         retrieved.'''
+
+        state_name, state_id = return_state_type(segment)
+
         for dataset in self.data_info:
             if dataset not in return_files:
                 continue
@@ -584,7 +587,7 @@ class ExecutablePropagator(WESTPropagator):
             try:
                 loader(dataset, filename, segment, single_point=single_point)
             except Exception as e:
-                log.error('could not read {} for segment {} from {!r}: {!r}'.format(dataset, segment.seg_id, filename, e))
+                log.error('could not read {} for {} {} from {!r}: {!r}'.format(dataset, state_name, state_id, filename, e))
                 segment.status = Segment.SEG_STATUS_FAILED
                 break
             else:
@@ -596,10 +599,10 @@ class ExecutablePropagator(WESTPropagator):
                             shutil.rmtree(filename)
                     except Exception as e:
                         log.warning(
-                            'could not delete {} file {!r} for segment {}: {!r}'.format(dataset, filename, segment.seg_id, e)
+                            'could not delete {} file {!r} for {} {}: {!r}'.format(dataset, filename, state_name, state_id, e)
                         )
                     else:
-                        log.debug('deleted {} file {!r} for segment {}'.format(dataset, filename, segment.seg_id))
+                        log.debug('deleted {} file {!r} for {} {}'.format(dataset, filename, state_name, state_id))
 
     # Specific functions required by the WEST framework
     def get_pcoord(self, state):

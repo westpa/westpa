@@ -344,3 +344,16 @@ def pare_basis_initial_states(basis_states, initial_states, segments=None):
     )
 
     return return_bstates, return_istates
+
+
+def return_state_type(state_obj):
+    '''Convinience function for returning the state ID and type of the state_obj pointer'''
+
+    if isinstance(state_obj, Segment):
+        return type(state_obj).__name__, state_obj.seg_id
+    elif isinstance(state_obj, InitialState):
+        return type(state_obj).__name__, state_obj.basis_state_id
+    elif isinstance(state_obj, BasisState):
+        return type(state_obj).__name__, state_obj.state_id
+    else:
+        return 'Unknown', float('inf')
