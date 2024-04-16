@@ -139,6 +139,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
     for i in range(0, ndim):
         if direction[i] != 0:
             bottleneck_base += 1
+        # this works for 86 direction as well, where with bottleneck True, use both directions
         else:
             bottleneck_base += 2
 
@@ -167,19 +168,21 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
                 # assign bottlenecks, taking directionality into account
                 if bottleneck:
-                    if direction[n] < 0:
+                    if direction[n] == -1:
                         if coord == flipdifflist[n]:
                             holder = bottleneck_base + n
                             special = True
                             break
 
-                    if direction[n] > 0:
+                    if direction[n] == 1:
                         if coord == difflist[n]:
                             holder = bottleneck_base + n
                             special = True
                             break
 
-                    if direction[n] == 0:
+                    # both directions when using 0 or with
+                    # special value of 86 for no lead/lag split
+                    if direction[n] == 0 or direction[n] == 86:
                         if coord == difflist[n]:
                             holder = bottleneck_base + n
                             special = True
@@ -188,15 +191,15 @@ def map_mab(coords, mask, output, *args, **kwargs):
                             holder = bottleneck_base + n + 1
                             special = True
                             break
-
+                
                 # assign boundary walkers, taking directionality into account
-                if direction[n] < 0:
+                if direction[n] == -1:
                     if coord == minlist[n]:
                         holder = boundary_base + n
                         special = True
                         break
 
-                elif direction[n] > 0:
+                elif direction[n] == 1:
                     if coord == maxlist[n]:
                         holder = boundary_base + n
                         special = True
@@ -211,6 +214,14 @@ def map_mab(coords, mask, output, *args, **kwargs):
                         holder = boundary_base + n + 1
                         special = True
                         break
+
+                # special value for direction with no lead/lag split
+                elif direction[n] == 86:
+                    #westpa.rc.pstatus(f"No lead/lag split for dim {n}")
+                    #westpa.rc.pflush()
+                    # nornmally adds to special bin but here just leaving it forever empty
+                    #holder = boundary_base + n
+                    break
 
         # the following are for the "linear" portion
         if not special:
