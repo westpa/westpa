@@ -148,6 +148,7 @@ def seglog_loader(fieldname, log_file, segment, single_point):
 
         segment.data['iterh5/log'] = d.getvalue() + b'\x01'  # add tail protection
     except Exception as e:
+
         log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
     finally:
         d.close()
@@ -289,7 +290,7 @@ class ExecutablePropagator(WESTPropagator):
                 # can never disable pcoord collection
                 dsinfo['enabled'] = True
 
-            loader_directive = dsinfo.get('loader')
+            loader_directive = dsinfo.get('loader', None)
             if callable(loader_directive):
                 loader = loader_directive
             elif loader_directive in data_loaders.keys():
@@ -299,8 +300,12 @@ class ExecutablePropagator(WESTPropagator):
                     loader = get_object(loader_directive)
             elif dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
                 loader = aux_data_loader
+            else:
+                # YOLO. Or maybe it wasn't specified.
+                loader = loader_directive
 
-            dsinfo['loader'] = loader
+            if loader:
+                dsinfo['loader'] = loader
             self.data_info.setdefault(dsname, {}).update(dsinfo)
 
         log.debug('data_info: {!r}'.format(self.data_info))
