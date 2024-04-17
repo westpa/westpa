@@ -137,7 +137,7 @@ class WEDriver:
         log.info('Adjust counts to exactly match target_counts: {}'.format(self.do_adjust_counts))
 
         self.do_thresholds = config.get(['west', 'we', 'thresholds'], True)
-        log.info('Obey abolute weight thresholds: {}'.format(self.do_thresholds))
+        log.info('Obey absolute weight thresholds: {}'.format(self.do_thresholds))
 
         self.weight_split_threshold = config.get(['west', 'we', 'weight_split_threshold'], self.weight_split_threshold)
         log.info('Split threshold: {}'.format(self.weight_split_threshold))

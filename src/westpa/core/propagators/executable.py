@@ -64,7 +64,7 @@ def aux_data_loader(fieldname, data_filename, state, single_point):
     ``Segment``, ``BasisState``, or ``InitialState`` object that the data is
     associated with.'''
     data = np.loadtxt(data_filename)
-    state.data[fieldname] = data
+    state.data[fieldname] = np.atleast_1d(data)
     if data.nbytes == 0:
         raise ValueError('could not read any data for {}'.format(fieldname))
 
@@ -297,7 +297,7 @@ class ExecutablePropagator(WESTPropagator):
                 # can never disable pcoord collection
                 dsinfo['enabled'] = True
 
-            loader_directive = dsinfo.get('loader')
+            loader_directive = dsinfo.get('loader', None)
             if callable(loader_directive):
                 loader = loader_directive
             elif loader_directive in data_loaders.keys():
@@ -307,8 +307,11 @@ class ExecutablePropagator(WESTPropagator):
                     loader = get_object(loader_directive)
             elif dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
                 loader = aux_data_loader
+            else:
+                loader = loader_directive
 
-            dsinfo['loader'] = loader
+            if loader:
+                dsinfo['loader'] = loader
             self.data_info.setdefault(dsname, {}).update(dsinfo)
 
         # For auxdata in ibstates.
@@ -667,6 +670,7 @@ class ExecutablePropagator(WESTPropagator):
 
             filename = return_files[dataset]
             loader = self.data_info[dataset]['loader']
+
             try:
                 loader(dataset, filename, state, single_point=single_point)
             except Exception as e:

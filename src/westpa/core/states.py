@@ -199,7 +199,7 @@ class InitialState:
         self.iter_used = iter_used
         self.pcoord = np.atleast_1d(pcoord)
         self.basis_auxref = basis_auxref
-        self.data = {}
+        self.data = data
 
     def __repr__(self):
         return '{} state_id={self.state_id!r} istate_type={self.istate_type!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r} pcoord={self.pcoord!r}>'.format(
@@ -352,9 +352,7 @@ def return_state_type(state_obj):
 
     if isinstance(state_obj, Segment):
         return type(state_obj).__name__, state_obj.seg_id
-    elif isinstance(state_obj, InitialState):
-        return type(state_obj).__name__, state_obj.basis_state_id
-    elif isinstance(state_obj, BasisState):
+    elif isinstance(state_obj, (InitialState, BasisState)):
         return type(state_obj).__name__, state_obj.state_id
     else:
         return 'Unknown', float('inf')

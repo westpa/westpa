@@ -263,6 +263,9 @@ class WESTDataManager:
             except KeyError:
                 self.dataset_options[dsopts['name']] = dsopts
 
+            if dsopts.ibstates is True:
+                self.ibstates_datasets[dsopts['name']] = dsopts
+
         if 'pcoord' in self.dataset_options:
             if self.dataset_options['pcoord']['h5path'] != 'pcoord':
                 raise ValueError('cannot override pcoord storage location')
@@ -288,7 +291,9 @@ class WESTDataManager:
         self.store_h5 = False
 
         self.dataset_options = {}
+        self.ibstates_datasets = {}  # dictionary of all (name: dsopts) to be loaded ibstates
         self.process_config()
+        log.warning(self.ibstates_datasets.items())
 
     @property
     def system(self):
@@ -526,6 +531,14 @@ class WESTDataManager:
                 system = self.system
                 state_table = np.empty((len(basis_states),), dtype=bstate_dtype)
                 state_pcoords = np.empty((len(basis_states), system.pcoord_ndim), dtype=system.pcoord_dtype)
+
+                # Checking the first basis state to see if there are any auxdata, Will return empty dictionary if true
+                state_auxdata = {
+                    key: np.zeros((len(basis_states),) + ds.shape)
+                    for key, ds in basis_states[0].data.items()
+                    if not key.startswith('iterh5/')
+                }
+
                 for i, state in enumerate(basis_states):
                     state.state_id = i
                     state_table[i]['label'] = state.label
@@ -533,8 +546,17 @@ class WESTDataManager:
                     state_table[i]['auxref'] = state.auxref or ''
                     state_pcoords[i] = state.pcoord
 
+                    for key, val in state.data.items():
+                        if not key.startswith('iterh5/'):
+                            state_auxdata[key][i] = state.data[key]
+
                 state_group['bstate_index'] = state_table
                 state_group['bstate_pcoord'] = state_pcoords
+
+                if state_auxdata:
+                    aux_group = state_group.create_group('bstate_auxdata')
+                    for key, val in state_auxdata.items():
+                        aux_group.create_dataset(key, data=val)
 
             master_index[set_id] = master_index_row
             return state_group
@@ -651,6 +673,16 @@ class WESTDataManager:
             except KeyError:
                 return []
             bstate_pcoords = ibstate_group['bstate_pcoord'][...]
+
+            if self.ibstates_datasets:
+                try:
+                    bstate_auxdata = ibstate_group['bstate_auxdata']
+                except KeyError:
+                    log.warning(f'attempting to load {self.ibstates_datasets} but not saved in HDF5 File.')
+                    bstate_auxdata = dict()
+            else:
+                bstate_auxdata = dict()
+
             bstates = [
                 BasisState(
                     state_id=i,
@@ -658,7 +690,7 @@ class WESTDataManager:
                     probability=row['probability'],
                     auxref=h5io.tostr(row['auxref']) or None,
                     pcoord=pcoord.copy(),
-                    data={},
+                    data={key: val[i] for key, val in bstate_auxdata.items() if key in self.ibstates_datasets},
                 )
                 for (i, (row, pcoord)) in enumerate(zip(bstate_index, bstate_pcoords))
             ]
@@ -700,6 +732,15 @@ class WESTDataManager:
                 istate_pcoords = ibstate_group['istate_pcoord']
                 istate_pcoords.resize((len_index, system.pcoord_ndim))
 
+            # Dealing with auxdata for
+            if self.ibstates_datasets:
+                try:
+                    istate_auxdata = ibstate_group['istate_auxdata']
+                except KeyError:
+                    istate_auxdata = ibstate_group.create_group('istate_auxdata')  # Should I always create this dataset?
+            else:
+                istate_auxdata = dict()
+
         index_entries = istate_index[first_id:len_index]
         new_istates = []
         for irow, row in enumerate(index_entries):
@@ -711,6 +752,7 @@ class WESTDataManager:
                     basis_state_id=None,
                     iter_created=n_iter,
                     istate_status=InitialState.ISTATE_STATUS_PENDING,
+                    data={key: val[first_id + irow] for key, val in istate_auxdata.items() if key in self.ibstates_datasets},
                 )
             )
         istate_index[first_id:len_index] = index_entries
