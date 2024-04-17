@@ -2,6 +2,10 @@ import math
 
 import numpy as np
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 class Segment:
     '''A class wrapping segment data that must be passed through the work manager or data manager.
@@ -55,9 +59,12 @@ class Segment:
 
             pid = self.parent_id
             if pid >= 0:  # Grab equivalent segment from final_binning
-                import itertools
+                log.warning(f'{list(we_driver.current_iter_segments)=}')  # JL
+                log.warning(f'{pid=}')  # JL
+                parent_segment = sorted(we_driver.current_iter_segments, key=lambda x: x.seg_id)[pid]
 
-                parent_segment = itertools.islice(we_driver.current_iter_segments, pid)
+                log.warning(f'{parent_segment}')  # JL
+
                 assert parent_segment.seg_id == pid
                 return parent_segment
 
@@ -70,10 +77,16 @@ class Segment:
 
                 # TODO: This could potentially be really slow...
 
-                from westpa.core.segment import pare_basis_initial_states
+                from westpa.core.states import pare_basis_initial_states
+
+                log.warning(f'{self=}')  # JL
+                log.warning(f'{pid=}')  # JL
+
+                # log.warning(f'{sim_manager.next_iter_bstates=}')  # JL
+                # log.warning(f'{we_driver.used_initial_states=}')  # JL
 
                 parent_bstate, parent_istate = pare_basis_initial_states(
-                    sim_manager.next_iter_bstates, we_driver.used_initial_states, segments=self
+                    sim_manager.next_iter_bstates, we_driver.used_initial_states.values(), segments=[self]
                 )
 
                 # Grab istate
@@ -99,6 +112,7 @@ class Segment:
                 # Assuming since this is an instance method, you're only passing in one segment.
                 assert len(parent_bstate) == len(parent_istate) == 1
 
+                # return parent_istate.pop()
                 return (parent_bstate.pop(), parent_istate.pop())
 
     def __init__(

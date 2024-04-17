@@ -658,6 +658,11 @@ class WEDriver:
         total_number_of_subgroups = 0
         total_number_of_particles = 0
         for ibin, bin in enumerate(self.next_iter_binning):
+            log.warning(f'f {[segment for segment in bin]}')  # JL
+            log.warning(
+                f'{[segment.parent_segment().data if isinstance(segment.parent_segment(), Segment) else segment.parent_segment()[1].data for segment in bin]}'
+            )  # JL
+
             if len(bin) == 0:
                 continue
 

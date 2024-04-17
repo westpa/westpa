@@ -324,6 +324,7 @@ class WESimManager:
                 initial_state.basis_state_id = basis_state.state_id
                 initial_state.basis_state = basis_state
                 initial_state.istate_type = istate_type
+                initial_state.data = basis_state.data
                 weights.append(basis_state.probability / segs_per_state)
                 initial_states.append(initial_state)
 
