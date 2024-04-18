@@ -137,11 +137,15 @@ def map_mab(coords, mask, output, *args, **kwargs):
     bottleneck_base = boundary_base
 
     for i in range(0, ndim):
-        if direction[i] != 0:
+        # for single direction, 1 boundary walker
+        if direction[i] == 1 or direction[i] == -1:
             bottleneck_base += 1
-        # this works for 86 direction as well, where with bottleneck True, use both directions
-        else:
+        # 2 boundary walkers with 0 direction
+        elif direction[i] == 0:
             bottleneck_base += 2
+        # for 86 direction, no boundary walkers so offset of 0
+        elif direction[i] == 86:
+            bottleneck_base += 0
 
     # if a dimension is being "skipped", leave only one bin total as
     # the offset
