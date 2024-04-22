@@ -22,6 +22,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
     nbins_per_dim = kwargs.get("nbins_per_dim")
     mab_log = kwargs.get("mab_log")
     bin_log = kwargs.get("bin_log")
+    bin_log_path = kwargs.get("bin_log_path")
     ndim = len(nbins_per_dim)
 
     if not np.any(mask):
@@ -248,7 +249,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
     if bin_log and report:
         if westpa.rc.sim_manager.n_iter:
-            with open(expandvars("$WEST_SIM_ROOT/binbounds.log"), 'a') as bb_file:
+            with open(expandvars(bin_log_path), 'a') as bb_file:
                 bb_file.write(f'{westpa.rc.sim_manager.n_iter}\n')  # Iteration Number
                 for n in range(ndim):
                     bb_file.write(f'{np.linspace(minlist[n], maxlist[n], nbins_per_dim[n] + 1)}\t')  # Write binbounds per dim
@@ -266,7 +267,17 @@ class MABBinMapper(FuncBinMapper):
     the progress coordinte. Extrema and bottleneck segments are assigned
     to their own bins.'''
 
-    def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False, mab_log=False, bin_log=False):
+    def __init__(
+        self,
+        nbins,
+        direction=None,
+        skip=None,
+        bottleneck=True,
+        pca=False,
+        mab_log=False,
+        bin_log=False,
+        bin_log_path="$WEST_SIM_ROOT/binbounds.log",
+    ):
         # Verifying parameters
         if nbins is None:
             raise ValueError("nbins_per_dim is missing")
@@ -285,7 +296,14 @@ class MABBinMapper(FuncBinMapper):
             log.warning("Skip list is not the correct dimensions, setting to defaults.")
 
         kwargs = dict(
-            nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca, mab_log=mab_log, bin_log=bin_log
+            nbins_per_dim=nbins,
+            direction=direction,
+            skip=skip,
+            bottleneck=bottleneck,
+            pca=pca,
+            mab_log=mab_log,
+            bin_log=bin_log,
+            bin_log_path=bin_log_path,
         )
         # the following is neccessary because functional bin mappers need to "reserve"
         # bins and tell the sim manager how many bins they will need to use, this is
