@@ -79,7 +79,6 @@ class Segment:
                 # Assuming since this is an instance method, you're only passing in one segment.
                 assert len(parent_bstate) == len(parent_istate) == 1
 
-                # return parent_istate.pop()
                 return (parent_bstate.pop(), parent_istate.pop())
 
     def __init__(
