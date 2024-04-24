@@ -328,9 +328,6 @@ class WESimManager:
                 weights.append(basis_state.probability / segs_per_state)
                 initial_states.append(initial_state)
 
-        log.warning(f'{initial_states=}')
-        log.warning(f'{initial_states[0].data=}')
-
         for start_state in start_states:
             for _iseg in range(segs_per_state):
                 initial_state = data_manager.create_initial_states(1, 1)[0]
@@ -567,7 +564,6 @@ class WESimManager:
                 initial_state.pcoord = basis_state.pcoord.copy()
                 initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
                 initial_state.data = basis_state.data.copy()
-                log.warning(f'{initial_state.data}')
                 self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
             updated_states.append(initial_state)
         self.data_manager.update_initial_states(updated_states, n_iter=self.n_iter + 1, initialize=True)

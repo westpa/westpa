@@ -256,7 +256,6 @@ class WESTDataManager:
 
         # Process dataset options
         dsopts_list = config.get(['west', 'data', 'datasets']) or []
-        log.warning(f'{dsopts_list}')
         for dsopts in dsopts_list:
             seg_dsopts = normalize_dataset_options(dsopts, path_prefix='auxdata' if dsopts['name'] != 'pcoord' else '')
             try:
@@ -270,8 +269,6 @@ class WESTDataManager:
                     self.ibstates_datasets[dsopts['name']].update(i_dsopts)
                 except KeyError:
                     self.ibstates_datasets[dsopts['name']] = i_dsopts
-
-        log.warning(f'{self.ibstates_datasets=}')
 
         if 'pcoord' in self.dataset_options:
             if self.dataset_options['pcoord']['h5path'] != 'pcoord':
@@ -538,15 +535,12 @@ class WESTDataManager:
                 state_table = np.empty((len(basis_states),), dtype=bstate_dtype)
                 state_pcoords = np.empty((len(basis_states), system.pcoord_ndim), dtype=system.pcoord_dtype)
 
-                # log.warning(f'{basis_states[0].data.items()=}')  # JL
-
                 # Checking the first basis state to see if there are any auxdata, Will return empty dictionary if true
                 state_auxdata = {
                     key: np.zeros((len(basis_states),) + ds.shape)
                     for key, ds in basis_states[0].data.items()
                     if not key.startswith('iterh5/')
                 }
-                # log.warning(f'{basis_states[0].data=}')  # JL
 
                 for i, state in enumerate(basis_states):
                     state.state_id = i
@@ -564,11 +558,7 @@ class WESTDataManager:
 
                 if state_auxdata:
                     aux_group = state_group.create_group('bstate_auxdata')
-                    # log.warning(f'{state_auxdata=}')  # JL
                     for key, val in state_auxdata.items():
-                        # log.warning(f'{key=}')  # JL
-                        # log.warning(f'{val.shape=}')  # JL
-                        # log.warning(((None,) + val.shape[1:]))  # JLs
                         aux_group.create_dataset(key, data=val, maxshape=(((None,) + val.shape[1:])))
 
             master_index[set_id] = master_index_row
@@ -643,8 +633,6 @@ class WESTDataManager:
                     state.data[dsname] = data
                     dsets[dsname] = (data.shape, data.dtype)
 
-        log.warning(f'_update_auxdata: {states} {dsets}')
-
         # Then we iterate over data sets and store data
         if dsets:
             for dsname, (shape, dtype) in dsets.items():
@@ -675,22 +663,10 @@ class WESTDataManager:
                         source_sel = h5s.create_simple(auxdataset.shape, (h5s.UNLIMITED,) * source_rank)
                         source_sel.select_all()
                         dest_sel = dset.id.get_space()
-                        log.warning(f'update {dsname}')
-                        log.warning(f'{dset[:]=}')
-                        log.warning(f'{dset.shape=}')
-                        log.warning(f'{auxdataset.shape=}')
-                        log.warning(f'{auxdataset=}')
-                        log.warning(f'{(state_id,) + (0,) * source_rank}')
-                        log.warning(f'{(1,) + auxdataset.shape}')
                         # Everything up to this point should be common
-
+                        # This next if statement is to catch if there isn't enough istates auxdata slots!
                         if state_id >= len(dset):
-                            log.warning(f'exception: {((dset.shape[0]+1,) + auxdataset[1:].shape)}')
-                            log.warning('blah')
-
                             dset.resize((state_id,) + dset.shape[1:])
-                            print(dset)
-                            log.warning(f'new shape: {dset.shape}')
                             dset[state_id] = auxdataset
                         else:
                             dest_sel.select_hyperslab((state_id,) + (0,) * source_rank, (1,) + auxdataset.shape)
@@ -786,7 +762,8 @@ class WESTDataManager:
         return new_istates
 
     def update_initial_states(self, initial_states, n_iter=None, initialize=False):
-        '''Save the given initial states in the HDF5 file'''
+        '''Save the given initial states in the HDF5 file. If initialize is True, WESTPA will attempt to expand
+        the shape of the aux datsets'''
 
         system = self.system
         initial_states = sorted(initial_states, key=attrgetter('state_id'))
@@ -813,20 +790,16 @@ class WESTDataManager:
                     try:
                         istate_auxdata = ibstate_group['istate_auxdata'][dataset_name]
                     except KeyError:
-                        source_rank = len(initial_states[0].data[dataset_name].shape)
-                        shape = initial_states[0].data[dataset_name].shape
-
-                        log.warning(f'{source_rank=}')
+                        # Create the dataset based on first returned istate if doesn't exist.
+                        auxdata_shape = initial_states[0].data[dataset_name].shape
                         istate_auxdata.create_dataset(
                             dataset_name,
                             dtype=dsopt['dtype'],
-                            shape=((len_index,) + initial_states[0].data[dataset_name].shape),
-                            maxshape=((h5s.UNLIMITED,) + shape),
-                            # maxshape=((h5s.UNLIMITED,) + ((1,) * source_rank)),
+                            shape=((len_index,) + auxdata_shape),
+                            maxshape=((h5s.UNLIMITED,) + auxdata_shape),
                         )
                     else:
                         if initialize:
-                            log.warning(f'{[istate.state_id for istate in initial_states]}')
                             if len_index <= np.max([istate.state_id for istate in initial_states]):
                                 total_istates = len(istate_auxdata) + len_index
                                 istate_auxdata.resize(((total_istates,) + istate_auxdata.shape[1:]))
@@ -843,24 +816,9 @@ class WESTDataManager:
 
                 index_entries[i]['basis_auxref'] = initial_state.basis_auxref or ""
 
-                ## If we have any auxdata, the loop will run
-                # for key, val in initial_state.data.items():
-                #    # If not to be saved:
-                #    if key not in self.ibstates_datasets:
-                #        continue
-
-                #    log.warning(f'{initial_state.data[key]=}')  # JL
-
-                #    for dataset in ibstate_group['istate_auxdata']:
-                #        ibstate_group['istate_auxdata'][key][initial_state.state_id] = val
-
             ibstate_group['istate_index'][state_ids] = index_entries
             ibstate_group['istate_pcoord'][state_ids] = pcoord_vals
 
-            log.warning(f'update_istates {initial_states=}')
-            log.warning(f"{ibstate_group['istate_auxdata']['dist'][:]=}")
-
-            # self._update_istate_auxdata(n_iter, initial_states, 'istate', ibstate_group, len(initial_states))  # JL
             self._update_auxdata(n_iter, initial_states, 'istate', ibstate_group, len(initial_states))
 
             if self.store_h5:
@@ -908,7 +866,6 @@ class WESTDataManager:
                     )
                 )
 
-            log.warning(f'print {states=}')
             return states
 
     def get_segment_initial_states(self, segments, n_iter=None):
