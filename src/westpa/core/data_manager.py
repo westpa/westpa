@@ -622,7 +622,7 @@ class WESTDataManager:
 
     def _update_auxdata(self, n_iter, states, state_type, iter_group, n_total_states):
         '''Update segment auxdata information in the HDF5 file. Not to be called
-        directly, but part of ``data_manager.update_segments or ``data_manager.update_initial_states``.
+        directly, but part of ``data_manager.update_segments
 
         If any state has any auxiliary data, then the aux dataset must spring into
         existence. Each is named according to the name in state.data, and has shape
@@ -769,28 +769,6 @@ class WESTDataManager:
                 istate_pcoords = ibstate_group['istate_pcoord']
                 istate_pcoords.resize((len_index, system.pcoord_ndim))
 
-            # Dealing with auxdata for istates, creating empty spots for the auxdata to be appended
-            # if self.ibstates_datasets:
-            #     try:
-            #         istate_auxdata = ibstate_group['istate_auxdata']
-            #     except KeyError:
-            #         istate_auxdata = ibstate_group.create_group('istate_auxdata')
-            #         for dataset, dsopt in self.ibstates_datasets.items():
-            #             istate_auxdata.create_dataset(
-            #                 dataset,
-            #                 dtype=dsopt['dtype'],
-            #                 shape=(n_states,),
-            #                 maxshape=(None, None),
-            #             )
-            #     else:
-            #         for dataset in istate_auxdata:
-            #             iauxdata = ibstate_group['istate_auxdata'][dataset]
-            #             log.warning(f'{iauxdata.shape=}')
-            #             iauxdata.resize(((len_index,) + iauxdata.shape))
-
-            # else:
-            #     istate_auxdata = dict()
-
         index_entries = istate_index[first_id:len_index]
         new_istates = []
         for irow, row in enumerate(index_entries):
@@ -847,10 +825,11 @@ class WESTDataManager:
                             # maxshape=((h5s.UNLIMITED,) + ((1,) * source_rank)),
                         )
                     else:
-                        if not initialize:
-                            # if len_index <= np.max([istate.state_id for istate in initial_states]):
-                            total_istates = len(istate_auxdata) + len_index
-                            istate_auxdata.resize(((total_istates,) + istate_auxdata.shape[1:]))
+                        if initialize:
+                            log.warning(f'{[istate.state_id for istate in initial_states]}')
+                            if len_index <= np.max([istate.state_id for istate in initial_states]):
+                                total_istates = len(istate_auxdata) + len_index
+                                istate_auxdata.resize(((total_istates,) + istate_auxdata.shape[1:]))
 
             for i, initial_state in enumerate(initial_states):
                 index_entries[i]['iter_created'] = initial_state.iter_created
@@ -864,16 +843,16 @@ class WESTDataManager:
 
                 index_entries[i]['basis_auxref'] = initial_state.basis_auxref or ""
 
-                # If we have any auxdata, the loop will run
-                for key, val in initial_state.data.items():
-                    # If not to be saved:
-                    if key not in self.ibstates_datasets:
-                        continue
+                ## If we have any auxdata, the loop will run
+                # for key, val in initial_state.data.items():
+                #    # If not to be saved:
+                #    if key not in self.ibstates_datasets:
+                #        continue
 
-                    log.warning(f'{initial_state.data[key]=}')  # JL
+                #    log.warning(f'{initial_state.data[key]=}')  # JL
 
-                    for dataset in ibstate_group['istate_auxdata']:
-                        ibstate_group['istate_auxdata'][key][initial_state.state_id] = val
+                #    for dataset in ibstate_group['istate_auxdata']:
+                #        ibstate_group['istate_auxdata'][key][initial_state.state_id] = val
 
             ibstate_group['istate_index'][state_ids] = index_entries
             ibstate_group['istate_pcoord'][state_ids] = pcoord_vals

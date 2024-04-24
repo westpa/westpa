@@ -365,7 +365,7 @@ class WESimManager:
 
         # save list of initial states just generated
         # some of these may not be used, depending on how WE shakes out
-        data_manager.update_initial_states(initial_states, n_iter=1)
+        data_manager.update_initial_states(initial_states, n_iter=1, initialize=True)
 
         if not suppress_we:
             self.we_driver.populate_initial(initial_states, weights, system)
@@ -390,7 +390,7 @@ class WESimManager:
             assert initial_states[segment.initial_state_id].iter_used == 1
 
         data_manager.prepare_iteration(1, segments)
-        data_manager.update_initial_states(initial_states, n_iter=1, initialize=True)
+        data_manager.update_initial_states(initial_states, n_iter=1)
 
         if self.rc.verbose_mode:
             pstatus('\nSegments generated:')
@@ -570,7 +570,7 @@ class WESimManager:
                 log.warning(f'{initial_state.data}')
                 self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
             updated_states.append(initial_state)
-        self.data_manager.update_initial_states(updated_states, n_iter=self.n_iter + 1)
+        self.data_manager.update_initial_states(updated_states, n_iter=self.n_iter + 1, initialize=True)
         return futures
 
     def propagate(self):
