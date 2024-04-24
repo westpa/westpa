@@ -35,7 +35,7 @@ jobs:
     runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
-        os: ["ubuntu-latest", "macos-latest"]
+        os: ["ubuntu-latest", "macos-13", "macos-14"]
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
@@ -89,7 +89,7 @@ jobs:
   install-dev:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "macos-latest"]
+        os: ["ubuntu-latest", "macos-13", "macos-14"]
 
     name: "Verify dev env"
     runs-on: "${{ matrix.os }}"
