@@ -790,7 +790,7 @@ class RestartDriver:
 
                 westpa.rc.pstatus(
                     f"\n\n===== Restart {restart_state['restarts_completed']}, "
-                    + f"Run {restart_state['runs_completed']+1} initializing =====\n"
+                    + f"Run {restart_state['runs_completed'] + 1} initializing =====\n"
                 )
 
                 westpa.rc.pstatus(
@@ -811,7 +811,7 @@ class RestartDriver:
                 log.info("New WE run ready!")
                 westpa.rc.pstatus(
                     f"\n\n===== Restart {restart_state['restarts_completed']}, "
-                    + f"Run {restart_state['runs_completed']+1} running =====\n"
+                    + f"Run {restart_state['runs_completed'] + 1} running =====\n"
                 )
 
                 w_run.run_simulation()
@@ -1144,7 +1144,7 @@ class RestartDriver:
         westpa.rc.pstatus(
             f"\n\n"
             f"===== Restart {restart_state['restarts_completed']}, "
-            + f"Run {restart_state['runs_completed']+1} initializing =====\n"
+            + f"Run {restart_state['runs_completed'] + 1} initializing =====\n"
         )
 
         westpa.rc.pstatus(
