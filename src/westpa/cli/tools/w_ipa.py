@@ -158,10 +158,10 @@ class WIPI(WESTParallelTool):
         if self.debug_mode:
             for iarg, arg in enumerate(to_hash):
                 if not isinstance(arg, list):
-                    print('arg {num:02d} -- {arg:<20}'.format(num=iarg, arg=arg))
+                    print('arg {num:02d} -- {arg:<20}'.format(num=iarg, arg=h5io.tostr(arg)))
                 else:
                     for il, l in enumerate(arg):
-                        print('arg {num:02d} -- {arg:<20}'.format(num=il + iarg, arg=l))
+                        print('arg {num:02d} -- {arg:<20}'.format(num=il + iarg, arg=h5io.tostr(l)))
             # print('args: {}'.format(to_hash))
         # This SHOULD produce the same output, maybe?  That would be nice, anyway.
         # But we'll need to test it more.
