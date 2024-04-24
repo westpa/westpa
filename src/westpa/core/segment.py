@@ -47,7 +47,7 @@ class Segment:
         return segment.pcoord[-1]
 
     def parent_segment(self, sim_manager=None, we_driver=None, data_manager=None):
-        'Return equivalent segment object in we_driver.final_binning.'
+        'Return equivalent segment object in we_driver.final_binning, or a InitialState object if a recycled segment'
         if self.status == self.SEG_STATUS_COMPLETE:
             # This segment is already from final_binning
             return self
@@ -58,7 +58,7 @@ class Segment:
                 we_driver = westpa.rc.get_we_driver()
 
             pid = self.parent_id
-            if pid >= 0:  # Grab equivalent segment from final_binning
+            if self.initpoint_type == self.SEG_INITPOINT_CONTINUES:  # Grab equivalent segment from final_binning
                 log.warning(f'{list(we_driver.current_iter_segments)=}')  # JL
                 log.warning(f'{pid=}')  # JL
                 parent_segment = sorted(we_driver.current_iter_segments, key=lambda x: x.seg_id)[pid]
@@ -68,7 +68,7 @@ class Segment:
                 assert parent_segment.seg_id == pid
                 return parent_segment
 
-            elif pid < 0:  # Recycled Segment.
+            elif self.initpoint_type == self.SEG_INITPOINT_NEWTRAJ:  # Recycled Segment.
                 # if data_manager is None:
                 #    import westpa
                 #    data_manager = westpa.rc.get_data_manager()
@@ -108,6 +108,8 @@ class Segment:
                 #    parent_bstate = data_manager.get_basis_states(we_driver.n_iter + 1)[bstate_id]
                 # except IndexError:
                 #    parent_bstate = parent_istate
+
+                log.warning(f'{parent_istate=}')
 
                 # Assuming since this is an instance method, you're only passing in one segment.
                 assert len(parent_bstate) == len(parent_istate) == 1

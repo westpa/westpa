@@ -657,8 +657,14 @@ class WEDriver:
         # Then and only then adjust for correct particle count
         total_number_of_subgroups = 0
         total_number_of_particles = 0
+
+        log.warning(f'{self.rc.get_data_manager().ibstates_datasets}')
+
         for ibin, bin in enumerate(self.next_iter_binning):
             log.warning(f'f {[segment for segment in bin]}')  # JL
+            log.warning(
+                f'parent_segments: {[segment.parent_segment() if isinstance(segment.parent_segment(), Segment) else segment.parent_segment()[1] for segment in bin]}'
+            )  # JL
             log.warning(
                 f'{[segment.parent_segment().data if isinstance(segment.parent_segment(), Segment) else segment.parent_segment()[1].data for segment in bin]}'
             )  # JL
@@ -798,6 +804,7 @@ class WEDriver:
                 pass
 
         for used_istate in self.used_initial_states.values():
+            log.warning(f'{used_istate=} {used_istate.data}')
             used_istate.iter_used = 1
 
     def rebin_current(self, parent_segments):
