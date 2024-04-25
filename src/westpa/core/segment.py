@@ -47,12 +47,13 @@ class Segment:
         return segment.pcoord[-1]
 
     def parent_segment(self, sim_manager=None, we_driver=None, data_manager=None):
-        'Return equivalent segment object in we_driver.final_binning, or a InitialState object if a recycled segment'
+        '''Return equivalent segment object in we_driver.final_binning, or a (BasisState, InitialState) tuple if a recycled segment'''
         if self.status == self.SEG_STATUS_COMPLETE:
             # This segment is already from final_binning
             return self
         elif self.status == self.SEG_STATUS_PREPARED:
             if we_driver is None:
+                # Loading in the we_driver
                 import westpa
 
                 we_driver = westpa.rc.get_we_driver()
@@ -61,25 +62,43 @@ class Segment:
             if self.initpoint_type == self.SEG_INITPOINT_CONTINUES:  # Grab equivalent segment from final_binning
                 parent_segment = sorted(we_driver.current_iter_segments, key=lambda x: x.seg_id)[pid]
 
-                assert parent_segment.seg_id == pid
+                assert parent_segment.seg_id == pid, f'{parent_segment.seg_id=} != current {pid=}'
                 return parent_segment
 
             elif self.initpoint_type == self.SEG_INITPOINT_NEWTRAJ:  # Recycled Segment.
                 if sim_manager is None:
+                    # Loading in the sim_manager
                     sim_manager = we_driver.rc.get_sim_manager()
 
-                # TODO: This could potentially be really slow...
-
+                # This could potentially be really slow as the number of used_initial_states increases...
                 from westpa.core.states import pare_basis_initial_states
 
-                parent_bstate, parent_istate = pare_basis_initial_states(
+                parent_bstates, parent_istates = pare_basis_initial_states(
                     sim_manager.next_iter_bstates, we_driver.used_initial_states.values(), segments=[self]
                 )
 
-                # Assuming since this is an instance method, you're only passing in one segment.
-                assert len(parent_bstate) == len(parent_istate) == 1
+                # Since this is a class method, you're only passing in one segment.
+                assert (
+                    len(parent_bstates) == len(parent_istates) == 1
+                ), 'Found multiple bstates and/or istates associated to this segment.'
+                parent_bstate = parent_bstates.pop()
+                parent_istate = parent_istates.pop()
 
-                return (parent_bstate.pop(), parent_istate.pop())
+                # Doing final checks
+                assert (
+                    parent_bstate.state_id == parent_istate.basis_state_id
+                ), f'{parent_bstate.seg_id=} != {parent_istate.basis_state_id=}'
+                assert parent_istate.state_id == self.initial_state_id, f'{parent_istate.seg_id=} != {self.initial_state_id=}'
+
+                return (parent_bstate, parent_istate)
+            else:
+                # self.initpoint_type == Segment.SEG_INITPOINT_UNSET, not configured properly
+                log.error(f'Segment {self} is not a valid segment. Returning itself.')
+                return self
+        else:
+            # self.status is Segment.SEG_STATUS_UNSET or Segment.SEG_STATUS_FAILED
+            log.error(f'Segment {self} status is {self.status}. Returning itself.')
+            return self
 
     def __init__(
         self,
