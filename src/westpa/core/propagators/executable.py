@@ -156,6 +156,7 @@ def seglog_loader(fieldname, log_file, segment, single_point):
 
         segment.data['iterh5/log'] = d.getvalue() + b'\x01'  # add tail protection
     except Exception as e:
+
         log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
     finally:
         d.close()
@@ -308,6 +309,7 @@ class ExecutablePropagator(WESTPropagator):
             elif dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
                 loader = aux_data_loader
             else:
+                # YOLO. Or maybe it wasn't specified.
                 loader = loader_directive
 
             if loader:
