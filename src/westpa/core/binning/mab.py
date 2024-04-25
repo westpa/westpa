@@ -106,7 +106,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
     output : list
         The main list that, for each segment, holds the bin assignment
     *args
-    **kwargs 
+    **kwargs
     '''
 
     pca = kwargs.get("pca")
@@ -289,7 +289,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
                             holder = bottleneck_base + n + 1
                             special = True
                             break
-                
+
                 # assign boundary walkers, taking directionality into account
                 if direction[n] == -1:
                     if coord == minlist[n]:
@@ -315,10 +315,10 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
                 # special value for direction with no lead/lag split
                 elif direction[n] == 86:
-                    #westpa.rc.pstatus(f"No lead/lag split for dim {n}")
-                    #westpa.rc.pflush()
+                    # westpa.rc.pstatus(f"No lead/lag split for dim {n}")
+                    # westpa.rc.pflush()
                     # nornmally adds to special bin but here just leaving it forever empty
-                    #holder = boundary_base + n
+                    # holder = boundary_base + n
                     break
 
         # the following are for the "linear" portion
@@ -359,17 +359,16 @@ def map_mab(coords, mask, output, *args, **kwargs):
         if westpa.rc.sim_manager.n_iter:
             with open(expandvars("$WEST_SIM_ROOT/binbounds.log"), 'a') as bb_file:
                 # Iteration Number
-                bb_file.write(f'{westpa.rc.sim_manager.n_iter}\n')  
+                bb_file.write(f'{westpa.rc.sim_manager.n_iter}\n')
                 for n in range(ndim):
                     # Write binbounds per dim
-                    bb_file.write(f'{np.linspace(minlist[n], maxlist[n], nbins_per_dim[n] + 1)}\t')  
+                    bb_file.write(f'{np.linspace(minlist[n], maxlist[n], nbins_per_dim[n] + 1)}\t')
                 # Min/Max pcoord
-                bb_file.write(f'\n{minlist} {maxlist}\n')  
+                bb_file.write(f'\n{minlist} {maxlist}\n')
                 if bottleneck_base > boundary_base:
                     # Bottlenecks
-                    bb_file.write(f'{flipdifflist} {difflist}\n\n')  
+                    bb_file.write(f'{flipdifflist} {difflist}\n\n')
                 else:
                     bb_file.write('\n')
 
     return output
-
