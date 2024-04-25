@@ -8,12 +8,106 @@ from os.path import expandvars
 log = logging.getLogger(__name__)
 
 
+class MABBinMapper(FuncBinMapper):
+    '''
+    Adaptively place bins in between minimum and maximum segments along
+    the progress coordinte. Extrema and bottleneck segments are assigned
+    to their own bins.
+    '''
+
+    def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False, mab_log=False, bin_log=False):
+        '''
+        Parameters
+        ----------
+        nbins : list of ints
+            List of ints for nbins in each dimension.
+        direction : list of ints
+            List of ints for 'direction' in each dimension.
+            Direction options are as follows:
+                0   : default split at leading and lagging boundaries
+                1   : split at leading boundary only
+                -1  : split at lagging boundary only
+                86  : no splitting at either leading or lagging boundary
+        skip : list of ints
+            List of ints for each dimension. Default None for skip=0.
+            Set to 1 to 'skip' running mab in a dimension.
+        bottleneck : bool
+            Can be True (default) or False to turn on or off bottleneck walker splitting.
+        pca : bool
+            Can be True or False (default) to run PCA on pcoords before bin assignment.
+        mab_log : bool
+            Default False, set to True to output mab info to west.log.
+        bin_log : bool
+            Default False, set to True to output mab bin boundaries to a binbounds.log file.
+        '''
+        # Verifying parameters
+        if nbins is None:
+            raise ValueError("nbins_per_dim is missing")
+        ndim = len(nbins)
+
+        if direction is None:
+            direction = [0] * ndim
+        elif len(direction) != ndim:
+            direction = [0] * ndim
+            log.warning("Direction list is not the correct dimensions, setting to defaults.")
+
+        if skip is None:
+            skip = [0] * ndim
+        elif len(skip) != ndim:
+            skip = [0] * ndim
+            log.warning("Skip list is not the correct dimensions, setting to defaults.")
+
+        kwargs = dict(
+            nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca, mab_log=mab_log, bin_log=bin_log
+        )
+
+        n_total_bins = self.determine_total_bins(**kwargs)
+
+        super().__init__(map_mab, n_total_bins, kwargs=kwargs)
+
+    def determine_total_bins(self, nbins_per_dim, direction, skip, bottleneck, **kwargs):
+        '''
+        The following is neccessary because functional bin mappers need to "reserve"
+        bins and tell the sim manager how many bins they will need to use, this is
+        determined by taking all direction/skipping info into account
+
+        Returns
+        -------
+        n_total_bins : int
+        '''
+        n_total_bins = np.prod(nbins_per_dim)
+        ndim = len(nbins_per_dim)
+        for i in range(0, ndim):
+            if skip[i] == 0:
+                if direction[i] != 0:
+                    n_total_bins += 1 + 1 * bottleneck
+                else:
+                    n_total_bins += 2 + 2 * bottleneck
+            else:
+                n_total_bins -= nbins_per_dim[i] - 1
+                n_total_bins += 1 * ndim  # or else it will be one bin short
+        return n_total_bins
+
+
 def map_mab(coords, mask, output, *args, **kwargs):
-    '''Binning which adaptively places bins based on the positions of extrema segments and
+    '''
+    Binning which adaptively places bins based on the positions of extrema segments and
     bottleneck segments, which are where the difference in probability is the greatest
     along the progress coordinate. Operates per dimension and places a fixed number of
     evenly spaced bins between the segments with the min and max pcoord values. Extrema and
-    bottleneck segments are assigned their own bins.'''
+    bottleneck segments are assigned their own bins.
+
+    Parameters
+    ----------
+    coords : ndarray
+        An array with pcoord and weight info.
+    mask : ndarray
+        Array of 1 (True) and 0 (False), to filter out unwanted segment info.
+    output : list
+        The main list that, for each segment, holds the bin assignment
+    *args
+    **kwargs 
+    '''
 
     pca = kwargs.get("pca")
     bottleneck = kwargs.get("bottleneck")
@@ -264,55 +358,18 @@ def map_mab(coords, mask, output, *args, **kwargs):
     if bin_log and report:
         if westpa.rc.sim_manager.n_iter:
             with open(expandvars("$WEST_SIM_ROOT/binbounds.log"), 'a') as bb_file:
-                bb_file.write(f'{westpa.rc.sim_manager.n_iter}\n')  # Iteration Number
+                # Iteration Number
+                bb_file.write(f'{westpa.rc.sim_manager.n_iter}\n')  
                 for n in range(ndim):
-                    bb_file.write(f'{np.linspace(minlist[n], maxlist[n], nbins_per_dim[n] + 1)}\t')  # Write binbounds per dim
-                bb_file.write(f'\n{minlist} {maxlist}\n')  # Min/Max pcoord
+                    # Write binbounds per dim
+                    bb_file.write(f'{np.linspace(minlist[n], maxlist[n], nbins_per_dim[n] + 1)}\t')  
+                # Min/Max pcoord
+                bb_file.write(f'\n{minlist} {maxlist}\n')  
                 if bottleneck_base > boundary_base:
-                    bb_file.write(f'{flipdifflist} {difflist}\n\n')  # Bottlenecks
+                    # Bottlenecks
+                    bb_file.write(f'{flipdifflist} {difflist}\n\n')  
                 else:
                     bb_file.write('\n')
 
     return output
 
-
-class MABBinMapper(FuncBinMapper):
-    '''Adaptively place bins in between minimum and maximum segments along
-    the progress coordinte. Extrema and bottleneck segments are assigned
-    to their own bins.'''
-
-    def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False, mab_log=False, bin_log=False):
-        # Verifying parameters
-        if nbins is None:
-            raise ValueError("nbins_per_dim is missing")
-        ndim = len(nbins)
-
-        if direction is None:
-            direction = [0] * ndim
-        elif len(direction) != ndim:
-            direction = [0] * ndim
-            log.warning("Direction list is not the correct dimensions, setting to defaults.")
-
-        if skip is None:
-            skip = [0] * ndim
-        elif len(skip) != ndim:
-            skip = [0] * ndim
-            log.warning("Skip list is not the correct dimensions, setting to defaults.")
-
-        kwargs = dict(
-            nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca, mab_log=mab_log, bin_log=bin_log
-        )
-        # the following is neccessary because functional bin mappers need to "reserve"
-        # bins and tell the sim manager how many bins they will need to use, this is
-        # determined by taking all direction/skipping info into account
-        n_total_bins = np.prod(nbins)
-        for i in range(0, ndim):
-            if skip[i] == 0:
-                if direction[i] != 0:
-                    n_total_bins += 1 + 1 * bottleneck
-                else:
-                    n_total_bins += 2 + 2 * bottleneck
-            else:
-                n_total_bins -= nbins[i] - 1
-                n_total_bins += 1 * ndim  # or else it will be one bin short
-        super().__init__(map_mab, n_total_bins, kwargs=kwargs)
