@@ -659,9 +659,6 @@ class WEDriver:
         total_number_of_particles = 0
 
         for ibin, bin in enumerate(self.next_iter_binning):
-            log.warning(
-                f'bin {ibin}: {[segment.parent_segment().data if isinstance(segment.parent_segment(), Segment) else segment.parent_segment()[1].data for segment in bin]}'
-            )
             if len(bin) == 0:
                 continue
 
