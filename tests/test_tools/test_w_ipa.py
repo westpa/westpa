@@ -18,7 +18,7 @@ class Test_W_IPA(unittest.TestCase):
         ref_dir = os.path.join(os.path.dirname(__file__), '../refs')
         shutil.copy2(os.path.join(ref_dir, 'west_ref.cfg'), './west.cfg')
         shutil.copy2(os.path.join(ref_dir, 'west_ref.h5'), './west.h5')
-        os.system('w_ipa -ao')
+        os.system('w_ipa -ao -d')
         assert os.path.isfile('./ANALYSIS/TEST/assign.h5'), "The assign.h5 file was not generated."
         assert os.path.isfile('./ANALYSIS/TEST/direct.h5'), "The direct.h5 file was not generated."
         diff = H5Diff(os.path.join(ref_dir, 'assign_ipa_ref.h5'), './ANALYSIS/TEST/assign.h5')
