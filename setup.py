@@ -148,6 +148,7 @@ metadata = dict(
     package_data={},
     packages=find_packages(where='src'),
     package_dir={"": "src"},
+    description='WESTPA is a package for constructing and running stochastic simulations using the "weighted ensemble" approach of Huber and Kim (1996).',
 )
 
 
