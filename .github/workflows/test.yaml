@@ -5,7 +5,6 @@ on:
     branches:
       - "westpa2"
       - "develop"
-      - "arm64-wheels"  # REMEMBER TO REMOVE THIS AFTER TESTING
   pull_request:
     branches:
       - "westpa2"
@@ -123,7 +122,6 @@ jobs:
       shell: bash -l {0}
       run: |
         conda info --all
-        brew install hdf5
         python -m pip install . -v --no-deps
         conda list
 
@@ -164,14 +162,11 @@ jobs:
   install-dev-macos-arm64:
     name: "Verify dev env"
     runs-on: "macos-latest"
-
     steps:
       - uses: "actions/checkout@v4"
       - uses: "actions/setup-python@v5"
         with:
           python-version: "3.11"
-      - name: "Install HDF5 with brew"
-        run: "brew install hdf5"
       - name: "Install in dev mode"
         run: "python -m pip install -e .[dev]"
       - name: "Import package"
