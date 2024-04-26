@@ -331,14 +331,8 @@ def pare_basis_initial_states(basis_states, initial_states, segments=None):
     return minimal sets (as in __builtins__.set) of states needed to describe the history of the given
     segments an initial states.'''
 
-    # log.warning(f'{basis_states=}')  # JL
-    # log.warning(f'{initial_states=}')  # JL
-
     bstatemap = {state.state_id: state for state in basis_states}
     istatemap = {state.state_id: state for state in initial_states}
-
-    # log.warning(f'{bstatemap=}')  # JL
-    # log.warning(f'{istatemap=}')  # JL
 
     if segments is not None:
         segments = list(segments)
