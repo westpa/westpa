@@ -16,7 +16,17 @@ class MABBinMapper(FuncBinMapper):
 
     """
 
-    def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False, mab_log=False, bin_log=False):
+    def __init__(
+        self,
+        nbins,
+        direction=None,
+        skip=None,
+        bottleneck=True,
+        pca=False,
+        mab_log=False,
+        bin_log=False,
+        bin_log_path="$WEST_SIM_ROOT/binbounds.log",
+    ):
         """
         Parameters
         ----------
@@ -39,7 +49,9 @@ class MABBinMapper(FuncBinMapper):
         mab_log : bool, default: False
             Whether to output mab info to west.log.
         bin_log : bool, default: False
-            Whether to output mab bin boundaries to a binbounds.log file.
+            Whether to output mab bin boundaries to bin_log_path file.
+        bin_log_path : str, default: "$WEST_SIM_ROOT/binbounds.log"
+            Path to output bin boundaries.
 
         """
         # Verifying parameters
@@ -60,7 +72,14 @@ class MABBinMapper(FuncBinMapper):
             log.warning("Skip list is not the correct dimensions, setting to defaults.")
 
         kwargs = dict(
-            nbins_per_dim=nbins, direction=direction, skip=skip, bottleneck=bottleneck, pca=pca, mab_log=mab_log, bin_log=bin_log
+            nbins_per_dim=nbins,
+            direction=direction,
+            skip=skip,
+            bottleneck=bottleneck,
+            pca=pca,
+            mab_log=mab_log,
+            bin_log=bin_log,
+            bin_log_path=bin_log_path,
         )
 
         n_total_bins = self.determine_total_bins(**kwargs)
@@ -143,6 +162,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
     skip = kwargs.get("skip", ([0] * ndim))
     mab_log = kwargs.get("mab_log", False)
     bin_log = kwargs.get("bin_log", False)
+    bin_log_path = kwargs.get("bin_log_path", "$WEST_SIM_ROOT/binbounds.log")
 
     if not np.any(mask):
         return output
@@ -388,7 +408,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
     if bin_log and report:
         if westpa.rc.sim_manager.n_iter:
-            with open(expandvars("$WEST_SIM_ROOT/binbounds.log"), 'a') as bb_file:
+            with open(expandvars(bin_log_path), 'a') as bb_file:
                 # Iteration Number
                 bb_file.write(f'{westpa.rc.sim_manager.n_iter}\n')
                 for n in range(ndim):
