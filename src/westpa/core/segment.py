@@ -48,6 +48,10 @@ class Segment:
 
     def parent_segment(self, sim_manager=None, we_driver=None, data_manager=None):
         '''Return equivalent segment object in we_driver.final_binning, or a (BasisState, InitialState) tuple if a recycled segment'''
+        if self.n_iter is None or self.seg_id is None or self.parent_id is None:
+            log.warning('A dummy segment with improper attributes. Returning itself.')
+            return self
+
         if self.status == self.SEG_STATUS_COMPLETE:
             # This segment is already from final_binning
             return self
@@ -62,7 +66,10 @@ class Segment:
             if self.initpoint_type == self.SEG_INITPOINT_CONTINUES:  # Grab equivalent segment from final_binning
                 parent_segment = sorted(we_driver.current_iter_segments, key=lambda x: x.seg_id)[pid]
 
-                assert parent_segment.seg_id == pid, f'{parent_segment.seg_id=} != current {pid=}'
+                if parent_segment.seg_id != pid:
+                    log.warning(f'{parent_segment.seg_id=} != current {pid=}. Returning itself.')
+                    return self
+
                 return parent_segment
 
             elif self.initpoint_type == self.SEG_INITPOINT_NEWTRAJ:  # Recycled Segment.
@@ -78,17 +85,20 @@ class Segment:
                 )
 
                 # Since this is a class method, you're only passing in one segment.
-                assert (
-                    len(parent_bstates) == len(parent_istates) == 1
-                ), 'Found multiple bstates and/or istates associated to this segment.'
+                if len(parent_bstates) != len(parent_istates) != 1:
+                    log.warning('Found multiple bstates and/or istates associated to this segment. Returning itself.')
+                    return self
+
                 parent_bstate = parent_bstates.pop()
                 parent_istate = parent_istates.pop()
 
                 # Doing final checks
-                assert (
-                    parent_bstate.state_id == parent_istate.basis_state_id
-                ), f'{parent_bstate.seg_id=} != {parent_istate.basis_state_id=}'
-                assert parent_istate.state_id == self.initial_state_id, f'{parent_istate.seg_id=} != {self.initial_state_id=}'
+                if parent_bstate.state_id != parent_istate.basis_state_id:
+                    log.warning(f'{parent_bstate.seg_id=} != {parent_istate.basis_state_id=}. Returning itself.')
+                    return self
+                if parent_istate.state_id != self.initial_state_id:
+                    log.warning(f'{parent_istate.seg_id=} != {self.initial_state_id=}. Returning itself.')
+                    return self
 
                 return (parent_bstate, parent_istate)
             else:
