@@ -410,15 +410,15 @@ def map_mab(coords, mask, output, *args, **kwargs):
         if westpa.rc.sim_manager.n_iter:
             with open(expandvars(bin_log_path), 'a') as bb_file:
                 # Iteration Number
-                bb_file.write(f'{westpa.rc.sim_manager.n_iter}\n')
+                bb_file.write(f'iteration: {westpa.rc.sim_manager.n_iter}\n')
                 for n in range(ndim):
                     # Write binbounds per dim
                     bb_file.write(f'{np.linspace(minlist[n], maxlist[n], nbins_per_dim[n] + 1)}\t')
                     # Min/Max pcoord
-                    bb_file.write(f'\nmin/max pcoord: {minlist} {maxlist}\n')
+                bb_file.write(f'\nmin/max pcoord: {minlist} {maxlist}\n')
+                bb_file.write(f'bottleneck bins: {n_bottleneck_filled}\n')
                 if n_bottleneck_filled > 0:
                     # Bottlenecks bins exist (passes any of the if bottleneck: checks)
-                    bb_file.write(f'bottleneck bins: {n_bottleneck_filled}\n')
                     bb_file.write(f'bottleneck pcoord: {flipdifflist} {difflist}\n\n')
                 else:
                     bb_file.write('\n')
