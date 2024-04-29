@@ -411,6 +411,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
             with open(expandvars(bin_log_path), 'a') as bb_file:
                 # Iteration Number
                 bb_file.write(f'iteration: {westpa.rc.sim_manager.n_iter}\n')
+                bb_file.write('bin boundaries: ')
                 for n in range(ndim):
                     # Write binbounds per dim
                     bb_file.write(f'{np.linspace(minlist[n], maxlist[n], nbins_per_dim[n] + 1)}\t')
