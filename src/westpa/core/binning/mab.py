@@ -9,37 +9,39 @@ log = logging.getLogger(__name__)
 
 
 class MABBinMapper(FuncBinMapper):
-    '''
+    """
     Adaptively place bins in between minimum and maximum segments along
     the progress coordinte. Extrema and bottleneck segments are assigned
     to their own bins.
-    '''
+
+    """
 
     def __init__(self, nbins, direction=None, skip=None, bottleneck=True, pca=False, mab_log=False, bin_log=False):
-        '''
+        """
         Parameters
         ----------
-        nbins : list of ints
-            List of ints for nbins in each dimension.
-        direction : list of ints
-            List of ints for 'direction' in each dimension.
+        nbins : list of int
+            List of int for nbins in each dimension.
+        direction : Union(list of int, None), default: None
+            List of int for 'direction' in each dimension.
             Direction options are as follows:
                 0   : default split at leading and lagging boundaries
                 1   : split at leading boundary only
                 -1  : split at lagging boundary only
                 86  : no splitting at either leading or lagging boundary
-        skip : list of ints
-            List of ints for each dimension. Default None for skip=0.
+        skip : Union(list of int, None), default: None
+            List of int for each dimension. Default None for skip=0.
             Set to 1 to 'skip' running mab in a dimension.
-        bottleneck : bool
-            Can be True (default) or False to turn on or off bottleneck walker splitting.
-        pca : bool
+        bottleneck : bool, default: True
+            Whether to turn on or off bottleneck walker splitting.
+        pca : bool, default: False
             Can be True or False (default) to run PCA on pcoords before bin assignment.
-        mab_log : bool
-            Default False, set to True to output mab info to west.log.
-        bin_log : bool
-            Default False, set to True to output mab bin boundaries to a binbounds.log file.
-        '''
+        mab_log : bool, default: False
+            Whether to output mab info to west.log.
+        bin_log : bool, default: False
+            Whether to output mab bin boundaries to a binbounds.log file.
+
+        """
         # Verifying parameters
         if nbins is None:
             raise ValueError("nbins_per_dim is missing")
@@ -66,18 +68,33 @@ class MABBinMapper(FuncBinMapper):
         super().__init__(map_mab, n_total_bins, kwargs=kwargs)
 
     def determine_total_bins(self, nbins_per_dim, direction, skip, bottleneck, **kwargs):
-        '''
+        """
         The following is neccessary because functional bin mappers need to "reserve"
         bins and tell the sim manager how many bins they will need to use, this is
-        determined by taking all direction/skipping info into account
+        determined by taking all direction/skipping info into account.
+
+        Parameters
+        ----------
+        nbins_per_dim : int
+            Number of total bins in each direction.
+        direction : list of int
+            Direction in each dimension. See __init__ for more information.
+        skip : list of int
+            List of 0s and 1s indicating whether to skip each dimension.
+        bottleneck : bool
+            Whether to include separate bin for bottleneck walker(s).
+        **kwargs : dict
+            Arbitary keyword arguments. Contains unneeded MAB parameters.
 
         Returns
         -------
         n_total_bins : int
-        '''
+            Number of total bins.
+
+        """
         n_total_bins = np.prod(nbins_per_dim)
         ndim = len(nbins_per_dim)
-        for i in range(0, ndim):
+        for i in range(ndim):
             if skip[i] == 0:
                 if direction[i] != 0:
                     n_total_bins += 1 + 1 * bottleneck
@@ -90,7 +107,7 @@ class MABBinMapper(FuncBinMapper):
 
 
 def map_mab(coords, mask, output, *args, **kwargs):
-    '''
+    """
     Binning which adaptively places bins based on the positions of extrema segments and
     bottleneck segments, which are where the difference in probability is the greatest
     along the progress coordinate. Operates per dimension and places a fixed number of
@@ -104,18 +121,27 @@ def map_mab(coords, mask, output, *args, **kwargs):
     mask : ndarray
         Array of 1 (True) and 0 (False), to filter out unwanted segment info.
     output : list
-        The main list that, for each segment, holds the bin assignment
-    *args
-    **kwargs
-    '''
+        The main list that, for each segment, holds the bin assignment.
+    *args : list
+        Variable length arguments.
+    **kwargs : dict
+        Arbitary keyword arguments. Contains most of the MAB-needed parameters.
 
-    pca = kwargs.get("pca")
-    bottleneck = kwargs.get("bottleneck")
-    direction = kwargs.get("direction")
-    skip = kwargs.get("skip")
+    Returns
+    ------
+    output : list
+        The main list that, for each segment, holds the bin assignment.
+
+    """
+
+    # Argument Processing
     nbins_per_dim = kwargs.get("nbins_per_dim")
-    mab_log = kwargs.get("mab_log")
-    bin_log = kwargs.get("bin_log")
+    pca = kwargs.get("pca", False)
+    bottleneck = kwargs.get("bottleneck", True)
+    direction = kwargs.get("direction", ([0] * nbins_per_dim))
+    skip = kwargs.get("skip", ([0] * nbins_per_dim))
+    mab_log = kwargs.get("mab_log", False)
+    bin_log = kwargs.get("bin_log", False)
     ndim = len(nbins_per_dim)
 
     if not np.any(mask):
