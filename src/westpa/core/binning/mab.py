@@ -136,13 +136,13 @@ def map_mab(coords, mask, output, *args, **kwargs):
 
     # Argument Processing
     nbins_per_dim = kwargs.get("nbins_per_dim")
+    ndim = len(nbins_per_dim)
     pca = kwargs.get("pca", False)
     bottleneck = kwargs.get("bottleneck", True)
-    direction = kwargs.get("direction", ([0] * nbins_per_dim))
-    skip = kwargs.get("skip", ([0] * nbins_per_dim))
+    direction = kwargs.get("direction", ([0] * ndim))
+    skip = kwargs.get("skip", ([0] * ndim))
     mab_log = kwargs.get("mab_log", False)
     bin_log = kwargs.get("bin_log", False)
-    ndim = len(nbins_per_dim)
 
     if not np.any(mask):
         return output
@@ -255,6 +255,7 @@ def map_mab(coords, mask, output, *args, **kwargs):
     # which is two per dimension unless there is a direction specified
     # in a particluar dimension, then it's just one
     bottleneck_base = boundary_base
+    n_bottleneck_filled = 0
 
     for i in range(0, ndim):
         # for single direction, 1 boundary walker
@@ -296,12 +297,14 @@ def map_mab(coords, mask, output, *args, **kwargs):
                         if coord == flipdifflist[n]:
                             holder = bottleneck_base + n
                             special = True
+                            n_bottleneck_filled += 1
                             break
 
                     if direction[n] == 1:
                         if coord == difflist[n]:
                             holder = bottleneck_base + n
                             special = True
+                            n_bottleneck_filled += 1
                             break
 
                     # both directions when using 0 or with
@@ -310,10 +313,12 @@ def map_mab(coords, mask, output, *args, **kwargs):
                         if coord == difflist[n]:
                             holder = bottleneck_base + n
                             special = True
+                            n_bottleneck_filled += 1
                             break
                         elif coord == flipdifflist[n]:
                             holder = bottleneck_base + n + 1
                             special = True
+                            n_bottleneck_filled += 1
                             break
 
                 # assign boundary walkers, taking directionality into account
@@ -389,11 +394,12 @@ def map_mab(coords, mask, output, *args, **kwargs):
                 for n in range(ndim):
                     # Write binbounds per dim
                     bb_file.write(f'{np.linspace(minlist[n], maxlist[n], nbins_per_dim[n] + 1)}\t')
-                # Min/Max pcoord
-                bb_file.write(f'\n{minlist} {maxlist}\n')
-                if bottleneck_base > boundary_base:
-                    # Bottlenecks
-                    bb_file.write(f'{flipdifflist} {difflist}\n\n')
+                    # Min/Max pcoord
+                    bb_file.write(f'\nmin/max pcoord: {minlist} {maxlist}\n')
+                if n_bottleneck_filled > 0:
+                    # Bottlenecks bins exist (passes any of the if bottleneck: checks)
+                    bb_file.write(f'bottleneck bins: {n_bottleneck_filled}\n')
+                    bb_file.write(f'bottleneck pcoord: {flipdifflist} {difflist}\n\n')
                 else:
                     bb_file.write('\n')
 
