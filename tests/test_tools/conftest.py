@@ -200,6 +200,32 @@ def ref_idtype(request):
     request.addfinalizer(clear_state)
 
 
+@pytest.fixture
+def ref_executable(request, tmpdir):
+    """
+    Fixture that prepares a simulation directory with a populated west_executable.cfg file.
+    """
+
+    test_dir = str(tmpdir)
+    os.chdir(test_dir)
+
+    copy_ref(test_dir)
+
+    copyfile(os.path.join(REFERENCE_PATH, 'west_executable.cfg'), CFG_FILENAME)
+
+    # Create a "temp" file
+    with open(CFG_FILENAME, 'r') as f, open('west_implicit.cfg', 'w') as g:
+        for line in f.readlines()[:22]:
+            g.write(line)
+
+    request.cls.cfg_filepath = CFG_FILENAME
+
+    os.environ['WEST_SIM_ROOT'] = test_dir
+    westpa.rc = westpa.core._rc.WESTRC()
+
+    request.addfinalizer(clear_state)
+
+
 def clear_state():
     os.chdir(STARTING_PATH)
     del os.environ['WEST_SIM_ROOT']
