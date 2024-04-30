@@ -7,7 +7,7 @@ import tempfile
 
 import westpa
 
-REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'refs')
+REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
 
 H5_FILENAME = 'west.h5'
 CFG_FILENAME = 'west.cfg'
