@@ -11,7 +11,10 @@ log = logging.getLogger(__name__)
 
 
 class MABSimManager(WESimManager):
+    '''Subclass of WESimManager, modifying it so bin assignments will be done after all segments are done propagating.'''
+
     def initialize_simulation(self, basis_states, target_states, start_states, segs_per_state=1, suppress_we=False):
+        '''Making sure that that the MABBinMapper is not the outer bin.'''
         if len(target_states) > 0:
             if isinstance(self.system.bin_mapper, MABBinMapper):
                 log.error("MABBinMapper cannot be an outer binning scheme with a target state\n")
