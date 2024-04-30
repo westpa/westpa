@@ -277,18 +277,19 @@ class ExecutablePropagator(WESTPropagator):
         }
         self.data_info['log'] = {'name': 'seglog', 'loader': seglog_loader, 'enabled': store_h5, 'filename': None, 'dir': False}
 
-        dataset_configs = config.get(['west', 'executable', 'datasets']) or []
+        # Grab config from west.executable.datasets, else fallback to west.data.datasets.
+        dataset_configs = config.get(["west", "executable", "datasets"], config.get(['west', 'data', 'datasets'], {}))
         for dsinfo in dataset_configs:
             try:
                 dsname = dsinfo['name']
             except KeyError:
                 raise ValueError('dataset specifications require a ``name`` field')
 
-            if dsname != 'pcoord':
-                check_bool(dsinfo.setdefault('enabled', True))
-            else:
+            if dsname == 'pcoord':
                 # can never disable pcoord collection
                 dsinfo['enabled'] = True
+            else:
+                check_bool(dsinfo.setdefault('enabled', True))
 
             loader_directive = dsinfo.get('loader', None)
             if callable(loader_directive):
