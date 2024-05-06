@@ -107,13 +107,12 @@ class WESimManager:
             self._callback_table[hook] = set([(priority,function.__name__,function)])
 
         # Raise warning if there are multiple callback with same priority.
-        for key, val in self._callback_table.items():
-            for priority, count in Counter([hook[0] for hook in val]).items():
-                if count > 1:
-                    log.warning(
-                        f'{count} callbacks in {key} have identical priority {priority}. The order of callback execution is not guaranteed.'
-                    )
-                    log.warning(f'{key}: {val}')
+        for priority, count in Counter([callback[0] for callback in self._callback_table[hook]]).items():
+            if count > 1:
+                log.warning(
+                    f'{count} callbacks in {hook} have identical priority {priority}. The order of callback execution is not guaranteed.'
+                )
+                log.warning(f'{hook}: {self._callback_table[hook]}')
         
         log.debug('registered callback {!r} for hook {!r}'.format(function, hook))
                 
