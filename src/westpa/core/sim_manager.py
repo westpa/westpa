@@ -114,17 +114,20 @@ class WESimManager:
         #   handles specifically the problem that causes in plugin loading.
         try:
             # Before checking for set membership of (priority, function.__name__, function), just check
-            #   function names for collisions in this hook.
-            hook_function_names = [callback[1] for callback in self._callback_table[hook]]
+            #   function hash for collisions in this hook.
+            hook_function_hash = [hash(callback[2]) for callback in self._callback_table[hook]]
         except KeyError:
             # If there's no entry in self._callback_table for this hook, then there definitely aren't any collisions
             #   because no plugins are registered to it yet in the first place.
             pass
         else:
-            # If there are plugins registered to this hook, check for duplicate names.
-            if function.__name__ in hook_function_names:
-                log.debug("This plugin has already been loaded, skipping")
-                return
+            # If there are plugins registered to this hook, check for duplicate hash, which will definitely have the same name, module, function.
+            try:
+                if hash(function) in hook_function_hash:
+                    log.info('{!r} has already been loaded, skipping'.format(function))
+                    return
+            except KeyError:
+                pass
 
         try:
             self._callback_table[hook].add((priority, function.__name__, function))
@@ -132,13 +135,12 @@ class WESimManager:
             self._callback_table[hook] = set([(priority, function.__name__, function)])
 
         # Raise warning if there are multiple callback with same priority.
-        for key, val in self._callback_table.items():
-            for priority, count in Counter([hook[0] for hook in val]).items():
-                if count > 1:
-                    log.warning(
-                        f'{count} callbacks in {key} have identical priority {priority}. The order of callback execution is not guaranteed.'
-                    )
-                    log.warning(f'{key}: {val}')
+        for priority, count in Counter([callback[0] for callback in self._callback_table[hook]]).items():
+            if count > 1:
+                log.warning(
+                    f'{count} callbacks in {hook} have identical priority {priority}. The order of callback execution is not guaranteed.'
+                )
+                log.warning(f'{hook}: {self._callback_table[hook]}')
 
         log.debug('registered callback {!r} for hook {!r}'.format(function, hook))
 
