@@ -1,12 +1,12 @@
-from datetime import timedelta
-from itertools import zip_longest
 import logging
 import math
 import operator
-from pickle import PickleError
 import random
 import time
-
+from datetime import timedelta
+from pickle import PickleError
+from itertools import zip_longest
+from collections import Counter
 
 import numpy as np
 
@@ -131,11 +131,21 @@ class WESimManager:
         except KeyError:
             self._callback_table[hook] = set([(priority, function.__name__, function)])
 
+        # Raise warning if there are multiple callback with same priority.
+        for key, val in self._callback_table.items():
+            for priority, count in Counter([hook[0] for hook in val]).items():
+                if count > 1:
+                    log.warning(
+                        f'{count} callbacks in {key} have identical priority {priority}. The order of callback execution is not guaranteed.'
+                    )
+                    log.warning(f'{key}: {val}')
+
         log.debug('registered callback {!r} for hook {!r}'.format(function, hook))
 
     def invoke_callbacks(self, hook, *args, **kwargs):
         callbacks = self._callback_table.get(hook, [])
-        sorted_callbacks = sorted(callbacks)
+        # Sort by priority, function name, then module name
+        sorted_callbacks = sorted(callbacks, key=lambda x: (x[0], x[1], x[2].__module__))
         for priority, name, fn in sorted_callbacks:
             log.debug('invoking callback {!r} for hook {!r}'.format(fn, hook))
             fn(*args, **kwargs)
