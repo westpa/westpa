@@ -61,7 +61,7 @@ class WESTDataReaderMixin(AnalysisMixin):
         westpa.rc.pstatus("Using WEST data from '{}'".format(self.west_h5name))
 
         self.data_manager = westpa.rc.get_data_manager()
-        self.data_manager.backing_file = self.west_h5name
+        self.data_manager.we_h5filename = self.west_h5name
         self.data_manager.open_backing(mode='r')
 
         if upcall:

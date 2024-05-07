@@ -66,7 +66,7 @@ class BasisState:
             )
 
     @classmethod
-    def states_from_file(cls, filename):
+    def states_from_file(cls, statefile):
         '''Read a file defining basis states.  Each line defines a state, and contains a label, the probability,
         and optionally a data reference, separated by whitespace, as in::
 
@@ -80,7 +80,13 @@ class BasisState:
         '''
         states = []
         lineno = 0
-        for line in open(filename, 'rt'):
+
+        try:
+            open_statefile = open(statefile, 'rt')
+        except TypeError:
+            open_statefile = statefile
+
+        for line in open_statefile:
             lineno += 1
 
             # remove comment portion
@@ -93,7 +99,7 @@ class BasisState:
             try:
                 probability = float(fields[1])
             except ValueError:
-                raise ValueError('invalid probability ({!r}) {} line {:d}'.format(fields[1], filename, lineno))
+                raise ValueError('invalid probability ({!r}) {} line {:d}'.format(fields[1], statefile, lineno))
 
             try:
                 auxref = fields[2].strip()
@@ -101,6 +107,12 @@ class BasisState:
                 auxref = None
 
             states.append(cls(state_id=None, probability=probability, label=label, auxref=auxref))
+
+        try:
+            open_statefile.close()
+        except Exception:
+            pass
+
         return states
 
     def as_numpy_record(self):
@@ -293,6 +305,10 @@ class TargetState:
             open_statefile = statefile
 
         for line in open_statefile:
+            line = line.partition('#')[0].strip()
+            if not line:
+                continue
+
             fields = line.split()
             labels.append(fields[0])
             pcoord_values.append(np.array(list(map(dtype, fields[1:])), dtype=dtype))
@@ -328,3 +344,16 @@ def pare_basis_initial_states(basis_states, initial_states, segments=None):
     )
 
     return return_bstates, return_istates
+
+
+def return_state_type(state_obj):
+    '''Convinience function for returning the state ID and type of the state_obj pointer'''
+
+    if isinstance(state_obj, Segment):
+        return type(state_obj).__name__, state_obj.seg_id
+    elif isinstance(state_obj, InitialState):
+        return type(state_obj).__name__, state_obj.state_id
+    elif isinstance(state_obj, BasisState):
+        return type(state_obj).__name__, state_obj.state_id
+    else:
+        return 'Unknown', float('inf')

@@ -23,20 +23,25 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86_64, macos-latest is arm64
         python-version: [8, 9, 10, 11] # sub-versions of Python
-
+        exclude:
+          - os: macos-14
+            python-version: 8
     steps:
       - uses: actions/checkout@v4
 
+      - name: "Install HDF5 with brew"
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: "brew install hdf5"
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.5
+        uses: pypa/cibuildwheel@v2.17.0
         env:
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
-          CIBW_ARCHS_MACOS: "auto64" # x86_64 only
+          CIBW_ARCHS_MACOS: "auto64" # x86_64 and arm64, depending on the os
           CIBW_ARCHS_LINUX: "auto64" # x86_64 only
-          CIBW_TEST_SKIP: "*-macosx_arm64"
           CIBW_DEPENDENCY_VERSIONS: "latest"
           CIBW_TEST_COMMAND: > 
             python -c "import westpa; print(westpa.__version__)" && 
@@ -61,51 +66,6 @@ jobs:
           name: artifact-wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: ./wheelhouse/*.whl
           overwrite: true
-
-#   # Split off macos arm64 building...
-#   # Disabled for now... as of 2022-10-12
-#   # Currently creates broken arm64 wheels due to dependencies; unable to check
-#   # because macos_arm64 tests are not supported in macos_x86-64
-#   build_wheels_macos_arm64:
-#     name: Build py3.${{ matrix.python-version }} wheels on Apple Silicon
-#     runs-on: ${{ matrix.os }}
-#     strategy:
-#       matrix:
-#         os: [macos-latest]
-#         python-version: [8, 9, 10, 11] # sub-versions of Python, there is no py3.7-macosx_arm64
-# 
-#     steps:
-#       - uses: actions/checkout@v4
-# 
-#       - name: Build wheels
-#         uses: pypa/cibuildwheel@v2.16.1
-#         env:
-#           CIBW_SKIP: "pp*"
-#           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
-#           CIBW_ARCHS_MACOS: "arm64"
-#           CIBW_TEST_COMMAND: > 
-#             python -c "import westpa; print(westpa.__version__)" && 
-#             python -c "import westpa.core.propagators" &&
-#             python -c "import westpa.core.binning" &&
-#             python -c "import westpa.core.kinetics" &&
-#             python -c "import westpa.core.reweight" &&
-#             python -c "import westpa.work_managers" &&
-#             python -c "import westpa.tools" &&
-#             python -c "import westpa.fasthist" &&
-#             python -c "import westpa.mclib" &&
-#             echo "All done with the import tests!"
-#             # Currently blocked by https://github.com/westpa/westpa/issues/70
-#             # python -c "import westpa.trajtree"
-#         with:
-#           package-dir: .
-#           output-dir: wheelhouse
-#           config-file: "{package}/pyproject.toml"
-# 
-#       - uses: actions/upload-artifact@v4
-#         with:
-#           name: artifact-wheels-macos-aarch64-${{ matrix.python-version }}
-#           path: ./wheelhouse/*.whl
-#           overwrite: true
 
   build_sdist:
     name: Build source distribution
@@ -143,7 +103,7 @@ jobs:
 
   upload_testpypi:
     name: test.pypi
-    needs: [build_wheels, build_sdist] #, build_wheels_macos_arm64] # Skipping the apple silicon versions...
+    needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
     environment:
       name: test.pypi
@@ -171,7 +131,7 @@ jobs:
 
   upload_pypi:
     name: PyPI
-    needs: [build_wheels, build_sdist] #, build_wheels_macos_arm64] # Skipping the apple silicon versions...
+    needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
     environment:
       name: pypi

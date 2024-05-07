@@ -8,7 +8,7 @@ requires = [
     "Cython >=0.29.16; python_version >='3.10'",  # Note: sync with setup.py
     "Cython <3.0.3, >=0.29.16; python_version <'3.10'",
     "oldest-supported-numpy; python_version <'3.9'",
-    "numpy >=1.25.0, <3; python_version >='3.9'",
+    "numpy >=1.25.0, <2; python_version >='3.9'",
     "scipy >=0.19.1",
     "versioneer-518"
 ]

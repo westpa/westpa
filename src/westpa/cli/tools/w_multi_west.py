@@ -259,11 +259,19 @@ Command-line options
                         if addition.dtype != istate_dtype:
                             addition = create_idtype_array(addition)
                         final_istate_index = np.append(final_istate_index, addition)
-                        final_istate_pcoord = np.append(final_istate_pcoord, west['ibstates/0/istate_pcoord'][:])
+                        final_istate_pcoord = np.append(final_istate_pcoord, west['ibstates/0/istate_pcoord'][:], axis=0)
 
                 # Saving them into self.output_file
                 self.output_file['ibstates/0'].create_dataset('istate_index', data=final_istate_index, dtype=istate_dtype)
                 self.output_file['ibstates/0'].create_dataset('istate_pcoord', data=final_istate_pcoord)
+
+                # Remaking the ibstates index link
+                master_index_row = self.output_file['ibstates/index'][0]
+                master_index_row['iter_valid'] = 0
+                master_index_row['n_bstates'] = len(self.output_file['ibstates/0/bstate_index'])
+                master_index_row['group_ref'] = self.output_file['ibstates/0'].ref
+
+                self.output_file['ibstates/index'][0] = master_index_row
 
             for iter in range(self.niters):
                 # We have the following datasets in each iteration:

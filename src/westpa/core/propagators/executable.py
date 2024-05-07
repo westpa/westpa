@@ -16,7 +16,7 @@ import numpy as np
 import westpa
 from westpa.core.extloader import get_object
 from westpa.core.propagators import WESTPropagator
-from westpa.core.states import BasisState, InitialState
+from westpa.core.states import BasisState, InitialState, return_state_type
 from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
 
@@ -91,7 +91,7 @@ def trajectory_loader(fieldname, coord_folder, segment, single_point):
         data = load_trajectory(coord_folder)
         segment.data['iterh5/trajectory'] = data
     except Exception as e:
-        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+        log.warning('could not read any {} data for HDF5 Framework: {}'.format(fieldname, str(e)))
 
 
 def restart_loader(fieldname, restart_folder, segment, single_point):
@@ -105,7 +105,7 @@ def restart_loader(fieldname, restart_folder, segment, single_point):
 
         segment.data['iterh5/restart'] = d.getvalue() + b'\x01'  # add tail protection
     except Exception as e:
-        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
+        log.warning('could not read any {} data for HDF5 Framework: {}'.format(fieldname, str(e)))
     finally:
         d.close()
 
@@ -123,7 +123,7 @@ def restart_writer(path, segment):
             safe_extract(t, path=path)
 
     except ValueError as e:
-        log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
+        log.warning('could not write HDF5 Framework restart data for {}: {}'.format(str(segment), str(e)))
         d = BytesIO()
         if segment.n_iter == 1:
             log.warning(
@@ -132,7 +132,7 @@ def restart_writer(path, segment):
                 )
             )
     except Exception as e:
-        log.warning('could not write restart data for {}: {}'.format(str(segment), str(e)))
+        log.warning('could not write HDF5 Framework restart data for {}: {}'.format(str(segment), str(e)))
     finally:
         d.close()
 
@@ -148,6 +148,7 @@ def seglog_loader(fieldname, log_file, segment, single_point):
 
         segment.data['iterh5/log'] = d.getvalue() + b'\x01'  # add tail protection
     except Exception as e:
+
         log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
     finally:
         d.close()
@@ -276,20 +277,21 @@ class ExecutablePropagator(WESTPropagator):
         }
         self.data_info['log'] = {'name': 'seglog', 'loader': seglog_loader, 'enabled': store_h5, 'filename': None, 'dir': False}
 
-        dataset_configs = config.get(['west', 'executable', 'datasets']) or []
+        # Grab config from west.executable.datasets, else fallback to west.data.datasets.
+        dataset_configs = config.get(["west", "executable", "datasets"], config.get(['west', 'data', 'datasets'], {}))
         for dsinfo in dataset_configs:
             try:
                 dsname = dsinfo['name']
             except KeyError:
                 raise ValueError('dataset specifications require a ``name`` field')
 
-            if dsname != 'pcoord':
-                check_bool(dsinfo.setdefault('enabled', True))
-            else:
+            if dsname == 'pcoord':
                 # can never disable pcoord collection
                 dsinfo['enabled'] = True
+            else:
+                check_bool(dsinfo.setdefault('enabled', True))
 
-            loader_directive = dsinfo.get('loader')
+            loader_directive = dsinfo.get('loader', None)
             if callable(loader_directive):
                 loader = loader_directive
             elif loader_directive in data_loaders.keys():
@@ -299,8 +301,12 @@ class ExecutablePropagator(WESTPropagator):
                     loader = get_object(loader_directive)
             elif dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
                 loader = aux_data_loader
+            else:
+                # YOLO. Or maybe it wasn't specified.
+                loader = loader_directive
 
-            dsinfo['loader'] = loader
+            if loader:
+                dsinfo['loader'] = loader
             self.data_info.setdefault(dsname, {}).update(dsinfo)
 
         log.debug('data_info: {!r}'.format(self.data_info))
@@ -564,13 +570,16 @@ class ExecutablePropagator(WESTPropagator):
 
         return addtl_env, return_files, del_return_files
 
-    def retrieve_dataset_return(self, segment, return_files, del_return_files, single_point):
+    def retrieve_dataset_return(self, state, return_files, del_return_files, single_point):
         '''Retrieve returned data from the temporary locations directed by the environment variables.
-        ``segment`` is the ``Segment`` object that the return data is associated with. ``return_files``
-        is a ``dict`` where the keys are the dataset names and the values are the paths to the temporarily
-        files that contain the returned data. ``del_return_files`` is a ``dict`` where the keys are the
-        names of datasets to be deleted (if the corresponding value is set to ``True``) once the data is
-        retrieved.'''
+        ``state`` is a ``Segment``, ``BasisState`` , or ``InitialState``object that the return data is
+        associated with. ``return_files`` is a ``dict`` where the keys are the dataset names and
+        the values are the paths to the temporarily files that contain the returned data.
+        ``del_return_files`` is a ``dict`` where the keys are the names of datasets to be deleted
+        (if the corresponding value is set to ``True``) once the data is retrieved.'''
+
+        state_name, state_id = return_state_type(state)
+
         for dataset in self.data_info:
             if dataset not in return_files:
                 continue
@@ -582,10 +591,11 @@ class ExecutablePropagator(WESTPropagator):
             filename = return_files[dataset]
             loader = self.data_info[dataset]['loader']
             try:
-                loader(dataset, filename, segment, single_point=single_point)
+                loader(dataset, filename, state, single_point=single_point)
             except Exception as e:
-                log.error('could not read {} from {!r}: {!r}'.format(dataset, filename, e))
-                segment.status = Segment.SEG_STATUS_FAILED
+                log.error('could not read {} for {} {} from {!r}: {!r}'.format(dataset, state_name, state_id, filename, e))
+                if isinstance(state, Segment):
+                    state.status = state.SEG_STATUS_FAILED
                 break
             else:
                 if del_return_files.get(dataset, False):
@@ -595,9 +605,11 @@ class ExecutablePropagator(WESTPropagator):
                         else:
                             shutil.rmtree(filename)
                     except Exception as e:
-                        log.warning('could not delete {} file {!r}: {!r}'.format(dataset, filename, e))
+                        log.warning(
+                            'could not delete {} file {!r} for {} {}: {!r}'.format(dataset, filename, state_name, state_id, e)
+                        )
                     else:
-                        log.debug('deleted {} file {!r}'.format(dataset, filename))
+                        log.debug('deleted {} file {!r} for {} {}'.format(dataset, filename, state_name, state_id))
 
     # Specific functions required by the WEST framework
     def get_pcoord(self, state):
