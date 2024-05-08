@@ -75,7 +75,7 @@ class ProcessWorkManager(WorkManager):
         random.seed()
 
         while not self.shutdown_received.is_set():
-            try:
+            if not self.task_queue.empty():
                 message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
 
                 if message == 'shutdown':
@@ -87,15 +87,13 @@ class ProcessWorkManager(WorkManager):
                 else:
                     result_tuple = ('result', task_id, result)
                 self.result_queue.put(result_tuple)
-            except Empty:
-                pass
 
         log.debug('exiting task_loop')
         return
 
     def results_loop(self):
         while not self.shutdown_received.is_set():
-            try:
+            if not self.result_queue.empty():
                 message, task_id, payload = self.result_queue.get()[:3]
 
                 if message == 'shutdown':
@@ -108,8 +106,6 @@ class ProcessWorkManager(WorkManager):
                     future._set_result(payload)
                 else:
                     raise AssertionError('unknown message {!r}'.format((message, task_id, payload)))
-            except Empty:
-                pass
 
         log.debug('exiting results_loop')
 
