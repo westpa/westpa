@@ -1,10 +1,10 @@
-import logging
-import multiprocessing
 import os
-import random
 import sys
+import random
+import logging
 import threading
 import traceback
+import multiprocessing
 from multiprocessing.queues import Empty
 
 import westpa.work_managers as work_managers
