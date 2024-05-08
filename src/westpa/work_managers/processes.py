@@ -147,17 +147,18 @@ class ProcessWorkManager(WorkManager):
             self.receive_thread.start()
 
     def _empty_queues(self):
-        while not self.task_queue.empty():
-            try:
+        '''Empty self.task_queue and self.result_queue until queue is empty'''
+        try:
+            while True:
                 self.task_queue.get_nowait()
-            except Empty:
-                break
+        except Empty:
+            pass
 
-        while not self.result_queue.empty():
-            try:
+        try:
+            while True:
                 self.result_queue.get_nowait()
-            except Empty:
-                break
+        except Empty:
+            pass
 
     def shutdown(self):
         while self.running:
