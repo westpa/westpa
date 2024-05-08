@@ -5,6 +5,7 @@ import random
 import sys
 import threading
 import traceback
+from multiprocessing.queues import Empty
 
 import westpa.work_managers as work_managers
 from .core import WorkManager, WMFuture
@@ -74,7 +75,7 @@ class ProcessWorkManager(WorkManager):
         random.seed()
 
         while not self.shutdown_received.is_set():
-            if not self.task_queue.empty():
+            try:
                 message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
 
                 if message == 'shutdown':
@@ -86,13 +87,15 @@ class ProcessWorkManager(WorkManager):
                 else:
                     result_tuple = ('result', task_id, result)
                 self.result_queue.put(result_tuple)
+            except Empty:
+                pass
 
         log.debug('exiting task_loop')
         return
 
     def results_loop(self):
         while not self.shutdown_received.is_set():
-            if not self.result_queue.empty():
+            try:
                 message, task_id, payload = self.result_queue.get()[:3]
 
                 if message == 'shutdown':
@@ -105,6 +108,8 @@ class ProcessWorkManager(WorkManager):
                     future._set_result(payload)
                 else:
                     raise AssertionError('unknown message {!r}'.format((message, task_id, payload)))
+            except Empty:
+                pass
 
         log.debug('exiting results_loop')
 
@@ -145,13 +150,13 @@ class ProcessWorkManager(WorkManager):
         while not self.task_queue.empty():
             try:
                 self.task_queue.get_nowait()
-            except multiprocessing.queues.Empty:
+            except Empty:
                 break
 
         while not self.result_queue.empty():
             try:
                 self.result_queue.get_nowait()
-            except multiprocessing.queues.Empty:
+            except Empty:
                 break
 
     def shutdown(self):
@@ -162,7 +167,6 @@ class ProcessWorkManager(WorkManager):
 
             # Send shutdown signal
             for _i in range(self.n_workers):
-
                 self.task_queue.put_nowait(task_shutdown_sentinel)
 
             for worker in self.workers:
