@@ -72,6 +72,8 @@ def run_simulation():
         else:
             work_manager.run()
 
+    data_manager.finalize_run()
+
 
 if __name__ == '__main__':
     entry_point()
