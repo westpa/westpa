@@ -93,7 +93,7 @@ class ProcessWorkManager(WorkManager):
     def results_loop(self):
         while not self.shutdown_received.is_set():
             if not self.result_queue.empty():
-                message, task_id, payload = self.result_queue.get_nowait()[:3]
+                message, task_id, payload = self.result_queue.get()[:3]
 
                 if message == 'shutdown':
                     break
@@ -144,13 +144,13 @@ class ProcessWorkManager(WorkManager):
     def _empty_queues(self):
         while not self.task_queue.empty():
             try:
-                self.task_queue.get(block=False)
+                self.task_queue.get_nowait()
             except multiprocessing.queues.Empty:
                 break
 
         while not self.result_queue.empty():
             try:
-                self.result_queue.get(block=False)
+                self.result_queue.get_nowait()
             except multiprocessing.queues.Empty:
                 break
 
@@ -163,7 +163,7 @@ class ProcessWorkManager(WorkManager):
             # Send shutdown signal
             for _i in range(self.n_workers):
 
-                self.task_queue.put(task_shutdown_sentinel, block=False)
+                self.task_queue.put_nowait(task_shutdown_sentinel)
 
             for worker in self.workers:
                 worker.join(self.shutdown_timeout)
@@ -183,5 +183,4 @@ class ProcessWorkManager(WorkManager):
             self._empty_queues()
             self.result_queue.put(result_shutdown_sentinel)
 
-            self.receive_thread.join()
             self.running = False
