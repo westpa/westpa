@@ -347,7 +347,7 @@ Command-line options
         return binspec_compiled
 
     def construct_bins(self, bins):
-        '''
+        """
         Construct bins according to ``bins``, which may be:
 
           1) A scalar integer (for that number of bins in each dimension)
@@ -356,12 +356,13 @@ Command-line options
 
         Sets ``self.binbounds`` to a list of arrays of bin boundaries appropriate for passing to
         fasthist.histnd, along with ``self.midpoints`` to the midpoints of the bins.
-        '''
+        """
 
         if not isiterable(bins):
-            self._construct_bins_from_scalar(bins)
+            temp_bins = np.atleast_1d(np.full(self.ndim, bins, dtype=int))
+            self._construct_bins_from_counts(temp_bins)
         elif not isiterable(bins[0]):
-            self._construct_bins_from_int_seq(bins)
+            self._construct_bins_from_counts(bins)
         else:
             self._construct_bins_from_bound_seqs(bins)
 
@@ -413,7 +414,7 @@ Command-line options
                 data_range[idim] = (current_min, current_max)
             self.progress.indicator.progress += 1
 
-    def _construct_bins_from_scalar(self, bins):
+    def _construct_bins_from_counts(self, bins):
         if self.data_range is None:
             self.scan_data_range()
 
@@ -421,41 +422,45 @@ Command-line options
         self.midpoints = []
         for idim in range(self.ndim):
             lb, ub = self.data_range[idim]
-            # Advance just beyond the upper bound of the range, so that we catch
-            # the maximum in the histogram
-            ub *= 1.01
-
-            boundset = np.linspace(lb, ub, bins + 1)
-            midpoints = (boundset[:-1] + boundset[1:]) / 2.0
-            self.binbounds.append(boundset)
-            self.midpoints.append(midpoints)
-
-    def _construct_bins_from_int_seq(self, bins):
-        if self.data_range is None:
-            self.scan_data_range()
-
-        self.binbounds = []
-        self.midpoints = []
-        for idim in range(self.ndim):
-            lb, ub = self.data_range[idim]
-            # Advance just beyond the upper bound of the range, so that we catch
-            # the maximum in the histogram
-            ub *= 1.01
-
             boundset = np.linspace(lb, ub, bins[idim] + 1)
             midpoints = (boundset[:-1] + boundset[1:]) / 2.0
+
+            # Advance the final boundary slightly, just beyond the upper bound of the range,
+            # so that we catch the maximum in the histogram
+            if boundset[-1] > 0:
+                boundset[-1] *= 1.01
+            else:
+                boundset[-1] /= 1.01
+
             self.binbounds.append(boundset)
             self.midpoints.append(midpoints)
 
     def _construct_bins_from_bound_seqs(self, bins):
         self.binbounds = []
         self.midpoints = []
-        for boundset in bins:
-            boundset = np.asarray(boundset)
+        for idim, boundset in enumerate(bins):
+            boundset = np.array(boundset).astype(float)
             if (np.diff(boundset) <= 0).any():
                 raise ValueError('boundary set {!r} is not strictly monotonically increasing'.format(boundset))
+            midpoints = (boundset[:-1] + boundset[1:]) / 2.0
+
+            lb, ub = self.data_range[idim]
+            if np.isclose(ub, boundset[-1]):
+                # Advance the final boundary slightly, just beyond the upper bound of the range,
+                # so that we catch the maximum in the histogram
+                if boundset[-1] > 0:
+                    boundset[-1] *= 1.01
+                else:
+                    boundset[-1] /= 1.01
+
+                log.warning(
+                    'Boundary set dimension {!r} value {!r} overlaps with maximum value {!r}, which is exclusive in Python. Automatically adjusting final bin boundary to accomodate excluded point(s).'.format(
+                        idim, boundset[-1], ub
+                    )
+                )
+
             self.binbounds.append(boundset)
-            self.midpoints.append((boundset[:-1] + boundset[1:]) / 2.0)
+            self.midpoints.append(midpoints)
 
     def construct_histogram(self):
         '''Construct a histogram using bins previously constructed with ``construct_bins()``.
