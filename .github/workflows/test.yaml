@@ -5,10 +5,12 @@ on:
     branches:
       - "westpa2"
       - "develop"
+      - "westpa3"
   pull_request:
     branches:
       - "westpa2"
       - "develop"
+      - "westpa3"
   schedule:
     # Weekly tests run on "westpa2" and "develop" on Thursdays 3:30 PM UTC (which is 10:30/11:30 EST/EDT)
     #   Scheduled workflows run on the latest commit on the default or base branch.
