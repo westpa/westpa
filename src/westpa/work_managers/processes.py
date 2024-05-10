@@ -1,11 +1,11 @@
-import logging
-import multiprocessing
 import os
-import random
-import signal
 import sys
+import random
+import logging
 import threading
 import traceback
+import multiprocessing
+from multiprocessing.queues import Empty
 
 import westpa.work_managers as work_managers
 from .core import WorkManager, WMFuture
@@ -61,7 +61,7 @@ class ProcessWorkManager(WorkManager):
         self.receive_thread = None
         self.pending = None
 
-        self.shutdown_received = False
+        self.shutdown_received = threading.Event()
         self.shutdown_timeout = shutdown_timeout or 1
 
     def task_loop(self):
@@ -74,37 +74,38 @@ class ProcessWorkManager(WorkManager):
         # (re)initialize random number generator in this process
         random.seed()
 
-        while not self.shutdown_received:
-            message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
+        while not self.shutdown_received.is_set():
+            if not self.task_queue.empty():
+                message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
 
-            if message == 'shutdown':
-                break
-
-            try:
-                result = fn(*args, **kwargs)
-            except BaseException as e:
-                result_tuple = ('exception', task_id, (e, traceback.format_exc()))
-            else:
-                result_tuple = ('result', task_id, result)
-            self.result_queue.put(result_tuple)
+                if message == 'shutdown':
+                    break
+                try:
+                    result = fn(*args, **kwargs)
+                except BaseException as e:
+                    result_tuple = ('exception', task_id, (e, traceback.format_exc()))
+                else:
+                    result_tuple = ('result', task_id, result)
+                self.result_queue.put(result_tuple)
 
         log.debug('exiting task_loop')
         return
 
     def results_loop(self):
-        while not self.shutdown_received:
-            message, task_id, payload = self.result_queue.get()[:3]
+        while not self.shutdown_received.is_set():
+            if not self.result_queue.empty():
+                message, task_id, payload = self.result_queue.get()[:3]
 
-            if message == 'shutdown':
-                break
-            elif message == 'exception':
-                future = self.pending.pop(task_id)
-                future._set_exception(*payload)
-            elif message == 'result':
-                future = self.pending.pop(task_id)
-                future._set_result(payload)
-            else:
-                raise AssertionError('unknown message {!r}'.format((message, task_id, payload)))
+                if message == 'shutdown':
+                    break
+                elif message == 'exception':
+                    future = self.pending.pop(task_id)
+                    future._set_exception(*payload)
+                elif message == 'result':
+                    future = self.pending.pop(task_id)
+                    future._set_result(payload)
+                else:
+                    raise AssertionError('unknown message {!r}'.format((message, task_id, payload)))
 
         log.debug('exiting results_loop')
 
@@ -142,36 +143,38 @@ class ProcessWorkManager(WorkManager):
             self.receive_thread.start()
 
     def _empty_queues(self):
-        while not self.task_queue.empty():
-            try:
-                self.task_queue.get(block=False)
-            except multiprocessing.queues.Empty:
-                break
+        '''Empty self.task_queue and self.result_queue until queue is empty'''
+        try:
+            while True:
+                self.task_queue.get_nowait()
+        except Empty:
+            pass
 
-        while not self.result_queue.empty():
-            try:
-                self.result_queue.get(block=False)
-            except multiprocessing.queues.Empty:
-                break
+        try:
+            while True:
+                self.result_queue.get_nowait()
+        except Empty:
+            pass
 
     def shutdown(self):
-        if self.running:
+        while self.running:
             log.debug('shutting down {!r}'.format(self))
+            self.shutdown_received.set()
             self._empty_queues()
 
             # Send shutdown signal
             for _i in range(self.n_workers):
-                self.task_queue.put(task_shutdown_sentinel, block=False)
+                self.task_queue.put_nowait(task_shutdown_sentinel)
 
             for worker in self.workers:
                 worker.join(self.shutdown_timeout)
                 if worker.is_alive():
                     log.debug('sending SIGINT to worker process {:d}'.format(worker.pid))
-                    os.kill(worker.pid, signal.SIGINT)
+                    worker.terminate()
                     worker.join(self.shutdown_timeout)
                     if worker.is_alive():
                         log.warning('sending SIGKILL to worker process {:d}'.format(worker.pid))
-                        os.kill(worker.pid, signal.SIGKILL)
+                        worker.kill()
                         worker.join()
 
                     log.debug('worker process {:d} terminated with code {:d}'.format(worker.pid, worker.exitcode))
@@ -180,4 +183,5 @@ class ProcessWorkManager(WorkManager):
 
             self._empty_queues()
             self.result_queue.put(result_shutdown_sentinel)
+
             self.running = False
