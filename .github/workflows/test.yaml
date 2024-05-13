@@ -34,8 +34,8 @@ jobs:
     runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
-        os: ["ubuntu-latest", "macos-latest"]
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
     - uses: actions/checkout@v4
@@ -88,7 +88,7 @@ jobs:
   install-dev:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "macos-latest"]
+        os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
 
     name: "Verify dev env"
     runs-on: "${{ matrix.os }}"
@@ -98,7 +98,11 @@ jobs:
       - uses: "actions/setup-python@v5"
         with:
           python-version: "3.11"
+      - name: "Install HDF5 with brew if macos-arm64"
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: "brew install hdf5"
       - name: "Install in dev mode"
         run: "python -m pip install -e .[dev]"
       - name: "Import package"
         run: "python -c 'import westpa; print(westpa.__version__)'"
+

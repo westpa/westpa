@@ -47,6 +47,7 @@ import posixpath
 import sys
 import threading
 import time
+import builtins
 from operator import attrgetter
 from os.path import relpath, dirname
 
@@ -1523,7 +1524,10 @@ def normalize_dataset_options(dsopts, path_prefix='', n_iter=0):
     dtype = dsopts.get('dtype')
     if dtype:
         if isinstance(dtype, str):
-            dsopts['dtype'] = np.dtype(getattr(np, dtype))
+            try:
+                dsopts['dtype'] = np.dtype(getattr(np, dtype))
+            except AttributeError:
+                dsopts['dtype'] = np.dtype(getattr(builtins, dtype))
         else:
             dsopts['dtype'] = np.dtype(dtype)
 
