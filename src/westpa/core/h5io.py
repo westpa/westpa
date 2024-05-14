@@ -9,10 +9,12 @@ import socket
 import sys
 import time
 import logging
+import warnings
 
 import h5py
 import numpy as np
 from numpy import index_exp
+from tables import NaturalNameWarning
 
 from mdtraj import Trajectory, join as join_traj
 from mdtraj.utils import in_units_of, import_, ensure_type
@@ -28,6 +30,7 @@ except ImportError:
     psutil = None
 
 log = logging.getLogger(__name__)
+warnings.filterwarnings('ignore', category=NaturalNameWarning)
 
 #
 # Constants and globals
