@@ -432,6 +432,13 @@ class WESimManager:
         # Send the segments over to the data manager to commit to disk
         data_manager.current_iteration = 1
 
+        # Save BinMapper stuff for iteration 1
+        try:
+            pickled, hashed = binning.pickle_and_hash()
+        except PickleError:
+            pickled = hashed = ''
+        data_manager.save_iter_binning(data_manager.current_iteration, hashed, pickled, self.we_driver.bin_target_counts)
+
         # Report statistics
         pstatus('Simulation prepared.')
         self.segments = {segment.seg_id: segment for segment in segments}
