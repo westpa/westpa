@@ -434,10 +434,10 @@ class WESimManager:
 
         # Save BinMapper stuff for iteration 1
         try:
-            pickled, hashed = binning.pickle_and_hash()
+            pickled, hashed = self.we_driver.bin_mapper.pickle_and_hash()
         except PickleError:
             pickled = hashed = ''
-        data_manager.save_iter_binning(data_manager.current_iteration, hashed, pickled, self.we_driver.bin_target_counts)
+        data_manager.save_iter_binning(data_manager.current_iteration, hashed, pickled, target_counts)
 
         # Report statistics
         pstatus('Simulation prepared.')
