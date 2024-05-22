@@ -298,8 +298,8 @@ class Iteration:
     def basis_state_summaries(self):
         """pd.DataFrame: Basis state summary data."""
         df = pd.DataFrame(self.h5group['ibstates']['bstate_index'][:])
-        df['label'] = tostr(df['label'].str)
-        df['auxref'] = tostr(df['auxref'].str)
+        df['label'] = df['label'].str.decode('UTF-8')
+        df['auxref'] = df['auxref'].str.decode('UTF-8')
         return df
 
     @property
@@ -325,7 +325,7 @@ class Iteration:
         """pd.DataFrame or None: Target state summary data."""
         if self.has_target_states:
             df = pd.DataFrame(self.h5group['tstates']['index'][:])
-            df['label'] = tostr(df['label'].str)
+            df['label'] = df['label'].str.decode('UTF-8')
 
             return df
         else:
