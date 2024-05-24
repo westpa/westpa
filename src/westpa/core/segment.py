@@ -2,6 +2,10 @@ import math
 
 import numpy as np
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 class Segment:
     '''A class wrapping segment data that must be passed through the work manager or data manager.
@@ -41,6 +45,70 @@ class Segment:
     def final_pcoord(segment):
         'Return the final progress coordinate point of this segment.'
         return segment.pcoord[-1]
+
+    def parent_segment(self, sim_manager=None, we_driver=None, data_manager=None):
+        '''Return equivalent segment object in we_driver.final_binning, or a (BasisState, InitialState) tuple if a recycled segment'''
+        if self.n_iter is None or self.seg_id is None or self.parent_id is None:
+            log.warning('A dummy segment with improper attributes. Returning itself.')
+            return self
+
+        if self.status == self.SEG_STATUS_COMPLETE:
+            # This segment is already from final_binning
+            return self
+        elif self.status == self.SEG_STATUS_PREPARED:
+            if we_driver is None:
+                # Loading in the we_driver
+                import westpa
+
+                we_driver = westpa.rc.get_we_driver()
+
+            pid = self.parent_id
+            if self.initpoint_type == self.SEG_INITPOINT_CONTINUES:  # Grab equivalent segment from final_binning
+                parent_segment = sorted(we_driver.current_iter_segments, key=lambda x: x.seg_id)[pid]
+
+                if parent_segment.seg_id != pid:
+                    log.warning(f'{parent_segment.seg_id=} != current {pid=}. Returning itself.')
+                    return self
+
+                return parent_segment
+
+            elif self.initpoint_type == self.SEG_INITPOINT_NEWTRAJ:  # Recycled Segment.
+                if sim_manager is None:
+                    # Loading in the sim_manager
+                    sim_manager = we_driver.rc.get_sim_manager()
+
+                # This could potentially be really slow as the number of used_initial_states increases...
+                from westpa.core.states import pare_basis_initial_states
+
+                parent_bstates, parent_istates = pare_basis_initial_states(
+                    sim_manager.next_iter_bstates, we_driver.used_initial_states.values(), segments=[self]
+                )
+
+                # Since this is a class method, you're only passing in one segment.
+                if len(parent_bstates) != len(parent_istates) != 1:
+                    log.warning('Found multiple bstates and/or istates associated to this segment. Returning itself.')
+                    return self
+
+                parent_bstate = parent_bstates.pop()
+                parent_istate = parent_istates.pop()
+
+                # Doing final checks
+                if parent_bstate.state_id != parent_istate.basis_state_id:
+                    log.warning(f'{parent_bstate.seg_id=} != {parent_istate.basis_state_id=}. Returning itself.')
+                    return self
+                if parent_istate.state_id != self.initial_state_id:
+                    log.warning(f'{parent_istate.seg_id=} != {self.initial_state_id=}. Returning itself.')
+                    return self
+
+                return (parent_bstate, parent_istate)
+            else:
+                # self.initpoint_type == Segment.SEG_INITPOINT_UNSET, not configured properly
+                log.error(f'Segment {self} is not a valid segment. Returning itself.')
+                return self
+        else:
+            # self.status is Segment.SEG_STATUS_UNSET or Segment.SEG_STATUS_FAILED
+            log.error(f'Segment {self} status is {self.status}. Returning itself.')
+            return self
 
     def __init__(
         self,

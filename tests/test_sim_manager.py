@@ -14,6 +14,10 @@ from westpa.core.states import BasisState
 from westpa.core.sim_manager import PropagationError
 
 
+def dummy_callback_one(self):
+    pass
+
+
 class TestSimManager(TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
@@ -90,11 +94,21 @@ class TestSimManager(TestCase):
 
         self.sim_manager.register_callback(hook, self.dummy_callback_one, 3)
         self.sim_manager.register_callback(hook, self.dummy_callback_two, 0)
+        self.sim_manager.register_callback(
+            hook, dummy_callback_one, 3
+        )  # Same name and priority, but different function, should be added
+        self.sim_manager.register_callback(
+            hook, self.dummy_callback_one, 2
+        )  # Duplicate should never be added, even with different priority
         self.assertTrue(hook in self.sim_manager._callback_table)
 
         callbacks = self.sim_manager._callback_table.get(hook, [])
+
+        assert len(callbacks) == 3  # Make sure only 3 added.
+
         self.assertTrue((3, self.dummy_callback_one.__name__, self.dummy_callback_one) in callbacks)  # noqa
         self.assertTrue((0, self.dummy_callback_two.__name__, self.dummy_callback_two) in callbacks)  # noqa
+        self.assertTrue((3, dummy_callback_one.__name__, dummy_callback_one) in callbacks)  # noqa
 
     def test_invoke_callback(self):
         hook = self.sim_manager.prepare_new_iteration

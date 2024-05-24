@@ -1,12 +1,12 @@
-from datetime import timedelta
-from itertools import zip_longest
 import logging
 import math
 import operator
-from pickle import PickleError
 import random
 import time
-
+from datetime import timedelta
+from pickle import PickleError
+from itertools import zip_longest
+from collections import Counter
 
 import numpy as np
 
@@ -114,28 +114,40 @@ class WESimManager:
         #   handles specifically the problem that causes in plugin loading.
         try:
             # Before checking for set membership of (priority, function.__name__, function), just check
-            #   function names for collisions in this hook.
-            hook_function_names = [callback[1] for callback in self._callback_table[hook]]
+            #   function hash for collisions in this hook.
+            hook_function_hash = [hash(callback[2]) for callback in self._callback_table[hook]]
         except KeyError:
             # If there's no entry in self._callback_table for this hook, then there definitely aren't any collisions
             #   because no plugins are registered to it yet in the first place.
             pass
         else:
-            # If there are plugins registered to this hook, check for duplicate names.
-            if function.__name__ in hook_function_names:
-                log.debug("This plugin has already been loaded, skipping")
-                return
+            # If there are plugins registered to this hook, check for duplicate hash, which will definitely have the same name, module, function.
+            try:
+                if hash(function) in hook_function_hash:
+                    log.info('{!r} has already been loaded, skipping'.format(function))
+                    return
+            except KeyError:
+                pass
 
         try:
             self._callback_table[hook].add((priority, function.__name__, function))
         except KeyError:
             self._callback_table[hook] = set([(priority, function.__name__, function)])
 
+        # Raise warning if there are multiple callback with same priority.
+        for priority, count in Counter([callback[0] for callback in self._callback_table[hook]]).items():
+            if count > 1:
+                log.warning(
+                    f'{count} callbacks in {hook} have identical priority {priority}. The order of callback execution is not guaranteed.'
+                )
+                log.warning(f'{hook}: {self._callback_table[hook]}')
+
         log.debug('registered callback {!r} for hook {!r}'.format(function, hook))
 
     def invoke_callbacks(self, hook, *args, **kwargs):
         callbacks = self._callback_table.get(hook, [])
-        sorted_callbacks = sorted(callbacks)
+        # Sort by priority, function name, then module name
+        sorted_callbacks = sorted(callbacks, key=lambda x: (x[0], x[1], x[2].__module__))
         for priority, name, fn in sorted_callbacks:
             log.debug('invoking callback {!r} for hook {!r}'.format(fn, hook))
             fn(*args, **kwargs)
@@ -223,7 +235,9 @@ class WESimManager:
         futures = [self.work_manager.submit(wm_ops.get_pcoord, args=(basis_state,)) for basis_state in basis_states]
         fmap = {future: i for (i, future) in enumerate(futures)}
         for future in self.work_manager.as_completed(futures):
-            basis_states[fmap[future]].pcoord = future.get_result().pcoord
+            result = future.get_result()
+            basis_states[fmap[future]].pcoord = result.pcoord
+            basis_states[fmap[future]].data = result.data or {}
 
     def report_basis_states(self, basis_states, label='basis'):
         pstatus = self.rc.pstatus
@@ -322,6 +336,7 @@ class WESimManager:
                 initial_state.basis_state_id = basis_state.state_id
                 initial_state.basis_state = basis_state
                 initial_state.istate_type = istate_type
+                initial_state.data = basis_state.data
                 weights.append(basis_state.probability / segs_per_state)
                 initial_states.append(initial_state)
 
@@ -346,6 +361,8 @@ class WESimManager:
             for future in work_manager.as_completed(futures):
                 rbstate, ristate = future.get_result()
                 initial_states[ristate.state_id].pcoord = ristate.pcoord
+                initial_states[ristate.state_id].data = ristate.data
+
         else:
             for initial_state in initial_states:
                 basis_state = initial_state.basis_state
@@ -357,7 +374,7 @@ class WESimManager:
 
         # save list of initial states just generated
         # some of these may not be used, depending on how WE shakes out
-        data_manager.update_initial_states(initial_states, n_iter=1)
+        data_manager.update_initial_states(initial_states, n_iter=1, initialize=True)
 
         if not suppress_we:
             self.we_driver.populate_initial(initial_states, weights, system)
@@ -558,9 +575,10 @@ class WESimManager:
                 initial_state.istate_type = InitialState.ISTATE_TYPE_BASIS
                 initial_state.pcoord = basis_state.pcoord.copy()
                 initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
+                initial_state.data = basis_state.data.copy()
                 self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
             updated_states.append(initial_state)
-        self.data_manager.update_initial_states(updated_states, n_iter=self.n_iter + 1)
+        self.data_manager.update_initial_states(updated_states, n_iter=self.n_iter + 1, initialize=True)
         return futures
 
     def propagate(self):

@@ -137,7 +137,7 @@ class WEDriver:
         log.info('Adjust counts to exactly match target_counts: {}'.format(self.do_adjust_counts))
 
         self.do_thresholds = config.get(['west', 'we', 'thresholds'], True)
-        log.info('Obey abolute weight thresholds: {}'.format(self.do_thresholds))
+        log.info('Obey absolute weight thresholds: {}'.format(self.do_thresholds))
 
         self.weight_split_threshold = config.get(['west', 'we', 'weight_split_threshold'], self.weight_split_threshold)
         log.info('Split threshold: {}'.format(self.weight_split_threshold))
@@ -657,6 +657,7 @@ class WEDriver:
         # Then and only then adjust for correct particle count
         total_number_of_subgroups = 0
         total_number_of_particles = 0
+
         for ibin, bin in enumerate(self.next_iter_binning):
             if len(bin) == 0:
                 continue
@@ -749,6 +750,7 @@ class WEDriver:
                 wtg_parent_ids=set([-(initial_state.state_id + 1)]),
                 pcoord=system.new_pcoord_array(),
                 status=Segment.SEG_STATUS_PREPARED,
+                data=initial_state.data.copy(),
             )
             dummy_segment.pcoord[[0, -1]] = initial_state.pcoord
             segments.append(dummy_segment)

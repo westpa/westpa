@@ -1,12 +1,13 @@
 """WEST run control and configuration routines"""
 
-import errno
-import logging
 import math
 import os
 import sys
+import errno
+import logging
 import warnings
 from copy import deepcopy
+from datetime import timedelta
 
 import numpy as np
 
@@ -231,6 +232,21 @@ class WESTRC:
         self.config_logging()
         self.config['args'] = {k: v for k, v in args.__dict__.items() if not k.startswith('_')}
         self.process_config()
+        self.time_config()
+
+    def time_config(self):
+        '''Convert non-pyYAML accepted time formats into seconds'''
+        max_run_wallclock = self.config.get(['west', 'propagation', 'max_run_wallclock'], None)
+        if isinstance(max_run_wallclock, str):
+            time_formats = ['days', 'hours', 'minutes', 'seconds']
+            wallclock_str = max_run_wallclock.split(':')
+            kwargs = {key: int(val) for key, val in zip(time_formats[-len(wallclock_str) :], wallclock_str)}
+            try:
+                diff = int(timedelta(**kwargs).total_seconds())
+                self.config['west']['propagation']['max_run_wallclock'] = diff
+                log.debug(f'Automatically converted {max_run_wallclock=} to {diff}')
+            except ValueError:
+                log.debug(f'Failed to convert {max_run_wallclock=} to seconds.')
 
     def process_config(self):
         log.debug('config: {!r}'.format(self.config))
