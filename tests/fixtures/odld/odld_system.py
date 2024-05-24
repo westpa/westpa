@@ -101,7 +101,7 @@ class ODLDSystem(WESTSystem):
         self.pcoord_len = pcoord_len
 
         # self.bin_mapper = RectilinearBinMapper([[0,1.3] + list(np.arange(1.4, 10.1, 0.1)) + [float('inf')]])
-        self.bin_mapper = RectilinearBinMapper([list(np.arange(0.0, 10.1, 0.1))])
+        self.bin_mapper = RectilinearBinMapper([list(np.arange(0.0, 10.12, 0.1))])
         self.bin_target_counts = np.empty((self.bin_mapper.nbins,), np.int_)
         self.bin_target_counts[...] = 10
 
