@@ -278,7 +278,7 @@ class ExecutablePropagator(WESTPropagator):
         self.data_info['log'] = {'name': 'seglog', 'loader': seglog_loader, 'enabled': store_h5, 'filename': None, 'dir': False}
 
         # Grab config from west.executable.datasets, else fallback to west.data.datasets.
-        dataset_configs = config.get(["west", "executable", "datasets"], config.get(['west', 'data', 'datasets'], {}))
+        dataset_configs = config.get(["west", "executable", "datasets"]) or config.get(['west', 'data', 'datasets'], {})
         for dsinfo in dataset_configs:
             try:
                 dsname = dsinfo['name']
