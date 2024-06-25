@@ -40,7 +40,7 @@ def entry_point():
 
     dm.open_backing()
     # max_iter = dm.current_iteration
-    n_iter = args.n_iter if args.n_iter > 0 else dm.current_iteration
+    n_iter = args.n_iter if dm.current_iteration > args.n_iter > 0 else dm.current_iteration
 
     for i in range(n_iter, dm.current_iteration + 1):
         dm.del_iter_group(i)
