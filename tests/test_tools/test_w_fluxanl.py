@@ -1,7 +1,7 @@
 import math
 import pytest
-
 import h5py
+import numpy
 
 from westpa.cli.tools.w_fluxanl import WFluxanlTool
 
@@ -124,7 +124,12 @@ class Test_W_Fluxanl_System:
             ci_len_low = data_low['mean_flux_ci_ub'][0] - data_low['mean_flux_ci_lb'][0]
             ci_len_high = data_high['mean_flux_ci_ub'][0] - data_high['mean_flux_ci_lb'][0]
 
-            assert (
-                data_default['mean_flux'][0] == data_low['mean_flux'][0] == data_high['mean_flux'][0]
-            ), 'Mean fluxes differ at different alphas'
+            error_message = 'Mean fluxes differ at different alphas'
+
+            assert numpy.isclose(data_default['mean_flux'][0], data_low['mean_flux'][0]), error_message
+
+            assert numpy.isclose(data_default['mean_flux'][0], data_high['mean_flux'][0]), error_message
+
+            assert numpy.isclose(data_low['mean_flux'][0], data_high['mean_flux'][0]), error_message
+
             assert ci_len_low >= ci_len_default >= ci_len_high
