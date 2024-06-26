@@ -40,7 +40,14 @@ def entry_point():
 
     dm.open_backing()
     # max_iter = dm.current_iteration
-    n_iter = args.n_iter if dm.current_iteration > args.n_iter > 0 else dm.current_iteration
+    n_iter = args.n_iter if dm.current_iteration >= args.n_iter > 0 else dm.current_iteration
+
+    if args.n_iter > dm.current_iteration:
+        log.warning(
+            'Provided iteration {} > final iteration {} of HDF file. Defaulting to iteration {}.'.format(
+                args.n_iter, dm.current_iteration, n_iter
+            )
+        )
 
     for i in range(n_iter, dm.current_iteration + 1):
         dm.del_iter_group(i)
@@ -48,8 +55,9 @@ def entry_point():
     dm.del_iter_summary(n_iter)
     dm.current_iteration = n_iter - 1
 
-    print('simulation data truncated after iteration {}'.format(dm.current_iteration))
-    print('\n' + warning_string)
+    westpa.rc.pstatus('simulation data truncated after iteration {}'.format(dm.current_iteration))
+    westpa.rc.pstatus('\n' + warning_string)
+    westpa.rc.pflush()
 
     dm.flush_backing()
     dm.close_backing()
