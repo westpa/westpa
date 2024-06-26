@@ -42,7 +42,7 @@ def entry_point():
     # max_iter = dm.current_iteration
 
     if args.n_iter > dm.current_iteration:
-        raise argparse.InvalidArgumentError(
+        raise ValueError(
             'Provided iteration {} > current iteration {} of the {} HDF5 file. Exiting.'.format(
                 args.n_iter, dm.current_iteration, dm.we_h5filename
             )
