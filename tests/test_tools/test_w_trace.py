@@ -16,34 +16,41 @@ from unittest import mock
 class Test_NEW_W_Trace:
     '''Class to test w_trace by running through the entry_point and comparing the output text files with reference files.'''
 
-    def test_trace(self, ref_50iter):
-        arg_combos = [['20:0'], ['20:1'], ['20:2'], ['20:1', "20:2"]]
-        output_combos = ['traj_20_0_trace.txt', 'traj_20_1_trace.txt', 'traj_20_2_trace.txt', 'traj_20_2_trace.txt']
+    @pytest.mark.parametrize(
+        ['arg', 'output_txt'],
+        [
+            '20:0',
+            'traj_20_0_trace.txt',
+            [['20:1'], 'traj_20_1_trace.txt'],
+            [['20:2'], 'traj_20_2_trace.txt'],
+            [['20:1', "20:2"], 'traj_20_2_trace.txt'],
+        ],
+    )
+    def test_trace(self, ref_50iter, arg, output_txt):
         ref_dir = os.path.join(os.path.dirname(__file__), '../refs')
 
-        for arg, output_txt in zip(arg_combos, output_combos):
-            self.outfile = tempfile.TemporaryFile(suffix='.h5', prefix='trace')
-            test_dir = os.getcwd()
-            with mock.patch(
-                target='argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(
-                    rcfile=self.cfg_filepath,
-                    we_h5filename=self.h5_filepath,
-                    endpoints=arg,
-                    output=self.outfile,
-                    verbosity='debug',
-                    output_pattern='traj_%d_%d',
-                    datasets=None,
-                ),
-            ):
-                entry_point()
+        self.outfile = tempfile.TemporaryFile(suffix='.h5', prefix='trace')
+        test_dir = os.getcwd()
+        with mock.patch(
+            target='argparse.ArgumentParser.parse_args',
+            return_value=argparse.Namespace(
+                rcfile=self.cfg_filepath,
+                we_h5filename=self.h5_filepath,
+                endpoints=arg,
+                output=self.outfile,
+                verbosity='debug',
+                output_pattern='traj_%d_%d',
+                datasets=None,
+            ),
+        ):
+            entry_point()
 
-            self.outfile.close()
+        self.outfile.close()
 
-            # Compare text file output
-            assert cmp(
-                os.path.join(test_dir, output_txt), os.path.join(ref_dir, output_txt), shallow=False
-            ), f'Output file {output_txt} is not the same as reference file.'
+        # Compare text file output
+        assert cmp(
+            os.path.join(test_dir, output_txt), os.path.join(ref_dir, output_txt), shallow=False
+        ), f'Output file {output_txt} is not the same as reference file.'
 
 
 @pytest.mark.skip(reason='doesn\'t actually work')
