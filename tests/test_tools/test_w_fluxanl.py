@@ -40,8 +40,6 @@ class Test_W_FLUXANL_NEW:
             if value is not None
         ]
 
-        print(arglist)
-
         w = WFluxanlTool()
         w.make_parser_and_process(args=arglist)
 
