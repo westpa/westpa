@@ -1,5 +1,5 @@
-import argparse
 import logging
+from argparse import ArgumentParser
 
 import westpa
 
@@ -14,7 +14,7 @@ traj_segs directory) is deleted or moved for the corresponding iterations.
 
 
 def entry_point():
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
         'w_truncate',
         description='''\
     Remove all iterations after a certain point in a WESTPA simulation.
@@ -42,9 +42,9 @@ def entry_point():
     # max_iter = dm.current_iteration
 
     if args.n_iter > dm.current_iteration:
-        raise ValueError(
-            'Provided iteration {} > current iteration {} of the {} HDF5 file. Exiting.'.format(
-                args.n_iter, dm.current_iteration, dm.we_h5filename
+        parser.error(
+            'Provided iteration {} > current iteration {} of the {} HDF5 file. Exiting without doing anything.'.format(
+                args.n_iter, dm.current_iteration, dm.we_h5filename.split('/')[-1]
             )
         )
     else:
