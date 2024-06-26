@@ -9,10 +9,8 @@ class Test_W_Truncate:
     def test_run_w_truncate(self, ref_3iter):
         '''Tests running w_truncate on a 3 iteration h5 file'''
 
-        _hfile = h5py.File(self.h5_filepath, mode='r')
-        assert 'iter_00000003' in list(_hfile['/iterations'].keys())
-        _hfile.close()
-        del _hfile
+        with h5py.File(self.h5_filepath, mode='r') as _hfile:
+            assert 'iter_00000003' in list(_hfile['/iterations'].keys())
 
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
@@ -20,19 +18,17 @@ class Test_W_Truncate:
         ):
             entry_point()
 
-        _hfile = h5py.File(self.h5_filepath, mode='r')
-        assert 'iter_00000003' not in list(_hfile['/iterations'].keys())
-        assert 'iter_00000002' not in list(_hfile['/iterations'].keys())
-        assert _hfile.attrs['west_current_iteration'] == 1
+        with h5py.File(self.h5_filepath, mode='r') as _hfile:
+            assert 'iter_00000003' not in list(_hfile['/iterations'].keys())
+            assert 'iter_00000002' not in list(_hfile['/iterations'].keys())
+            assert _hfile.attrs['west_current_iteration'] == 1
         _hfile.close()
 
     def test_run_w_truncate_default(self, ref_3iter):
         '''Tests running w_truncate on a 3 iteration h5 file, but running with n_iter=0'''
 
-        _hfile = h5py.File(self.h5_filepath, mode='r')
-        assert 'iter_00000003' in list(_hfile['/iterations'].keys())
-        _hfile.close()
-        del _hfile
+        with h5py.File(self.h5_filepath, mode='r') as _hfile:
+            assert 'iter_00000003' in list(_hfile['/iterations'].keys())
 
         with mock.patch(
             target='argparse.ArgumentParser.parse_args',
@@ -40,8 +36,7 @@ class Test_W_Truncate:
         ):
             entry_point()
 
-        _hfile = h5py.File(self.h5_filepath, mode='r')
-        assert 'iter_00000003' not in list(_hfile['/iterations'].keys())
-        assert 'iter_00000002' in list(_hfile['/iterations'].keys())
-        assert _hfile.attrs['west_current_iteration'] == 2
-        _hfile.close()
+        with h5py.File(self.h5_filepath, mode='r') as _hfile:
+            assert 'iter_00000003' not in list(_hfile['/iterations'].keys())
+            assert 'iter_00000002' in list(_hfile['/iterations'].keys())
+            assert _hfile.attrs['west_current_iteration'] == 2
