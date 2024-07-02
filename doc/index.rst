@@ -20,9 +20,8 @@
    :caption: For Developers:
    :hidden:
 
-    Overview                           <development/overview>
     Code and documentation style guide <development/style_guide>
-    Source code management             <development/source_code>
+    How to create a WESTPA Plugin      <https://github.com/westpa/westpa/wiki/Writing-Plugins>
     Building the documentation         <development/documentation>
     API                                <development/api>
 
