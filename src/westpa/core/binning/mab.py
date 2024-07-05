@@ -115,10 +115,15 @@ class MABBinMapper(FuncBinMapper):
         ndim = len(nbins_per_dim)
         for i in range(ndim):
             if skip[i] == 0:
-                if direction[i] != 0:
-                    n_total_bins += 1 + 1 * bottleneck
-                else:
+                if direction[i] == 0:
+                    # Both directions (leading/trailing) + bottlenecks if enabled
                     n_total_bins += 2 + 2 * bottleneck
+                else:
+                    if direction[i] == 86:
+                        # No leading/trailing, + bottleneck if enabled
+                        n_total_bins += 2 * bottleneck
+                    else:
+                        n_total_bins += 1 + 1 * bottleneck
             else:
                 n_total_bins -= nbins_per_dim[i] - 1
                 n_total_bins += 1 * ndim  # or else it will be one bin short
