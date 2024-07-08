@@ -118,12 +118,12 @@ class MABBinMapper(FuncBinMapper):
                 if direction[i] == 0:
                     # Both directions (leading/trailing) + bottlenecks if enabled
                     n_total_bins += 2 + 2 * bottleneck
+                elif direction[i] == 86:
+                    # No leading/trailing, 2 bottlenecks if enabled
+                    n_total_bins += 2 * bottleneck
                 else:
-                    if direction[i] == 86:
-                        # No leading/trailing, + bottleneck if enabled
-                        n_total_bins += 2 * bottleneck
-                    else:
-                        n_total_bins += 1 + 1 * bottleneck
+                    # direction[i] == -1 or 1, Just one leading/trailing + 1 bottleneck
+                    n_total_bins += 1 + 1 * bottleneck
             else:
                 n_total_bins -= nbins_per_dim[i] - 1
                 n_total_bins += 1 * ndim  # or else it will be one bin short
