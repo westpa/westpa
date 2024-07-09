@@ -94,8 +94,8 @@ class MABBinMapper(FuncBinMapper):
 
         Parameters
         ----------
-        nbins_per_dim : int
-            Number of total bins in each direction.
+        nbins_per_dim : list of int
+            Number of total bins in each dimension within the linear portion.
         direction : list of int
             Direction in each dimension. See __init__ for more information.
         skip : list of int
@@ -111,14 +111,19 @@ class MABBinMapper(FuncBinMapper):
             Number of total bins.
 
         """
-        n_total_bins = np.prod(nbins_per_dim)
+        n_total_bins = np.prod(nbins_per_dim)  # Number of Bins in the linear portion
         ndim = len(nbins_per_dim)
         for i in range(ndim):
             if skip[i] == 0:
-                if direction[i] != 0:
-                    n_total_bins += 1 + 1 * bottleneck
-                else:
+                if direction[i] == 0:
+                    # Both directions (leading/trailing) + bottlenecks if enabled
                     n_total_bins += 2 + 2 * bottleneck
+                elif direction[i] == 86:
+                    # No leading/trailing, 2 bottlenecks if enabled
+                    n_total_bins += 2 * bottleneck
+                else:
+                    # direction[i] == -1 or 1, Just one leading/trailing + 1 bottleneck
+                    n_total_bins += 1 + 1 * bottleneck
             else:
                 n_total_bins -= nbins_per_dim[i] - 1
                 n_total_bins += 1 * ndim  # or else it will be one bin short
