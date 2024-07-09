@@ -91,7 +91,7 @@ class MABBinMapper(FuncBinMapper):
         Parameters
         ----------
         nbins_per_dim : list of int
-            Number of bins in each direction.
+            Number of total bins in each dimension within the linear portion.
         direction : list of int
             Direction in each dimension.
         skip : list of int
