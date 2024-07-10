@@ -7,6 +7,7 @@ from os.path import expandvars
 
 log = logging.getLogger(__name__)
 
+
 class MABBinMapper(FuncBinMapper):
     """
     Adaptively place bins between minimum and maximum segments along
@@ -127,10 +128,11 @@ class MABBinMapper(FuncBinMapper):
                     n_total_bins += 2 * bottleneck
         return n_total_bins
 
+
 def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kwargs) -> List[int]:
     """
     Adaptively place bins based on extrema and bottleneck segments along the progress coordinate.
-    
+
     Bottleneck segments are where the difference in probability is the greatest
     along the progress coordinate. Operates per dimension (unless skipped) and places a fixed number of
     evenly spaced bins between the segments with the min and max pcoord values. Extrema and
@@ -224,7 +226,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
     difflist = []
     difflist_flip = []
     # Looping over each dimension of progress coordinate, even those being skipped
-    n_coords = mask.sum() # number of unmasked coords
+    n_coords = mask.sum()  # number of unmasked coords
     for n in range(ndim):
         # We calculate the min and max pcoord along each dimension (boundary segments) even if skipping
         maxcoord = np.max(coords[mask, n])
@@ -289,7 +291,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
     nbins_per_dim = np.array(nbins_per_dim)
     nbins_per_dim[skip] = 1
 
-    # Assigning segments to bins. 
+    # Assigning segments to bins.
     # First we compute the offset for boundary bin IDs
     # This will just be the product of all non-skipped static bins
     boundary_bin_id_offset = nbins_per_dim.prod()
@@ -300,7 +302,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
     for n in range(ndim):
         if not skip[n]:
             # for single direction, 1 boundary walker
-            if direction[n] in [1,-1]:
+            if direction[n] in [1, -1]:
                 bottleneck_bin_id_offset += 1
             # 2 boundary walkers with 0 direction
             elif direction[n] == 0:
@@ -308,7 +310,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
             # for 86 direction, no boundary walkers so no change in offset
             elif direction[n] == 86:
                 continue
-    
+
     # Bin assignment loop over all walkers
     n_bottleneck_filled = 0 # Tracks number of bottleneck bins filled
     for i in range(ncoords):
@@ -335,12 +337,14 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
                 # Note: All bottleneck bins will typically be filled unless a walker is simultaneously in bottleneck bins along multiple dimensions
                 # or there are too few walkers to compute free energy barriers
                 if bottleneck:
-                    if ( (direction[n] == -1) and (coord == difflist_flip[n]) ) or ( (direction[n] in [1,0,86]) and (coord == difflist[n]) ):
+                    if ((direction[n] == -1) and (coord == difflist_flip[n])) or (
+                        (direction[n] in [1, 0, 86]) and (coord == difflist[n])
+                    ):
                         bin_id = bottleneck_bin_id_offset + n - skip[:n].sum()
                         special = True
                         n_bottleneck_filled += 1
                         break
-                    elif ( (direction[n] in [0,86]) and (coord == difflist_flip[n]) ):
+                    elif (direction[n] in [0, 86]) and (coord == difflist_flip[n]):
                         bin_id = bottleneck_bin_id_offset + n + 1 - skip[:n].sum()
                         special = True
                         n_bottleneck_filled += 1
@@ -350,11 +354,11 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
                     # 86 uses no lead/lag splitting
                     # But do not *break* the loop as we still need to check along other dimensions for bottleneck walkers
                     continue
-                elif ( (direction[n] in [0,-1]) and (coord == minlist[n]) ) or ( (direction[n] == 1) and (coord == maxlist[n]) ):
+                elif ((direction[n] in [0, -1]) and (coord == minlist[n])) or ((direction[n] == 1) and (coord == maxlist[n])):
                     bin_id = boundary_bin_id_offset + n - skip[:n].sum()
                     special = True
                     break
-                elif ( (direction[n] == 0) and (coord == maxlist[n]) ):
+                elif (direction[n] == 0) and (coord == maxlist[n]):
                     bin_id = boundary_bin_id_offset + n + 1 - skip[:n].sum()
                     special = True
                     break
@@ -374,7 +378,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
                 bins = np.linspace(minp, maxp, nbins + 1)
 
                 # Assign walker to a bin along this dimension
-                bin_number = np.digitize(coord, bins) - 1 # note np.digitize is 1-indexed
+                bin_number = np.digitize(coord, bins) - 1  # note np.digitize is 1-indexed
 
                 # Check for problem values
                 if isfinal is None or not isfinal[i]:
@@ -389,7 +393,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
                         bin_number = 0
                     else:
                         raise ValueError("Walker out of boundary")
-                
+
                 # Assign to bin within the full dimensional space
                 bin_id += bin_number * np.prod(nbins_per_dim[:n])
 
