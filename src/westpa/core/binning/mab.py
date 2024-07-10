@@ -312,7 +312,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
                 continue
 
     # Bin assignment loop over all walkers
-    n_bottleneck_filled = 0 # Tracks number of bottleneck bins filled
+    n_bottleneck_filled = 0  # Tracks number of bottleneck bins filled
     for i in range(ncoords):
         if not allmask[i]:
             # Skip masked walkers
