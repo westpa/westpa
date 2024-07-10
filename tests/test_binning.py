@@ -13,7 +13,7 @@ from westpa.core.binning.assign import (
 )
 from westpa.core.binning.assign import coord_dtype
 from westpa.core.binning.mab import MABBinMapper
-
+from westpa.core.binning.mab import map_mab
 
 class TestRectilinearBinMapper:
     def test1dAssign(self):
@@ -334,4 +334,30 @@ class TestMABBinMapper:
 
     def test_determine_total_bins(self):
         mab = MABBinMapper([5])
+        # Test bin counting
         assert mab.determine_total_bins(nbins_per_dim=[5, 1], direction=[1, 86], skip=[0, 0], bottleneck=True) == 9
+        assert mab.determine_total_bins(nbins_per_dim=[5, 5], direction=[0, 0], skip=[0, 0], bottleneck=True) == 33
+        assert mab.determine_total_bins(nbins_per_dim=[5, 5, 5], direction=[0, 0, 0], skip=[0, 0, 0], bottleneck=True) == 137
+        assert mab.determine_total_bins(nbins_per_dim=[5, 5], direction=[0, 0], skip=[1, 0], bottleneck=True) == 9
+        assert mab.determine_total_bins(nbins_per_dim=[5, 1], direction=[1, 86], skip=[0, 0], bottleneck=False) == 6
+
+        # Test bin assignment with 2D coord
+        # Create some synthetic test data
+        coords = np.array([np.linspace(0, 10, 10), np.flipud(np.linspace(0, 2, 10))]).T
+        weights = np.ones((10,)) #np.exp(-np.linspace(-1, 1, 10)**2 / 0.2)
+        weights /= np.sum(weights)
+        allcoords = np.ones((10, 4))
+        allcoords[:, :2] = coords
+        allcoords[:, 2] = weights
+        allcoords = np.tile(allcoords,(2,1))
+        allcoords[0:10,3] = 0
+        mask = np.full((20),True)
+        output = list(np.zeros((20),dtype=int))
+        assert map_mab(coords=allcoords, mask=mask, output=output, nbins_per_dim=[2,2], direction=[1,1], bottleneck=False, skip=[0,0]) == \
+            [5, 2, 2, 2, 2, 1, 1, 1, 1, 4, 5, 2, 2, 2, 2, 1, 1, 1, 1, 4]
+        assert map_mab(coords=allcoords, mask=mask, output=output, nbins_per_dim=[2,2], direction=[1,1], bottleneck=False, skip=[0,1]) == \
+            [0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2]
+        assert map_mab(coords=allcoords, mask=mask, output=output, nbins_per_dim=[2,2], direction=[86,1], bottleneck=False, skip=[0,1]) == \
+            [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+        assert map_mab(coords=allcoords, mask=mask, output=output, nbins_per_dim=[2,2], direction=[86,1], bottleneck=True, skip=[0,1]) == \
+            [0, 3, 0, 0, 0, 1, 1, 1, 2, 1, 0, 3, 0, 0, 0, 1, 1, 1, 2, 1]

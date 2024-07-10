@@ -1,5 +1,5 @@
 import logging
-from typing import List, Union, Optional, Tuple
+from typing import List, Optional
 import numpy as np
 import westpa
 from westpa.core.binning import FuncBinMapper
@@ -165,7 +165,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
     mab_log = kwargs.get("mab_log", False)
     bin_log = kwargs.get("bin_log", False)
     bin_log_path = kwargs.get("bin_log_path", "$WEST_SIM_ROOT/binbounds.log")
-    nwalkers = len(output)
+    ncoords = len(output)
 
     if not np.any(mask):
         return output
@@ -204,7 +204,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
 
     varcoords = np.copy(coords)
     originalcoords = np.copy(coords)
-    if pca and nwalkers > 1:
+    if pca and ncoords > 1:
         colavg = np.mean(coords, axis=0)
         for i in range(len(coords)):
             for j in range(len(coords[i])):
@@ -216,7 +216,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
             if eigvec[i, i] < 0:
                 eigvec[:, i] = -1 * eigvec[:, i]
         for i in range(ndim):
-            for j in range(nwalkers):
+            for j in range(ncoords):
                 coords[j][i] = np.dot(varcoords[j], eigvec[:, i])
 
     maxlist = []
@@ -311,7 +311,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
     
     # Bin assignment loop over all walkers
     n_bottleneck_filled = 0 # Tracks number of bottleneck bins filled
-    for i in range(nwalkers):
+    for i in range(ncoords):
         if not allmask[i]:
             # Skip masked walkers
             continue
