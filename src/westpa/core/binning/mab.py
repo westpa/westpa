@@ -114,7 +114,6 @@ class MABBinMapper(FuncBinMapper):
 
         # Total bins is product of all linear bins plus and special bins
         n_total_bins = nbins_per_dim.prod()
-        ndim = len(nbins_per_dim)
         for direct, skip_dim in zip(direction, skip):
             if not skip_dim:
                 if direct in [-1, 1]:
