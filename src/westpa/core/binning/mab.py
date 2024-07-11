@@ -215,7 +215,19 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
     # Assign segments to bins
     n_bottleneck_filled = 0  # Tracks number of bottleneck bins filled
     bin_assignment(
-        allcoords, allmask, minlist, maxlist, difflist, difflist_flip, nbins_per_dim, direction, skip, splitting, bottleneck, n_bottleneck_filled, output
+        allcoords,
+        allmask,
+        minlist,
+        maxlist,
+        difflist,
+        difflist_flip,
+        nbins_per_dim,
+        direction,
+        skip,
+        splitting,
+        bottleneck,
+        n_bottleneck_filled,
+        output,
     )
 
     # Report MAB bin statistics
@@ -313,7 +325,19 @@ def log_mab_stats(minlist, maxlist, direction, skip):
 
 
 def bin_assignment(
-    coords, mask, minlist, maxlist, difflist, difflist_flip, nbins_per_dim, direction, skip, splitting, bottleneck, output, n_bottleneck_filled
+    coords,
+    mask,
+    minlist,
+    maxlist,
+    difflist,
+    difflist_flip,
+    nbins_per_dim,
+    direction,
+    skip,
+    splitting,
+    bottleneck,
+    output,
+    n_bottleneck_filled,
 ):
     """
     Assign segments to bins based on the minima, maxima, and
