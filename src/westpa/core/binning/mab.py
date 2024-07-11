@@ -213,8 +213,9 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
         log_mab_stats(minlist, maxlist, direction, skip)
 
     # Assign segments to bins
+    n_bottleneck_filled = 0  # Tracks number of bottleneck bins filled
     bin_assignment(
-        allcoords, allmask, minlist, maxlist, difflist, difflist_flip, nbins_per_dim, direction, skip, splitting, bottleneck, output
+        allcoords, allmask, minlist, maxlist, difflist, difflist_flip, nbins_per_dim, direction, skip, splitting, bottleneck, n_bottleneck_filled, output
     )
 
     # Report MAB bin statistics
@@ -312,7 +313,7 @@ def log_mab_stats(minlist, maxlist, direction, skip):
 
 
 def bin_assignment(
-    coords, mask, minlist, maxlist, difflist, difflist_flip, nbins_per_dim, direction, skip, splitting, bottleneck, output
+    coords, mask, minlist, maxlist, difflist, difflist_flip, nbins_per_dim, direction, skip, splitting, bottleneck, output, n_bottleneck_filled
 ):
     """
     Assign segments to bins based on the minima, maxima, and
@@ -354,7 +355,6 @@ def bin_assignment(
     bottleneck_dim_offset = boundary_dim_offset + (np.array(direction)[~skip] == 86).sum()
 
     # Bin assignment loop over all walkers
-    n_bottleneck_filled = 0  # Tracks number of bottleneck bins filled
     for i in range(len(output)):
         # Skip masked walkers, these walkers bin IDs are unchanged
         if not mask[i]:
@@ -442,6 +442,7 @@ def bin_assignment(
 
 
 def log_bin_boundaries(bin_log_path, minlist, maxlist, nbins_per_dim, difflist, difflist_flip):
+    ndim = len(nbins_per_dim)
     with open(expandvars(bin_log_path), 'a') as bb_file:
         # Iteration Number
         bb_file.write(f'iteration: {westpa.rc.sim_manager.n_iter}\n')
