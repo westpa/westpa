@@ -214,32 +214,14 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
 
     # Assign segments to bins
     n_bottleneck_filled = bin_assignment(
-        allcoords,
-        allmask,
-        minlist,
-        maxlist,
-        difflist,
-        difflist_flip,
-        nbins_per_dim,
-        direction,
-        skip,
-        splitting,
-        bottleneck,
-        output
+        allcoords, allmask, minlist, maxlist, difflist, difflist_flip, nbins_per_dim, direction, skip, splitting, bottleneck, output
     )
 
     # Report MAB bin statistics
     if bin_log and report and westpa.rc.sim_manager.n_iter:
-        log_bin_boundaries(skip, 
-            bottleneck, 
-            direction, 
-            bin_log_path, 
-            minlist, 
-            maxlist, 
-            nbins_per_dim, 
-            n_bottleneck_filled, 
-            difflist, 
-            difflist_flip)
+        log_bin_boundaries(
+            skip, bottleneck, direction, bin_log_path, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, difflist, difflist_flip
+        )
 
     return output
 
@@ -332,18 +314,7 @@ def log_mab_stats(minlist, maxlist, direction, skip):
 
 
 def bin_assignment(
-    coords,
-    mask,
-    minlist,
-    maxlist,
-    difflist,
-    difflist_flip,
-    nbins_per_dim,
-    direction,
-    skip,
-    splitting,
-    bottleneck,
-    output
+    coords, mask, minlist, maxlist, difflist, difflist_flip, nbins_per_dim, direction, skip, splitting, bottleneck, output
 ):
     """
     Assign segments to bins based on the minima, maxima, and
@@ -474,21 +445,12 @@ def bin_assignment(
 
 
 def log_bin_boundaries(
-    skip, 
-    bottleneck, 
-    direction, 
-    bin_log_path, 
-    minlist, 
-    maxlist, 
-    nbins_per_dim, 
-    n_bottleneck_filled, 
-    difflist, 
-    difflist_flip
+    skip, bottleneck, direction, bin_log_path, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, difflist, difflist_flip
 ):
     ndim = len(nbins_per_dim)
     skip = np.array([bool(s) for s in skip])
     active_dims = np.array([n for n in range(ndim) if not skip[n]])
-    max_bottleneck = np.sum([1 if direction[n] in [-1,1] else 2 for n in active_dims]) if bottleneck else 0
+    max_bottleneck = np.sum([1 if direction[n] in [-1, 1] else 2 for n in active_dims]) if bottleneck else 0
     with open(expandvars(bin_log_path), 'a') as bb_file:
         # Iteration Number
         bb_file.write(f'Iteration: {westpa.rc.sim_manager.n_iter}\n')
@@ -503,9 +465,9 @@ def log_bin_boundaries(
         if bottleneck:
             bb_file.write(f'Number of bottleneck bins filled: {n_bottleneck_filled} / {max_bottleneck}\n')
             for n in active_dims:
-                if direction[n] in [0,1,86]:
+                if direction[n] in [0, 1, 86]:
                     bb_file.write(f'Dimension {n} forward bottleneck walker at: {list(difflist[n])}\n')
-                if direction[n] in [0,-1,86]:
+                if direction[n] in [0, -1, 86]:
                     bb_file.write(f'Dimension {n} backward bottleneck walker at: {list(difflist_flip[n])}\n')
             bb_file.write('\n')
         else:
