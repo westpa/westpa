@@ -465,7 +465,7 @@ def bin_assignment(
         output[i] = bin_id
 
 
-def log_bin_boundaries(bin_log_path, minlist, maxlist, nbins_per_dim, difflist, difflist_flip):
+def log_bin_boundaries(bin_log_path, minlist, maxlist, nbins_per_dim, nbins_per_dim, difflist, difflist_flip):
     ndim = len(nbins_per_dim)
     with open(expandvars(bin_log_path), 'a') as bb_file:
         # Iteration Number
