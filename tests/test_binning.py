@@ -1,5 +1,7 @@
 import pytest
 
+import h5py
+import os
 import numpy as np
 from scipy.spatial.distance import cdist
 
@@ -15,6 +17,8 @@ from westpa.core.binning.assign import coord_dtype
 from westpa.core.binning.mab import MABBinMapper
 from westpa.core.binning.mab import map_mab
 
+
+REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
 
 class TestRectilinearBinMapper:
     def test1dAssign(self):
@@ -342,27 +346,204 @@ class TestMABBinMapper:
         assert mab.determine_total_bins(nbins_per_dim=[5, 5], direction=[0, 0], skip=[1, 0], bottleneck=True) == 9
         assert mab.determine_total_bins(nbins_per_dim=[5, 1], direction=[1, 86], skip=[0, 0], bottleneck=False) == 6
 
-        # Test bin assignment with 2D coord
-        # Create some synthetic test data
-        coords = np.array([np.linspace(0, 10, 10), np.flipud(np.linspace(0, 2, 10))]).T
-        weights = np.ones((10,))  # np.exp(-np.linspace(-1, 1, 10)**2 / 0.2)
+        # Test bin assignments with 2D and 3D coords
+        # First load reference datasets from file
+        test_refs=[]
+        with h5py.File(os.path.join(REFERENCE_PATH,'mab_assignments_ref.h5'), 'r') as f:
+            for i in range(11):
+                test_refs.append(f[f'test_result_{i:d}'][:])
+
+        # Create the same synthetic test data used in reference dataset
+        # The data is a 2D array of grid points
+        N_point = 15
+        n_dim = 2
+        N_total = N_point**n_dim
+        coords = np.zeros((N_total, 2))
+        for i in range(N_point**n_dim):
+            coords[i, 0] = i % int(N_point)
+            coords[i, 1] = i // int(N_point)
+        coords /= N_point
+
+        # generate weights as a n_dim gaussian where the max is at the center of the 2D space
+        weights = np.zeros(N_total)
+        for i in range(N_total):
+            weights[i] = np.exp(-((coords[i, 0]-N_point/2)**2 + (coords[i, 1]-N_point/2)**2)/(N_point/2)**2)
         weights /= np.sum(weights)
-        allcoords = np.ones((10, 4))
+        allcoords = np.ones((N_total, 4))
         allcoords[:, :2] = coords
         allcoords[:, 2] = weights
         allcoords = np.tile(allcoords, (2, 1))
-        allcoords[0:10, 3] = 0
-        mask = np.full((20), True)
-        output = list(np.zeros((20), dtype=int))
-        assert map_mab(
-            coords=allcoords, mask=mask, output=output, nbins_per_dim=[2, 2], direction=[1, 1], bottleneck=False, skip=[0, 0]
-        ) == [5, 2, 2, 2, 2, 1, 1, 1, 1, 4, 5, 2, 2, 2, 2, 1, 1, 1, 1, 4]
-        assert map_mab(
-            coords=allcoords, mask=mask, output=output, nbins_per_dim=[2, 2], direction=[1, 1], bottleneck=False, skip=[0, 1]
-        ) == [0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2]
-        assert map_mab(
-            coords=allcoords, mask=mask, output=output, nbins_per_dim=[2, 2], direction=[86, 1], bottleneck=False, skip=[0, 1]
-        ) == [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
-        assert map_mab(
-            coords=allcoords, mask=mask, output=output, nbins_per_dim=[2, 2], direction=[86, 1], bottleneck=True, skip=[0, 1]
-        ) == [0, 3, 0, 0, 0, 1, 1, 1, 2, 1, 0, 3, 0, 0, 0, 1, 1, 1, 2, 1]
+        allcoords[0:N_total, 3] = 0
+        mask = np.full((N_total*2), True)
+        output = list(np.zeros((N_total*2), dtype=int))
+
+        # TEST 1: one direction only, no bottleneck
+        output = map_mab(coords=allcoords, 
+                        mask=mask, 
+                        output=output, 
+                        nbins_per_dim=[2, 2], 
+                        direction=[1, 1], 
+                        bottleneck=False, 
+                        skip=[0, 0])
+        assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
+        assert output == list(test_refs[0]), "Unexpected 2D MAB bin assignments with direction=[1,1] and bottleneck=False"
+
+        # TEST 2: both directions, no bottleneck
+        output = map_mab(coords=allcoords, 
+                        mask=mask, 
+                        output=output, 
+                        nbins_per_dim=[2, 2], 
+                        direction=[0, 0], 
+                        bottleneck=False, 
+                        skip=[0, 0])
+        assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
+        assert output == list(test_refs[1]), "Unexpected 2D MAB bin assignments with direction=[0,0] and bottleneck=False"
+
+        # TEST 3: one direction, bottleneck on
+        output = map_mab(coords=allcoords, 
+                        mask=mask, 
+                        output=output, 
+                        nbins_per_dim=[2, 2], 
+                        direction=[-1, -1], 
+                        bottleneck=True, 
+                        skip=[0, 0])
+        assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
+        assert output == list(test_refs[2]), "Unexpected 2D MAB bin assignments with direction=[-1,-1] and bottleneck=True"
+
+        # TEST 4: both directions, bottleneck on
+        output = map_mab(coords=allcoords, 
+                        mask=mask, 
+                        output=output, 
+                        nbins_per_dim=[2, 2], 
+                        direction=[0, 0], 
+                        bottleneck=True, 
+                        skip=[0, 0])
+        assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
+        assert output == list(test_refs[3]), "Unexpected 2D MAB bin assignments with direction=[0,0] and bottleneck=True"
+
+
+        # TEST 5: both directions, bottleneck on
+        output = map_mab(coords=allcoords, 
+                        mask=mask, 
+                        output=output, 
+                        nbins_per_dim=[2, 2], 
+                        direction=[0, 0], 
+                        bottleneck=True, 
+                        skip=[0, 1])
+        assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
+        assert output == list(test_refs[4]), "Unexpected 2D MAB bin assignments with direction=[0,0], bottleneck=True, and skip=[0,1]"
+
+        # TEST 6: skip both dims
+        output = map_mab(coords=allcoords, 
+                        mask=mask, 
+                        output=output, 
+                        nbins_per_dim=[2, 2], 
+                        direction=[0, 0], 
+                        bottleneck=True, 
+                        skip=[1, 1])
+        assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
+        assert output == list(test_refs[5]), "Unexpected 2D MAB bin assignments with direction=[0,0], bottleneck=True, and skip=[1,1]"
+
+        # TEST 7: testing direction 86
+        output = map_mab(coords=allcoords, 
+                        mask=mask, 
+                        output=output, 
+                        nbins_per_dim=[2, 2], 
+                        direction=[86, 0], 
+                        bottleneck=True, 
+                        skip=[0, 0])
+        assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
+        assert output == list(test_refs[6]), "Unexpected 2D MAB bin assignments with direction=[86,0], bottleneck=True"
+
+        # TEST 8: testing direction 86 without bottleneck
+        output = map_mab(coords=allcoords, 
+                        mask=mask, 
+                        output=output, 
+                        nbins_per_dim=[2, 2], 
+                        direction=[86, 86], 
+                        bottleneck=False, 
+                        skip=[0, 0])
+        assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
+        assert output == list(test_refs[7]), "Unexpected 2D MAB bin assignments with direction=[86,86], bottleneck=False"
+
+        # Now creating 3D test data: a 3D array of grid points
+        N_point = 20 # along each dimension
+        n_dim = 3
+        N_total = N_point**n_dim
+        coords = np.zeros((N_total, 3))
+        for i in range(N_point**n_dim):
+            coords[i, 0] = i % int(N_point)
+            coords[i, 1] = (i // int(N_point)) % int(N_point)
+            coords[i, 2] = i // (int(N_point)**2)
+
+        # Make the weights a 3D gaussian where the max is at the center of the 3D space
+        weights = np.zeros(N_total)
+        for i in range(N_total):
+            weights[i] = np.exp(-((coords[i, 0]-N_point/2)**2 + (coords[i, 1]-N_point/2)**2 + (coords[i, 2]-N_point/2)**2)/(N_point/2)**2)
+        weights /= np.sum(weights)
+        allcoords = np.ones((N_total, n_dim+2))
+        allcoords[:, :n_dim] = coords
+        allcoords[:, n_dim] = weights
+        allcoords = np.tile(allcoords, (2, 1))
+        allcoords[0:N_total, n_dim+1] = 0
+        mask = np.full((N_total*2), True)
+        output = list(np.zeros((N_total*2), dtype=int))
+
+
+        # TEST 9: testing 3D pcoord no bottleneck
+        output = map_mab(coords=allcoords, 
+                        mask=mask, 
+                        output=output, 
+                        nbins_per_dim=[2, 2, 2], 
+                        direction=[0, 0, 0], 
+                        bottleneck=False, 
+                        skip=[0, 0, 0])
+        assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
+        assert output == list(test_refs[8]), "Unexpected 3D MAB bin assignments with direction=[0,0,0], bottleneck=False"
+        
+        # TEST 10: testing 3D pcoord with bottleneck
+        output = map_mab(coords=allcoords, 
+                        mask=mask, 
+                        output=output, 
+                        nbins_per_dim=[2, 2, 2], 
+                        direction=[0, 0, 0], 
+                        bottleneck=True, 
+                        skip=[0, 0, 0])
+        assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
+        assert output == list(test_refs[9]), "Unexpected 3D MAB bin assignments with direction=[0,0,0], bottleneck=True"
+        
+        # Lastly, test bin assignment with 2D coordinates and weights on random Gaussian points
+        # Add in a small amount of deterministic noise to the points
+        n_dim = 2
+        N_total = 300
+        coords = np.zeros((N_total, 2))
+        # Add some deterministic unpatterned noise to the points
+        np.random.seed(0)
+        coords = np.random.normal(loc=[0.5,0.5], scale=0.25, size=(N_total, n_dim))
+
+        # Generate weights as a n_dim sine curve with given wavelength plus some deterministic noise
+        weights = np.zeros(N_total)
+        wavelength = 0.25
+        noise_level = 0.1
+        for i in range(n_dim):
+            weights += np.sin(2*np.pi*coords[:, i]/wavelength) + noise_level*np.cos(4*2*np.pi*coords[:, i]/wavelength)
+        weights = np.abs(weights)/np.sum(np.abs(weights))
+
+        allcoords = np.ones((N_total, 4))
+        allcoords[:, :2] = coords
+        allcoords[:, 2] = weights
+        allcoords = np.tile(allcoords, (2, 1))
+        allcoords[0:N_total, 3] = 0
+        mask = np.full((N_total*2), True)
+        output = list(np.zeros((N_total*2), dtype=int))
+
+        # TEST 11: final test with more realistic 2D coord data
+        output = map_mab(coords=allcoords, 
+                        mask=mask, 
+                        output=output, 
+                        nbins_per_dim=[2, 2], 
+                        direction=[0, 0], 
+                        bottleneck=True, 
+                        skip=[0, 0])
+        assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
+        assert output == list(test_refs[10]), "Unexpected 2D MAB bin assignments with direction=[0,0], bottleneck=True"
