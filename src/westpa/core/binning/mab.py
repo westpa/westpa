@@ -207,14 +207,13 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
         coords = apply_pca(coords, weights)
 
     # Computing special bins (bottleneck and boundary bins)
-    minlist, maxlist, difflist, difflist_flip = calculate_bin_boundaries(originalcoords, weights, mask, direction, skip, splitting)
+    minlist, maxlist, difflist, difflist_flip = calculate_bin_boundaries(originalcoords, weights, mask, splitting)
 
     if mab_log and report:
         log_mab_stats(minlist, maxlist, direction, skip)
 
     # Assign segments to bins
-    n_bottleneck_filled = 0  # Tracks number of bottleneck bins filled
-    bin_assignment(
+    n_bottleneck_filled = bin_assignment(
         allcoords,
         allmask,
         minlist,
@@ -226,13 +225,21 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
         skip,
         splitting,
         bottleneck,
-        n_bottleneck_filled,
         output
     )
 
     # Report MAB bin statistics
     if bin_log and report and westpa.rc.sim_manager.n_iter:
-        log_bin_boundaries(bin_log_path, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, difflist, difflist_flip)
+        log_bin_boundaries(skip, 
+            bottleneck, 
+            direction, 
+            bin_log_path, 
+            minlist, 
+            maxlist, 
+            nbins_per_dim, 
+            n_bottleneck_filled, 
+            difflist, 
+            difflist_flip)
 
     return output
 
@@ -247,7 +254,7 @@ def apply_pca(coords, weights):
     return np.dot(varcoords, eigvec)
 
 
-def calculate_bin_boundaries(coords, weights, mask, direction, skip, splitting):
+def calculate_bin_boundaries(coords, weights, mask, splitting):
     """
     This function calculates the minima, maxima, and bottleneck segments along the progress coordinate.
     """
@@ -336,7 +343,6 @@ def bin_assignment(
     skip,
     splitting,
     bottleneck,
-    n_bottleneck_filled,
     output
 ):
     """
@@ -348,6 +354,7 @@ def bin_assignment(
     nbins_per_dim = np.array(nbins_per_dim)
     nbins_per_dim[skip] = 1
     ndim = len(nbins_per_dim)
+    n_bottleneck_filled = 0  # Tracks number of bottleneck bins filled
 
     # List of dimensions that are not skipped
     active_dims = np.array([n for n in range(ndim) if not skip[n]])
@@ -463,22 +470,43 @@ def bin_assignment(
 
         # Output is the main list that, for each segment, holds the bin assignment
         output[i] = bin_id
+    return n_bottleneck_filled
 
 
-def log_bin_boundaries(bin_log_path, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, difflist, difflist_flip):
+def log_bin_boundaries(
+    skip, 
+    bottleneck, 
+    direction, 
+    bin_log_path, 
+    minlist, 
+    maxlist, 
+    nbins_per_dim, 
+    n_bottleneck_filled, 
+    difflist, 
+    difflist_flip
+):
     ndim = len(nbins_per_dim)
+    skip = np.array([bool(s) for s in skip])
+    active_dims = np.array([n for n in range(ndim) if not skip[n]])
+    max_bottleneck = np.sum([1 if direction[n] in [-1,1] else 2 for n in active_dims]) if bottleneck else 0
     with open(expandvars(bin_log_path), 'a') as bb_file:
         # Iteration Number
-        bb_file.write(f'iteration: {westpa.rc.sim_manager.n_iter}\n')
-        bb_file.write('bin boundaries: ')
+        bb_file.write(f'Iteration: {westpa.rc.sim_manager.n_iter}\n')
+        bb_file.write('MAB linear bin boundaries: ')
         for n in range(ndim):
             # Write binbounds per dim
             bb_file.write(f'{np.linspace(minlist[n], maxlist[n], nbins_per_dim[n] + 1)}\t')
         # Min/Max pcoord
-        bb_file.write(f'\nmin/max pcoord: {minlist} {maxlist}\n')
-        bb_file.write(f'bottleneck bins: {n_bottleneck_filled}\n')
-        if n_bottleneck_filled > 0:
-            # Bottlenecks bins exist (passes any of the if bottleneck: checks)
-            bb_file.write(f'bottleneck pcoord: {difflist_flip} {difflist}\n\n')
+        bb_file.write(f'\nLagging pcoord in each dimension: {minlist}\n')
+        bb_file.write(f'Leading pcoord in each dimension: {maxlist}\n')
+        # Bottlenecks bins exist (passes any of the if bottleneck: checks)
+        if bottleneck:
+            bb_file.write(f'Number of bottleneck bins filled: {n_bottleneck_filled} / {max_bottleneck}\n')
+            for n in active_dims:
+                if direction[n] in [0,1,86]:
+                    bb_file.write(f'Dimension {n} forward bottleneck walker at: {list(difflist[n])}\n')
+                if direction[n] in [0,-1,86]:
+                    bb_file.write(f'Dimension {n} backward bottleneck walker at: {list(difflist_flip[n])}\n')
+            bb_file.write('\n')
         else:
             bb_file.write('\n')
