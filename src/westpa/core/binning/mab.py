@@ -227,7 +227,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
         splitting,
         bottleneck,
         n_bottleneck_filled,
-        output,
+        output
     )
 
     # Report MAB bin statistics
@@ -336,8 +336,8 @@ def bin_assignment(
     skip,
     splitting,
     bottleneck,
-    output,
     n_bottleneck_filled,
+    output
 ):
     """
     Assign segments to bins based on the minima, maxima, and
