@@ -207,20 +207,20 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
         coords = apply_pca(coords, weights)
 
     # Computing special bins (bottleneck and boundary bins)
-    minlist, maxlist, difflist, difflist_flip = calculate_bin_boundaries(originalcoords, weights, mask, splitting)
+    minlist, maxlist, bottlenecks_forward, bottlenecks_reverse = calculate_bin_boundaries(originalcoords, weights, mask, skip, splitting, bottleneck)
 
     if mab_log and report:
         log_mab_stats(minlist, maxlist, direction, skip)
 
     # Assign segments to bins
     n_bottleneck_filled = bin_assignment(
-        allcoords, allmask, minlist, maxlist, difflist, difflist_flip, nbins_per_dim, direction, skip, splitting, bottleneck, output
+        allcoords, allmask, minlist, maxlist, bottlenecks_forward, bottlenecks_reverse, nbins_per_dim, direction, skip, splitting, bottleneck, output
     )
 
     # Report MAB bin statistics
     if bin_log and report and westpa.rc.sim_manager.n_iter:
         log_bin_boundaries(
-            skip, bottleneck, direction, bin_log_path, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, difflist, difflist_flip
+            skip, bottleneck, direction, bin_log_path, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, bottlenecks_forward, bottlenecks_reverse
         )
 
     return output
@@ -236,12 +236,16 @@ def apply_pca(coords, weights):
     return np.dot(varcoords, eigvec)
 
 
-def calculate_bin_boundaries(coords, weights, mask, splitting):
+def calculate_bin_boundaries(coords, weights, mask, skip, splitting, bottleneck):
     """
-    This function calculates the minima, maxima, and bottleneck segments along the progress coordinate.
+    This function calculates minima, maxima, and bottleneck segments.
     """
+    skip = np.array([bool(s) for s in skip])
+
+    # Initialize lists to hold minima and maxima along each dimension
     minlist, maxlist = [], []
-    difflist, difflist_flip = [None] * len(coords[0]), [None] * len(coords[0])
+    # Initialize lists to hold bottleneck segments along each dimension
+    bottlenecks_forward, bottlenecks_reverse = [None] * len(coords[0]), [None] * len(coords[0])
     # number of unmasked coords
     n_coords = mask.sum()
     # Grabbing all unmasked coords and weights
@@ -253,15 +257,13 @@ def calculate_bin_boundaries(coords, weights, mask, splitting):
     # Looping over each dimension of progress coordinate, even those being skipped
     for n in range(len(coords[0])):
         # We calculate the min and max pcoord along each dimension (boundary segments) even if skipping
-        maxcoord = np.max(coords[mask, n])
-        mincoord = np.min(coords[mask, n])
-        maxlist.append(maxcoord)
-        minlist.append(mincoord)
+        maxlist.append(np.max(coords[mask, n]))
+        minlist.append(np.min(coords[mask, n]))
         # Now we calculate the bottleneck segments
-        if splitting:
-            difflist[n], difflist_flip[n] = detect_bottlenecks(unmasked_coords, unmasked_weights, n_coords, n)
+        if splitting and bottleneck and not skip[n]:
+            bottlenecks_forward[n], bottlenecks_reverse[n] = detect_bottlenecks(unmasked_coords, unmasked_weights, n_coords, n)
 
-    return minlist, maxlist, difflist, difflist_flip
+    return minlist, maxlist, bottlenecks_forward, bottlenecks_reverse
 
 
 def detect_bottlenecks(unmasked_coords, unmasked_weights, n_coords, n):
@@ -292,7 +294,7 @@ def detect_bottlenecks(unmasked_coords, unmasked_weights, n_coords, n):
         # while a positive Z indicates the cumulative weight ahead of the current walker is smaller, indicating a barrier
         Z = np.log(weights_srt[i]) - np.log(cumulative_prob)
         Z_flip = np.log(weights_srt_flip[i]) - np.log(cumulative_prob_flip)
-        # Update ALL coords of the current walker into difflist if it is largest
+        # Update ALL coords of the current walker into bottlenecks_forward if it is largest
         # This way we uniquely identify a walker by its full set of coordinates
         if Z > maxdiff:
             bottleneck_coords = coords_srt[i, :]
@@ -314,7 +316,7 @@ def log_mab_stats(minlist, maxlist, direction, skip):
 
 
 def bin_assignment(
-    coords, mask, minlist, maxlist, difflist, difflist_flip, nbins_per_dim, direction, skip, splitting, bottleneck, output
+    coords, mask, minlist, maxlist, bottlenecks_forward, bottlenecks_reverse, nbins_per_dim, direction, skip, splitting, bottleneck, output
 ):
     """
     Assign segments to bins based on the minima, maxima, and
@@ -324,37 +326,31 @@ def bin_assignment(
     skip = np.array([bool(s) for s in skip])
     nbins_per_dim = np.array(nbins_per_dim)
     nbins_per_dim[skip] = 1
+    direction = np.array(direction)
+
     ndim = len(nbins_per_dim)
-    n_bottleneck_filled = 0  # Tracks number of bottleneck bins filled
+    n_bottleneck_filled = 0
+
+    # Boolean arrays that track use of special bins along each dimension
+    skip_bneck_fwd = np.array([d == -1 if bottleneck else True for d in direction]) + skip
+    skip_bneck_rev = np.array([d == 1 if bottleneck else True for d in direction]) + skip
+    skip_lead = np.array([d in [86, -1] for d in direction]) + skip
+    skip_lag = np.array([d in [86, 1] for d in direction]) + skip
 
     # List of dimensions that are not skipped
     active_dims = np.array([n for n in range(ndim) if not skip[n]])
 
-    # Assigning segments to bins.
-    # First we compute the offset for boundary bin IDs
-    # This will just be the product of all non-skipped static bins
-    boundary_bin_id_offset = nbins_per_dim.prod()
+    # Compute the boundary bin ID offsets
+    # In forward direction, this is all the linear bins
+    boundary_bin_id_offset_fwd = nbins_per_dim.prod()
+    # In reverse, we add the number of forward boundary bins to the offset
+    boundary_bin_id_offset_rev = boundary_bin_id_offset_fwd + (~skip_lead).sum()
 
-    # Now compute the bottleneck bin ID offset
-    # The bottleneck IDs are offset by the static bins plus the boundary bins,
-    # which exist along all non-skipped dimensions.
-    bottleneck_bin_id_offset = boundary_bin_id_offset
-    for n in active_dims:
-        # for single direction, 1 boundary walker
-        if direction[n] in [1, -1]:
-            bottleneck_bin_id_offset += 1
-        # 2 boundary walkers with 0 direction
-        elif direction[n] == 0:
-            bottleneck_bin_id_offset += 2
-        # for 86 direction, no boundary walkers so no change in offset
-        elif direction[n] == 86:
-            continue
-
-    # For properly assigning leading/lagging bins, we need a second offset that counts
-    # the number of dimensions with direction = 0
-    boundary_dim_offset = (np.array(direction)[~skip] == 0).sum()
-    # Similarly, we need a second offset for bottleneck bins
-    bottleneck_dim_offset = boundary_dim_offset + (np.array(direction)[~skip] == 86).sum()
+    # Compute the bottleneck bin ID offsets
+    # In forward direction, bin IDs are offset by all linear and boundary bins
+    bneck_bin_id_offset_fwd = boundary_bin_id_offset_rev + (~skip_lag).sum()
+    # In reverse, we add the number of forward bottleneck bins to the offset
+    bneck_bin_id_offset_rev = bneck_bin_id_offset_fwd + (~skip_bneck_fwd).sum()
 
     # Bin assignment loop over all walkers
     for i in range(len(output)):
@@ -364,57 +360,47 @@ def bin_assignment(
         # Initialize bin ID and special tracker for current coord
         # The special variable indicates a boundary or bottleneck walker (not assigned to the linear space)
         bin_id, special = 0, False
-        # Searching for special split bins from pre-computed lists
-        if splitting:
-            # Loop over non-skipped dimensions
+
+        # Searching for bottleneck bins first
+        if splitting and bottleneck:
             for n in active_dims:
-                # Grab coord of current walker along current dimension
+                # Grab coord(s) of current walker
                 coord = coords[i][:ndim]
                 # Assign bottlenecks, taking directionality into account
                 # Check both directions when using 0 or 86
                 # Note: 86 implies no leading or lagging bins, but does add bottlenecks for *both* directions when bottleneck is enabled
                 # Note: All bottleneck bins will typically be filled unless a walker is simultaneously in bottleneck bins along multiple dimensions
                 # or there are too few walkers to compute free energy barriers
-                if bottleneck:
-                    # Check if bottleneck already filled
-                    if ((direction[n] == -1) and (coord == difflist_flip[n]).all()) or (
-                        (direction[n] in [1, 0, 86]) and (coord == difflist[n]).all()
-                    ):
-                        bin_id = bottleneck_bin_id_offset + n - skip[:n].sum()
-                        special = True
-                        n_bottleneck_filled += 1
-                        break
-                    elif (direction[n] in [0, 86]) and (coord == difflist_flip[n]).all():
-                        bin_id = bottleneck_bin_id_offset + n - skip[:n].sum() + bottleneck_dim_offset
-                        special = True
-                        n_bottleneck_filled += 1
-                        break
-            # Now check for boundary walkers, taking directionality into account
-            if not special:
-                for n in active_dims:
-                    # Grab coord of current walker along current dimension
-                    coord = coords[i][:ndim]
-                    if direction[n] == 86:
-                        # 86 uses no lead/lag splitting
-                        # But do not *break* the loop as we still need to check along other dimensions for bottleneck walkers
-                        continue
-                    elif ((direction[n] in [0, -1]) and (coord[n] == minlist[n])) or (
-                        (direction[n] == 1) and (coord[n] == maxlist[n])
-                    ):
-                        bin_id = boundary_bin_id_offset + n - skip[:n].sum()
-                        special = True
-                        break
-                    elif (direction[n] == 0) and (coord[n] == maxlist[n]):
-                        bin_id = boundary_bin_id_offset + n - skip[:n].sum() + boundary_dim_offset
-                        special = True
-                        break
-
-        # The following loop only applies if the current walker is not assigned to a special bin
-        # i.e. this is for the "linear" portion
+                if (coord == bottlenecks_forward[n]).all() and not skip_bneck_fwd[n]:
+                    bin_id = bneck_bin_id_offset_fwd + n - skip_bneck_fwd[:n].sum()
+                    special = True
+                    n_bottleneck_filled += 1
+                    break
+                elif (coord == bottlenecks_reverse[n]).all() and not skip_bneck_rev[n]:
+                    bin_id = bneck_bin_id_offset_rev + n - skip_bneck_rev[:n].sum()
+                    special = True
+                    n_bottleneck_filled += 1
+                    break
+        
+        # Now check for boundary walkers, taking directionality into account
+        # This should only be done after fully checking for bottleneck walkers
+        if splitting and not special:
+            for n in active_dims:
+                # Grab coord of current walker along current dimension
+                coord = coords[i,n]
+                if (coord == maxlist[n]) and not skip_lead[n]:
+                    bin_id = boundary_bin_id_offset_fwd + n - skip_lead[:n].sum()
+                    special = True
+                    break
+                elif (coord == minlist[n]) and not skip_lag[n]:
+                    bin_id = boundary_bin_id_offset_rev + n - skip_lag[:n].sum()
+                    special = True
+                    break
+        
+        # Now check for linear bin walkers
         if not special:
             # Again we loop over the dimensions
-            # Note we do not need to worry about skipping as we've already set all skipped
-            # dimensions to have only 1 bin along that dimension
+            # Note: no need to worry about skipping as we've already set all skipped dimensions to 1 bin
             for n in range(ndim):
                 coord = coords[i][n]
                 nbins = nbins_per_dim[n]
@@ -445,7 +431,7 @@ def bin_assignment(
 
 
 def log_bin_boundaries(
-    skip, bottleneck, direction, bin_log_path, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, difflist, difflist_flip
+    skip, bottleneck, direction, bin_log_path, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, bottlenecks_forward, bottlenecks_reverse
 ):
     ndim = len(nbins_per_dim)
     skip = np.array([bool(s) for s in skip])
@@ -461,14 +447,14 @@ def log_bin_boundaries(
         # Min/Max pcoord
         bb_file.write(f'\nLagging pcoord in each dimension: {minlist}\n')
         bb_file.write(f'Leading pcoord in each dimension: {maxlist}\n')
-        # Bottlenecks bins exist (passes any of the if bottleneck: checks)
+        # Bottlenecks bins exist
         if bottleneck:
             bb_file.write(f'Number of bottleneck bins filled: {n_bottleneck_filled} / {max_bottleneck}\n')
             for n in active_dims:
                 if direction[n] in [0, 1, 86]:
-                    bb_file.write(f'Dimension {n} forward bottleneck walker at: {list(difflist[n])}\n')
+                    bb_file.write(f'Dimension {n} forward bottleneck walker at: {list(bottlenecks_forward[n])}\n')
                 if direction[n] in [0, -1, 86]:
-                    bb_file.write(f'Dimension {n} backward bottleneck walker at: {list(difflist_flip[n])}\n')
+                    bb_file.write(f'Dimension {n} backward bottleneck walker at: {list(bottlenecks_reverse[n])}\n')
             bb_file.write('\n')
         else:
             bb_file.write('\n')
