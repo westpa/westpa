@@ -332,12 +332,13 @@ class TestNestingBinMapper:
         print('OUTPUT  ', assignments)
         assert (assignments == expected).all()
 
-@pytest.fixture() 
+
+@pytest.fixture()
 def test_input_mab_data():
     # Create synthetic test data: a 2D grid of points with Gaussian weights distribution
     N_point_2d = 15
     n_dim_2d = 2
-    N_total_2d = N_point_2d ** n_dim_2d
+    N_total_2d = N_point_2d**n_dim_2d
     coords_2d = np.zeros((N_total_2d, 2))
     for i in range(N_total_2d):
         coords_2d[i, 0] = i % N_point_2d
@@ -360,18 +361,20 @@ def test_input_mab_data():
     # Create deterministic 3D array of grid points, again with 3D Gaussian distribution of weights
     N_point_3d = 15
     n_dim_3d = 3
-    N_total_3d = N_point_3d ** n_dim_3d
+    N_total_3d = N_point_3d**n_dim_3d
     coords_3d = np.zeros((N_total_3d, 3))
     for i in range(N_total_3d):
         coords_3d[i, 0] = i % N_point_3d
         coords_3d[i, 1] = (i // N_point_3d) % N_point_3d
-        coords_3d[i, 2] = i // (N_point_3d ** 2)
+        coords_3d[i, 2] = i // (N_point_3d**2)
     coords_3d /= N_point_3d
 
     # Generate weights as a n_dim gaussian where the max is at the center of the 3D space
     weights_3d = np.zeros(N_total_3d)
     for i in range(N_total_3d):
-        weights_3d[i] = np.exp(-((coords_3d[i, 0] - 1 / 2) ** 2 + (coords_3d[i, 1] - 1 / 2) ** 2 + (coords_3d[i, 2] - 1 / 2) ** 2) / (1 / 2) ** 2)
+        weights_3d[i] = np.exp(
+            -((coords_3d[i, 0] - 1 / 2) ** 2 + (coords_3d[i, 1] - 1 / 2) ** 2 + (coords_3d[i, 2] - 1 / 2) ** 2) / (1 / 2) ** 2
+        )
     weights_3d /= np.sum(weights_3d)
 
     # Tile coords
@@ -406,16 +409,13 @@ def test_input_mab_data():
     return {
         'allcoords_2d_grid': allcoords_2d_grid,
         'allcoords_3d_grid': allcoords_3d_grid,
-        'allcoords_2d_gauss': allcoords_2d_gauss
+        'allcoords_2d_gauss': allcoords_2d_gauss,
     }
+
 
 @pytest.fixture()
 def ref_mab_results():
-    test_refs = {
-        '2d_grid':[],
-        '3d_grid':[],
-        '2d_gauss':[]
-        }
+    test_refs = {'2d_grid': [], '3d_grid': [], '2d_gauss': []}
     with h5py.File(os.path.join(REFERENCE_PATH, 'mab_assignments_ref.h5'), 'r') as f:
         n_tests_2d_grid = len(f['2d_grid'].keys())
         for i in range(n_tests_2d_grid):
@@ -427,6 +427,7 @@ def ref_mab_results():
         for i in range(n_tests_2d_gauss):
             test_refs['2d_gauss'].append(f[f'2d_gauss/test_result_{i:d}'][:])
     return test_refs
+
 
 class TestMABBinMapper:
     def test_init(self):
@@ -441,17 +442,22 @@ class TestMABBinMapper:
         assert mab.determine_total_bins(nbins_per_dim=[5, 5], direction=[0, 0], skip=[1, 0], bottleneck=True) == 9
         assert mab.determine_total_bins(nbins_per_dim=[5, 1], direction=[1, 86], skip=[0, 0], bottleneck=False) == 6
 
-    @pytest.mark.parametrize("nbins_per_dim, direction, bottleneck, skip, ref_index", [
-        ([2, 2], [1, 1], False, [0, 0], 0),
-        ([2, 2], [0, 0], False, [0, 0], 1),
-        ([2, 2], [-1, -1], True, [0, 0], 2),
-        ([2, 2], [0, 0], True, [0, 0], 3),
-        ([2, 2], [0, 0], True, [0, 1], 4),
-        ([2, 2], [0, 0], True, [1, 1], 5),
-        ([2, 2], [86, 0], True, [0, 0], 6),
-        ([2, 2], [86, 86], False, [0, 0], 7),
-    ])
-    def test_2d_grid_mab_bin_assignments(self,test_input_mab_data, ref_mab_results, nbins_per_dim, direction, bottleneck, skip, ref_index):
+    @pytest.mark.parametrize(
+        "nbins_per_dim, direction, bottleneck, skip, ref_index",
+        [
+            ([2, 2], [1, 1], False, [0, 0], 0),
+            ([2, 2], [0, 0], False, [0, 0], 1),
+            ([2, 2], [-1, -1], True, [0, 0], 2),
+            ([2, 2], [0, 0], True, [0, 0], 3),
+            ([2, 2], [0, 0], True, [0, 1], 4),
+            ([2, 2], [0, 0], True, [1, 1], 5),
+            ([2, 2], [86, 0], True, [0, 0], 6),
+            ([2, 2], [86, 86], False, [0, 0], 7),
+        ],
+    )
+    def test_2d_grid_mab_bin_assignments(
+        self, test_input_mab_data, ref_mab_results, nbins_per_dim, direction, bottleneck, skip, ref_index
+    ):
         allcoords = test_input_mab_data['allcoords_2d_grid']
         N_total = allcoords.shape[0] // 2
         mask = np.full((N_total * 2), True)
@@ -463,16 +469,23 @@ class TestMABBinMapper:
             nbins_per_dim=nbins_per_dim,
             direction=direction,
             bottleneck=bottleneck,
-            skip=skip
+            skip=skip,
         )
         assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
-        assert output == list(ref_mab_results['2d_grid'][ref_index]), f"Unexpected 2D grid MAB bin assignments with direction={direction}, bottleneck={bottleneck}, and skip={skip}"
+        assert output == list(
+            ref_mab_results['2d_grid'][ref_index]
+        ), f"Unexpected 2D grid MAB bin assignments with direction={direction}, bottleneck={bottleneck}, and skip={skip}"
 
-    @pytest.mark.parametrize("nbins_per_dim, direction, bottleneck, skip, ref_index", [
-        ([2, 2, 2], [0, 0, 0], False, [0, 0, 0], 0),
-        ([2, 2, 2], [0, 0, 0], True, [0, 0, 0], 1),
-    ])
-    def test_3d_grid_mab_bin_assignments(self,test_input_mab_data, ref_mab_results, nbins_per_dim, direction, bottleneck, skip, ref_index):
+    @pytest.mark.parametrize(
+        "nbins_per_dim, direction, bottleneck, skip, ref_index",
+        [
+            ([2, 2, 2], [0, 0, 0], False, [0, 0, 0], 0),
+            ([2, 2, 2], [0, 0, 0], True, [0, 0, 0], 1),
+        ],
+    )
+    def test_3d_grid_mab_bin_assignments(
+        self, test_input_mab_data, ref_mab_results, nbins_per_dim, direction, bottleneck, skip, ref_index
+    ):
         allcoords = test_input_mab_data['allcoords_3d_grid']
         N_total = allcoords.shape[0] // 2
         mask = np.full((N_total * 2), True)
@@ -484,17 +497,24 @@ class TestMABBinMapper:
             nbins_per_dim=nbins_per_dim,
             direction=direction,
             bottleneck=bottleneck,
-            skip=skip
+            skip=skip,
         )
         assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
-        assert output == list(ref_mab_results['3d_grid'][ref_index]), f"Unexpected 3D grid MAB bin assignments with direction={direction}, bottleneck={bottleneck}, and skip={skip}"
+        assert output == list(
+            ref_mab_results['3d_grid'][ref_index]
+        ), f"Unexpected 3D grid MAB bin assignments with direction={direction}, bottleneck={bottleneck}, and skip={skip}"
 
-    @pytest.mark.parametrize("nbins_per_dim, direction, bottleneck, skip, ref_index", [
-        ([2, 2], [0, 0], True, [0, 0], 0),
-        ([2, 2], [0, 0], True, [0, 1], 1),
-        ([2, 2], [86, -1], True, [0, 0], 2),
-    ])
-    def test_2d_gaussian_mab_bin_assignments(self,test_input_mab_data, ref_mab_results, nbins_per_dim, direction, bottleneck, skip, ref_index):
+    @pytest.mark.parametrize(
+        "nbins_per_dim, direction, bottleneck, skip, ref_index",
+        [
+            ([2, 2], [0, 0], True, [0, 0], 0),
+            ([2, 2], [0, 0], True, [0, 1], 1),
+            ([2, 2], [86, -1], True, [0, 0], 2),
+        ],
+    )
+    def test_2d_gaussian_mab_bin_assignments(
+        self, test_input_mab_data, ref_mab_results, nbins_per_dim, direction, bottleneck, skip, ref_index
+    ):
         allcoords = test_input_mab_data['allcoords_2d_gauss']
         N_total = allcoords.shape[0] // 2
         mask = np.full((N_total * 2), True)
@@ -506,29 +526,35 @@ class TestMABBinMapper:
             nbins_per_dim=nbins_per_dim,
             direction=direction,
             bottleneck=bottleneck,
-            skip=skip
+            skip=skip,
         )
         assert output[:N_total] == output[N_total:], "Expected first half of bin assignments to equal second half"
-        assert output == list(ref_mab_results['2d_gauss'][ref_index]), f"Unexpected 2D Gaussian MAB bin assignments with direction={direction}, bottleneck={bottleneck}, and skip={skip}"
+        assert output == list(
+            ref_mab_results['2d_gauss'][ref_index]
+        ), f"Unexpected 2D Gaussian MAB bin assignments with direction={direction}, bottleneck={bottleneck}, and skip={skip}"
+
 
 if __name__ == "__main__":
     import matplotlib as mpl
     import matplotlib.pyplot as plt
+
     # Run as a script to regenerate the MAB binning reference data and figures
     # Comment out the fixture tag on test_input_mab_data() to do this
     input_data = test_input_mab_data()
     with h5py.File(os.path.join(REFERENCE_PATH, 'mab_assignments_ref.h5'), 'w') as f:
         # 2D Grid
-        for i, (nbins_per_dim, direction, bottleneck, skip) in enumerate([
-            ([2, 2], [1, 1], False, [0, 0]),
-            ([2, 2], [0, 0], False, [0, 0]),
-            ([2, 2], [-1, -1], True, [0, 0]),
-            ([2, 2], [0, 0], True, [0, 0]),
-            ([2, 2], [0, 0], True, [0, 1]),
-            ([2, 2], [0, 0], True, [1, 1]),
-            ([2, 2], [86, 0], True, [0, 0]),
-            ([2, 2], [86, 86], False, [0, 0])
-        ]):
+        for i, (nbins_per_dim, direction, bottleneck, skip) in enumerate(
+            [
+                ([2, 2], [1, 1], False, [0, 0]),
+                ([2, 2], [0, 0], False, [0, 0]),
+                ([2, 2], [-1, -1], True, [0, 0]),
+                ([2, 2], [0, 0], True, [0, 0]),
+                ([2, 2], [0, 0], True, [0, 1]),
+                ([2, 2], [0, 0], True, [1, 1]),
+                ([2, 2], [86, 0], True, [0, 0]),
+                ([2, 2], [86, 86], False, [0, 0]),
+            ]
+        ):
             allcoords = input_data['allcoords_2d_grid']
             N_total = allcoords.shape[0] // 2
             mask = np.full((N_total * 2), True)
@@ -540,27 +566,37 @@ if __name__ == "__main__":
                 nbins_per_dim=nbins_per_dim,
                 direction=direction,
                 bottleneck=bottleneck,
-                skip=skip
+                skip=skip,
             )
 
             f.create_dataset(f'2d_grid/test_result_{i:d}', data=output)
 
             # Create a cmap with the same number of colors as the number of bins
-            cmap = plt.cm.get_cmap('tab20', int(np.max(output)+1))
+            cmap = plt.cm.get_cmap('tab20', int(np.max(output) + 1))
 
             # Plot the synthetic data in 2D using a scatter plot
             # Include a cbar to shown the bin assignments
-            plt.scatter(allcoords[:N_total, 0], allcoords[:N_total, 1], s=allcoords[:N_total, 2]*10000, c=output[:N_total], cmap=cmap, vmin=-0.5, vmax=int(np.max(output))+0.5)
-            plt.colorbar(label='Bin ID', ticks=range(int(np.max(output)+1)))
+            plt.scatter(
+                allcoords[:N_total, 0],
+                allcoords[:N_total, 1],
+                s=allcoords[:N_total, 2] * 10000,
+                c=output[:N_total],
+                cmap=cmap,
+                vmin=-0.5,
+                vmax=int(np.max(output)) + 0.5,
+            )
+            plt.colorbar(label='Bin ID', ticks=range(int(np.max(output) + 1)))
             plt.title(f'nbins_per_dim={nbins_per_dim}, direction={direction},\n bottleneck={bottleneck}, skip={skip}')
             plt.savefig(f'2d_grid_ref_result_{i}.png')
             plt.clf()
 
         # 3D grid
-        for i, (nbins_per_dim, direction, bottleneck, skip) in enumerate([
-            ([2, 2, 2], [0, 0, 0], False, [0, 0, 0]),
-            ([2, 2, 2], [0, 0, 0], True, [0, 0, 0]),
-        ]):
+        for i, (nbins_per_dim, direction, bottleneck, skip) in enumerate(
+            [
+                ([2, 2, 2], [0, 0, 0], False, [0, 0, 0]),
+                ([2, 2, 2], [0, 0, 0], True, [0, 0, 0]),
+            ]
+        ):
             allcoords = input_data['allcoords_3d_grid']
             N_total = allcoords.shape[0] // 2
             mask = np.full((N_total * 2), True)
@@ -572,17 +608,19 @@ if __name__ == "__main__":
                 nbins_per_dim=nbins_per_dim,
                 direction=direction,
                 bottleneck=bottleneck,
-                skip=skip
+                skip=skip,
             )
 
             f.create_dataset(f'3d_grid/test_result_{i:d}', data=output)
 
         # 2D Gaussian
-        for i, (nbins_per_dim, direction, bottleneck, skip) in enumerate([
-            ([2, 2], [0, 0], True, [0, 0]),
-            ([2, 2], [0, 0], True, [0, 1]),
-            ([2, 2], [86, -1], True, [0, 0]),
-        ]):
+        for i, (nbins_per_dim, direction, bottleneck, skip) in enumerate(
+            [
+                ([2, 2], [0, 0], True, [0, 0]),
+                ([2, 2], [0, 0], True, [0, 1]),
+                ([2, 2], [86, -1], True, [0, 0]),
+            ]
+        ):
             allcoords = input_data['allcoords_2d_gauss']
             N_total = allcoords.shape[0] // 2
             mask = np.full((N_total * 2), True)
@@ -594,18 +632,26 @@ if __name__ == "__main__":
                 nbins_per_dim=nbins_per_dim,
                 direction=direction,
                 bottleneck=bottleneck,
-                skip=skip
+                skip=skip,
             )
 
             f.create_dataset(f'2d_gauss/test_result_{i:d}', data=output)
 
             # Create a cmap with the same number of colors as the number of bins
-            cmap = plt.cm.get_cmap('tab20', int(np.max(output)+1))
+            cmap = plt.cm.get_cmap('tab20', int(np.max(output) + 1))
 
             # Plot the synthetic data in 2D using a scatter plot
             # Include a cbar to shown the bin assignments
-            plt.scatter(allcoords[:N_total, 0], allcoords[:N_total, 1], s=allcoords[:N_total, 2]*10000, c=output[:N_total], cmap=cmap, vmin=-0.5, vmax=int(np.max(output))+0.5)
-            plt.colorbar(label='Bin ID', ticks=range(int(np.max(output)+1)))
+            plt.scatter(
+                allcoords[:N_total, 0],
+                allcoords[:N_total, 1],
+                s=allcoords[:N_total, 2] * 10000,
+                c=output[:N_total],
+                cmap=cmap,
+                vmin=-0.5,
+                vmax=int(np.max(output)) + 0.5,
+            )
+            plt.colorbar(label='Bin ID', ticks=range(int(np.max(output) + 1)))
             plt.title(f'nbins_per_dim={nbins_per_dim}, direction={direction},\n bottleneck={bottleneck}, skip={skip}')
             plt.savefig(f'2d_gauss_ref_result_{i}.png')
             plt.clf()
