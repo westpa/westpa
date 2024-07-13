@@ -512,7 +512,6 @@ class TestMABBinMapper:
         assert output == list(ref_mab_results['2d_gauss'][ref_index]), f"Unexpected 2D Gaussian MAB bin assignments with direction={direction}, bottleneck={bottleneck}, and skip={skip}"
 
 if __name__ == "__main__":
-    import matplotlib as mpl
     import matplotlib.pyplot as plt
     # Run as a script to regenerate the MAB binning reference data and figures
     # Comment out the fixture tag on test_input_mab_data() to do this
