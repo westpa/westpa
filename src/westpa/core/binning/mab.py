@@ -207,20 +207,42 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
         coords = apply_pca(coords, weights)
 
     # Computing special bins (bottleneck and boundary bins)
-    minlist, maxlist, bottlenecks_forward, bottlenecks_reverse = calculate_bin_boundaries(originalcoords, weights, mask, skip, splitting, bottleneck)
+    minlist, maxlist, bottlenecks_forward, bottlenecks_reverse = calculate_bin_boundaries(
+        originalcoords, weights, mask, skip, splitting, bottleneck
+    )
 
     if mab_log and report:
         log_mab_stats(minlist, maxlist, direction, skip)
 
     # Assign segments to bins
     n_bottleneck_filled = bin_assignment(
-        allcoords, allmask, minlist, maxlist, bottlenecks_forward, bottlenecks_reverse, nbins_per_dim, direction, skip, splitting, bottleneck, output
+        allcoords,
+        allmask,
+        minlist,
+        maxlist,
+        bottlenecks_forward,
+        bottlenecks_reverse,
+        nbins_per_dim,
+        direction,
+        skip,
+        splitting,
+        bottleneck,
+        output,
     )
 
     # Report MAB bin statistics
     if bin_log and report and westpa.rc.sim_manager.n_iter:
         log_bin_boundaries(
-            skip, bottleneck, direction, bin_log_path, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, bottlenecks_forward, bottlenecks_reverse
+            skip,
+            bottleneck,
+            direction,
+            bin_log_path,
+            minlist,
+            maxlist,
+            nbins_per_dim,
+            n_bottleneck_filled,
+            bottlenecks_forward,
+            bottlenecks_reverse,
         )
 
     return output
@@ -316,7 +338,18 @@ def log_mab_stats(minlist, maxlist, direction, skip):
 
 
 def bin_assignment(
-    coords, mask, minlist, maxlist, bottlenecks_forward, bottlenecks_reverse, nbins_per_dim, direction, skip, splitting, bottleneck, output
+    coords,
+    mask,
+    minlist,
+    maxlist,
+    bottlenecks_forward,
+    bottlenecks_reverse,
+    nbins_per_dim,
+    direction,
+    skip,
+    splitting,
+    bottleneck,
+    output,
 ):
     """
     Assign segments to bins based on the minima, maxima, and
@@ -381,13 +414,13 @@ def bin_assignment(
                     special = True
                     n_bottleneck_filled += 1
                     break
-        
+
         # Now check for boundary walkers, taking directionality into account
         # This should only be done after fully checking for bottleneck walkers
         if splitting and not special:
             for n in active_dims:
                 # Grab coord of current walker along current dimension
-                coord = coords[i,n]
+                coord = coords[i, n]
                 if (coord == maxlist[n]) and not skip_lead[n]:
                     bin_id = boundary_bin_id_offset_fwd + n - skip_lead[:n].sum()
                     special = True
@@ -396,7 +429,7 @@ def bin_assignment(
                     bin_id = boundary_bin_id_offset_rev + n - skip_lag[:n].sum()
                     special = True
                     break
-        
+
         # Now check for linear bin walkers
         if not special:
             # Again we loop over the dimensions
@@ -431,7 +464,16 @@ def bin_assignment(
 
 
 def log_bin_boundaries(
-    skip, bottleneck, direction, bin_log_path, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, bottlenecks_forward, bottlenecks_reverse
+    skip,
+    bottleneck,
+    direction,
+    bin_log_path,
+    minlist,
+    maxlist,
+    nbins_per_dim,
+    n_bottleneck_filled,
+    bottlenecks_forward,
+    bottlenecks_reverse,
 ):
     ndim = len(nbins_per_dim)
     skip = np.array([bool(s) for s in skip])
