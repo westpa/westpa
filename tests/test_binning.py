@@ -17,6 +17,9 @@ from westpa.core.binning.assign import coord_dtype
 from westpa.core.binning.mab import MABBinMapper, map_mab
 
 
+REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
+
+
 class TestRectilinearBinMapper:
     def test1dAssign(self):
         bounds = [0.0, 1.0, 2.0, 3.0]
@@ -557,14 +560,19 @@ class TestMABBinMapper:
         ), f"Unexpected 2D Gaussian MAB bin assignments with direction={direction}, bottleneck={bottleneck}, and skip={skip}"
 
 
-def output_reference_output_for_mab_test():
+def output_mab_reference():
     '''
-    Function to output the test files for the MAB tests.
+    Function to generate the reference test files for the MAB tests.
+
+    To run this, run `python -c 'from test_binning import output_mab_reference; output_mab_reference()'`
+    in the command line (assuming you're in the 'tests/' folder).
+
+    It will generate a new h5 file under 'tests/refs' and 11 png files visualizing the binning.
     '''
     import matplotlib.pyplot as plt
 
     input_data = gen_input_mab_data()
-    with h5py.File('refs/mab_assignments_ref.h5', 'w') as f:
+    with h5py.File(f'{REFERENCE_PATH}/mab_assignments_ref.h5', 'w') as f:
         # 2D Grid
         for i, (nbins_per_dim, direction, bottleneck, skip) in enumerate(
             [
