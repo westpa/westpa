@@ -421,7 +421,7 @@ def gen_input_mab_data():
 
 @pytest.fixture(scope='class')
 def ref_mab_results(request):
-    '''Function for reading the reference test files from mab_assignments_ref.h5'''
+    '''Function for reading the reference datasets from `refs/mab_assignments_ref.h5`.'''
     # Setting up empty things dictionary with corresponding keys
     request.cls.ref_mab_results = {}
     test_keys = ['2d_grid', '3d_grid', '2d_gauss']
@@ -433,7 +433,7 @@ def ref_mab_results(request):
 
 
 class TestMABBinMapper:
-    '''Class of tests for testing the MABBinMapper'''
+    '''Test class for MABBinMapper'''
 
     @pytest.mark.parametrize(
         'nbins, direction, skip, bottleneck, ref_value',
