@@ -335,10 +335,12 @@ class TestNestingBinMapper:
 # Following section is for MAB Testing
 @pytest.fixture(scope='class')
 def gen_input_mab_data_fixture(request):
+    '''A fixture to assign `gen_input_mab_data`'s return as a class attribute for tests.'''
     request.cls.input_mab_data = gen_input_mab_data()
 
 
 def gen_input_mab_data():
+    '''Function to generate test data for MABBinMapper Testing.'''
     # Create synthetic test data: a 2D grid of points with Gaussian weights distribution
     N_point_2d = 15
     n_dim_2d = 2
@@ -419,19 +421,20 @@ def gen_input_mab_data():
 
 @pytest.fixture(scope='class')
 def ref_mab_results(request):
-    '''Class for reading the reference test files from mab_assignments_ref.h5'''
-    REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
-
+    '''Function for reading the reference test files from mab_assignments_ref.h5'''
     # Setting up empty things dictionary with corresponding keys
     request.cls.ref_mab_results = {}
     test_keys = ['2d_grid', '3d_grid', '2d_gauss']
 
+    # Loading in the three sets of reference data from the reference file into a dictionary
     with h5py.File(os.path.join(REFERENCE_PATH, 'mab_assignments_ref.h5'), 'r') as f:
         for key in test_keys:
             request.cls.ref_mab_results[key] = [f[f'{key}/test_result_{i:d}'][...] for i in range(len(f[key]))]
 
 
 class TestMABBinMapper:
+    '''Class of tests for testing the MABBinMapper'''
+
     @pytest.mark.parametrize(
         'nbins, direction, skip, bottleneck, ref_value',
         [
@@ -475,6 +478,7 @@ class TestMABBinMapper:
     def test_2x2_2d_grid_mab_bin_assignments(
         self, gen_input_mab_data_fixture, ref_mab_results, nbins_per_dim, direction, bottleneck, skip, ref_index
     ):
+        '''Test MABBinMapper with 2x2 linear section on 2D space'''
         allcoords = self.input_mab_data['allcoords_2d_grid']
         N_total = allcoords.shape[0] // 2
         mask = np.full((N_total * 2), True)
@@ -507,6 +511,7 @@ class TestMABBinMapper:
     def test_2x2x2_3d_grid_mab_bin_assignments(
         self, gen_input_mab_data_fixture, ref_mab_results, nbins_per_dim, direction, bottleneck, skip, ref_index
     ):
+        '''Test MABBinMapper with 2x2x2 linear section on 3D space'''
         allcoords = self.input_mab_data['allcoords_3d_grid']
         N_total = allcoords.shape[0] // 2
         mask = np.full((N_total * 2), True)
@@ -538,9 +543,10 @@ class TestMABBinMapper:
             'direction=[86,-1], no skip',
         ],
     )
-    def test_2d_gaussian_mab_bin_assignments(
+    def test_2x2_2d_gaussian_mab_bin_assignments(
         self, gen_input_mab_data_fixture, ref_mab_results, nbins_per_dim, direction, bottleneck, skip, ref_index
     ):
+        '''Test MABBinMapper with 2x2 linear section on a 2D Gaussian space'''
         allcoords = self.input_mab_data['allcoords_2d_gauss']
         N_total = allcoords.shape[0] // 2
         mask = np.full((N_total * 2), True)
@@ -565,9 +571,9 @@ def output_mab_reference():
     Function to generate the reference test files for the MAB tests.
 
     To run this, run `python -c 'from test_binning import output_mab_reference; output_mab_reference()'`
-    in the command line (assuming you're in the 'tests/' folder).
+    in the command line (assuming you're in the `tests/` folder).
 
-    It will generate a new h5 file under 'tests/refs' and 11 png files visualizing the binning.
+    It will overwrite the file 'tests/refs/mab_assignments_ref.h5' and create 11 png files in `tests/` visualizing the binning.
     '''
     import matplotlib.pyplot as plt
 
