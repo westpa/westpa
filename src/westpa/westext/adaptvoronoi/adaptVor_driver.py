@@ -42,21 +42,28 @@ class AdaptiveVoronoiDriver:
         # Parameters from config file
         # this enables the adaptive voronoi, allows turning adaptive scheme off
         self.doAdaptiveVoronoi = check_bool(plugin_config.get('av_enabled', False))
+
         # sets maximim number of centers/voronoi bins
         self.max_centers = plugin_config.get('max_centers', 10)
+
         # sets number of walkers per bin/voronoi center
         self.walk_count = plugin_config.get('walk_count', 5)
+
         # center placement frequency in number of iterations
         self.center_freq = plugin_config.get('center_freq', 1)
+
         # priority of the plugin (allows for order of execution)
         self.priority = plugin_config.get('priority', 0)
+
         # sets the mode of the adaptive binning
         # maintain: maintains max_centers amount of bins, only does rebinning
         # this is the default mode and is what's described in the paper
         # additive: this keeps adding new bins up to max_centers
         self.mode = plugin_config.get('mode', 'maintain')
+
         # enables updates
         self.update = plugin_config.get('update', True)
+
         # pulls the distance function that will be used by the plugin
         self.dfunc = self.get_dfunc_method(plugin_config)
         # pulls a user defined function to build the next bin mapper
@@ -146,6 +153,7 @@ class AdaptiveVoronoiDriver:
     def update_bin_mapper(self):
         '''Update the bin_mapper using the current set of voronoi centers'''
 
+        # Print status
         westpa.rc.pstatus('westext.adaptvoronoi: Updating bin mapper\n')
         westpa.rc.pflush()
 
@@ -154,12 +162,12 @@ class AdaptiveVoronoiDriver:
             dfargs = getattr(self.system, 'dfargs', None)
             dfkwargs = getattr(self.system, 'dfkwargs', None)
             if self.mapper_func:
-                # The mapper should take in 1) distance function,
-                # 2) centers, 3) dfargs, 4) dfkwargs and return
-                # the mapper we want
+                # The mapper should take in 1) distance function, 2) centers, 3) dfargs,
+                # 4) dfkwargs and return the mapper we want
                 self.system.bin_mapper = self.mapper_func(self.dfunc, self.centers, dfargs=dfargs, dfkwargs=dfkwargs)
             else:
                 self.system.bin_mapper = VoronoiBinMapper(self.dfunc, self.centers, dfargs=dfargs, dfkwargs=dfkwargs)
+
             self.ncenters = self.system.bin_mapper.nbins
             new_target_counts = np.empty((self.ncenters,), np.int)
             new_target_counts[...] = self.walk_count
@@ -200,22 +208,26 @@ class AdaptiveVoronoiDriver:
             # now we re-center everything
             new_centers = []
             dist_centers = []
+
             # select a random configuration
             first_ind = np.random.randint(0, high=len(curr_pcoords))
+
             # this is our first configuration
             new_centers.append(curr_pcoords.pop(first_ind))
             dist_centers.append(curr_pcoords_2.pop(first_ind))
+
             # now we loop over the rest
             for next_ind in range(1, self.max_centers):
                 if len(curr_pcoords) < 1:
                     break
-                # we need to calculate distances to
-                # already chosen centers
+
+                # we need to calculate distances to already chosen centers
                 dists = np.zeros(len(curr_pcoords))
                 for iwalk, walk in enumerate(curr_pcoords_2):
                     dists[iwalk] = min(self.dfunc(walk, dist_centers))
                 # Find the maximum of the minimum distances
                 max_ind = np.where(dists == dists.max())[0][0]
+
                 # add new center
                 new_centers.append(curr_pcoords.pop(max_ind))
                 dist_centers.append(curr_pcoords_2.pop(max_ind))
@@ -223,20 +235,24 @@ class AdaptiveVoronoiDriver:
                 cycler = itt.cycle(new_centers)
                 new_centers = [next(cycler) for i in range(self.max_centers)]
             self.centers = np.array(new_centers)
+
             # import IPython;IPython.embed()
-            westpa.rc.pstatus(f'westext.adaptvoronoi: Voronoi centers updated.\n')
+            westpa.rc.pstatus('westext.adaptvoronoi: Voronoi centers updated.\n')
         elif self.mode == "additive":
             # Initialize distance array
             dists = np.zeros(curr_pcoords.shape[0])
+
             for iwalk, walk in enumerate(curr_pcoords):
                 # Calculate distances using the provided function
                 # and find the distance to the closest center
                 dists[iwalk] = min(self.dfunc(walk[-1], self.centers))
+
             # Find the maximum of the minimum distances
             max_ind = np.where(dists == dists.max())
+
             # Use the maximum progress coordinate as our next center
             self.centers = np.vstack((self.centers, curr_pcoords[max_ind[0][0]][-1]))
-            westpa.rc.pstatus(f'westext.adaptvoronoi: New voronoi center added.\n')
+            westpa.rc.pstatus('westext.adaptvoronoi: New voronoi center added.\n')
         else:
             westpa.rc.pstatus(f'westext.adaptvoronoi: Mode {self.mode} is not implemented.\n')
             westpa.rc.pflush()
