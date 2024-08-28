@@ -73,6 +73,9 @@ class AdaptiveVoronoiDriver:
         self.centers = self.get_initial_centers()
         self.ncenters = len(self.centers)
 
+        # Random number generator
+        self.rng = np.random.default_rng()
+
         # Update the BinMapper
         self.update_bin_mapper()
 
@@ -210,7 +213,7 @@ class AdaptiveVoronoiDriver:
             dist_centers = []
 
             # select a random configuration
-            first_ind = np.random.randint(0, high=len(curr_pcoords))
+            first_ind = self.rng.integers(0, high=len(curr_pcoords))
 
             # this is our first configuration
             new_centers.append(curr_pcoords.pop(first_ind))
