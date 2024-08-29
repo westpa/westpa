@@ -1,7 +1,7 @@
 import logging
 
 import numpy as np
-import itertools as itt
+import itertools
 
 import westpa
 from westpa.core import extloader
@@ -235,9 +235,9 @@ class AdaptiveVoronoiDriver:
                 new_centers.append(curr_pcoords.pop(max_ind))
                 dist_centers.append(curr_pcoords_2.pop(max_ind))
             if len(new_centers) < self.max_centers:
-                cycler = itt.cycle(new_centers)
-                new_centers = [next(cycler) for i in range(self.max_centers)]
-            self.centers = np.array(new_centers)
+                cycler = itertools.cycle(new_centers)
+                new_centers = list(itertools.islice(cycler, self.max_centers))
+            self.centers = np.asarray(new_centers)
 
             # import IPython;IPython.embed()
             westpa.rc.pstatus('westext.adaptvoronoi: Voronoi centers updated.\n')
