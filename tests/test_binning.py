@@ -577,6 +577,11 @@ def output_mab_reference():
     '''
     import matplotlib.pyplot as plt
 
+    try:
+        os.mkdir('mab_tests')
+    except FileExistsError:
+        pass
+
     input_data = gen_input_mab_data()
     with h5py.File(f'{REFERENCE_PATH}/mab_assignments_ref.h5', 'w') as f:
         # 2D Grid
@@ -624,7 +629,7 @@ def output_mab_reference():
             )
             plt.colorbar(label='Bin ID', ticks=range(int(np.max(output) + 1)))
             plt.title(f'nbins_per_dim={nbins_per_dim}, direction={direction},\n bottleneck={bottleneck}, skip={skip}')
-            plt.savefig(f'2d_grid_ref_result_{i}.png')
+            plt.savefig(f'mab_tests/2d_grid_ref_result_{i}.png')
             plt.clf()
 
         # 3D grid
@@ -690,6 +695,6 @@ def output_mab_reference():
             )
             plt.colorbar(label='Bin ID', ticks=range(int(np.max(output) + 1)))
             plt.title(f'nbins_per_dim={nbins_per_dim}, direction={direction},\n bottleneck={bottleneck}, skip={skip}')
-            plt.savefig(f'2d_gauss_ref_result_{i}.png')
+            plt.savefig(f'mab_tests/2d_gauss_ref_result_{i}.png')
             plt.clf()
     print("Reference data generated and saved to file.")
