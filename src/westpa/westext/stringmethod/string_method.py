@@ -1,6 +1,10 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
-from collections import Iterable
 import logging
+
+try:
+    from collections.abc import Iterable
+except ImportError:
+    from collections import Iterable
 
 import numpy as np
 
