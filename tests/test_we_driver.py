@@ -101,7 +101,7 @@ class TestWEDriver(TestCase):
                 assert segment.status == Segment.SEG_STATUS_PREPARED
 
     # this test will fail up to alpha of the time
-    @pytest.mark.flaky(reruns=3, only_rerun="AssertionError")
+    @pytest.mark.flaky(reruns=5, only_rerun="AssertionError")
     def test_merge_by_weight(self):
         selected_counts = {0: 0, 1: 0}
         alpha = 0.01

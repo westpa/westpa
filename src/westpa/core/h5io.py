@@ -9,14 +9,15 @@ import socket
 import sys
 import time
 import logging
+import warnings
 
 import h5py
 import numpy as np
 from numpy import index_exp
+from tables import NaturalNameWarning
 
 from mdtraj import Trajectory, join as join_traj
 from mdtraj.utils import in_units_of, import_, ensure_type
-from mdtraj.utils.six import string_types
 from mdtraj.formats import HDF5TrajectoryFile
 from mdtraj.formats.hdf5 import _check_mode, Frames
 
@@ -28,6 +29,7 @@ except ImportError:
     psutil = None
 
 log = logging.getLogger(__name__)
+warnings.filterwarnings('ignore', category=NaturalNameWarning)
 
 #
 # Constants and globals
@@ -551,7 +553,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
                 node = self._get_node(where='/', name=name)
                 data = get_item(node, slice)
                 in_units = node.attrs.units
-                if not isinstance(in_units, string_types):
+                if not isinstance(in_units, str):
                     in_units = in_units.decode()
                 data = in_units_of(data, in_units, out_units)
                 return data

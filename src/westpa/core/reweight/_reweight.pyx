@@ -4,40 +4,38 @@
 
 from __future__ import print_function,division
 import cython
-import numpy
 import numpy as np
 import h5py
 from scipy.sparse import csgraph
 import warnings
 from collections import Counter
-cimport numpy
 cimport numpy as np
 cimport scipy.linalg
 cimport scipy.linalg.cython_lapack as cl
 import scipy.linalg
 from libc.math cimport isnan
 
-ctypedef numpy.uint16_t index_t
-ctypedef numpy.float64_t weight_t
-ctypedef numpy.uint8_t bool_t
-ctypedef numpy.int64_t trans_t
-ctypedef numpy.uint_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
+ctypedef np.uint16_t index_t
+ctypedef np.float64_t weight_t
+ctypedef np.uint8_t bool_t
+ctypedef np.int64_t trans_t
+ctypedef np.uint_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
 ctypedef unsigned short Ushort
 ctypedef double complex Cdouble
 
-weight_dtype = numpy.float64
-index_dtype = numpy.uint16
-bool_dtype = numpy.bool_
-intc_dtype = numpy.intc
+weight_dtype = np.float64
+index_dtype = np.uint16
+bool_dtype = np.bool_
+intc_dtype = np.intc
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
-                    numpy.ndarray[weight_t, ndim=1] weights,
-                    numpy.ndarray[weight_t, ndim=2] fluxes,
-                    numpy.ndarray[weight_t, ndim=1] populations,
-                    numpy.ndarray[trans_t, ndim=2] trans,
-                    numpy.ndarray[index_t, ndim=2] mask,
+cpdef stats_process(np.ndarray[index_t, ndim=2] bin_assignments,
+                    np.ndarray[weight_t, ndim=1] weights,
+                    np.ndarray[weight_t, ndim=2] fluxes,
+                    np.ndarray[weight_t, ndim=1] populations,
+                    np.ndarray[trans_t, ndim=2] trans,
+                    np.ndarray[index_t, ndim=2] mask,
                     str interval='timepoint'                        ):
     cdef:
         Py_ssize_t i,k

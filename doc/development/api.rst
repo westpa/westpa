@@ -14,8 +14,3 @@ YAMLCFG
 RC
 ##
 .. autoclass:: westpa.core._rc.WESTRC
-
-WESTPA Tools 
-============
-
-.. automodule:: westpa.westtools

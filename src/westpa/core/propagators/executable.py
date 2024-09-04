@@ -52,7 +52,7 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
             pcoord.shape = expected_shape
     if pcoord.shape != expected_shape:
         raise ValueError(
-            'progress coordinate data has incorrect shape {!r} [expected {!r}] Check pcoord.err or seg_logs for more information.'.format(
+            'progress coordinate data has incorrect shape {!r} [expected {!r}] Check the get_pcoord stderr or seg_logs for more information.'.format(
                 pcoord.shape, expected_shape
             )
         )
@@ -278,7 +278,7 @@ class ExecutablePropagator(WESTPropagator):
         self.data_info['log'] = {'name': 'seglog', 'loader': seglog_loader, 'enabled': store_h5, 'filename': None, 'dir': False}
 
         # Grab config from west.executable.datasets, else fallback to west.data.datasets.
-        dataset_configs = config.get(["west", "executable", "datasets"], config.get(['west', 'data', 'datasets'], {}))
+        dataset_configs = config.get(["west", "executable", "datasets"]) or config.get(['west', 'data', 'datasets'], {})
         for dsinfo in dataset_configs:
             try:
                 dsname = dsinfo['name']

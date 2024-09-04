@@ -12,6 +12,7 @@ from westpa.core.binning.assign import (
     RecursiveBinMapper,
 )
 from westpa.core.binning.assign import coord_dtype
+from westpa.core.binning.mab import MABBinMapper
 
 
 class TestRectilinearBinMapper:
@@ -324,3 +325,13 @@ class TestNestingBinMapper:
         print('EXPECTED', expected)
         print('OUTPUT  ', assignments)
         assert (assignments == expected).all()
+
+
+class TestMABBinMapper:
+    def test_init(self):
+        mab = MABBinMapper([5])
+        assert mab.nbins == 9
+
+    def test_determine_total_bins(self):
+        mab = MABBinMapper([5])
+        assert mab.determine_total_bins(nbins_per_dim=[5, 1], direction=[1, 86], skip=[0, 0], bottleneck=True) == 9
