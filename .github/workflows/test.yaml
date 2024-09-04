@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.11
       - name: Linting
@@ -35,9 +35,9 @@ jobs:
     continue-on-error: ${{ matrix.continue_bool }}
     strategy:
       matrix:
-        os: ["ubuntu-latest", "macos-latest"]
+        os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
         continue_bool: [True]
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
     - uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
         ulimit -a
 
     # More info on options: https://github.com/conda-incubator/setup-miniconda
-    - uses: conda-incubator/setup-miniconda@v2
+    - uses: conda-incubator/setup-miniconda@v3
       with:
         python-version: ${{ matrix.python-version }}
         miniforge-variant: Mambaforge
@@ -78,27 +78,33 @@ jobs:
         pytest -n 2 -v --cov=westpa --cov-report=xml --color=yes tests
 
     - name: CodeCov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
         name: codecov-{{ '${{ matrix.os }}' }}-py{{ '${{ matrix.python-version }}' }}
         fail_ci_if_error: false
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   install-dev:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "macos-latest"]
+        os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
 
     name: "Verify dev env"
     runs-on: "${{ matrix.os }}"
 
     steps:
       - uses: "actions/checkout@v4"
-      - uses: "actions/setup-python@v4"
+      - uses: "actions/setup-python@v5"
         with:
           python-version: "3.11"
+      - name: "Install HDF5 with brew if macos-arm64"
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: "brew install hdf5"
       - name: "Install in dev mode"
         run: "python -m pip install -e .[dev]"
       - name: "Import package"
         run: "python -c 'import westpa; print(westpa.__version__)'"
+

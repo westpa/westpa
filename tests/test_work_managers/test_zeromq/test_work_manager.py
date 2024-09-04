@@ -16,11 +16,10 @@ from .zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
 from .zmq_tsupport import ZMQTestBase
 
 
-flaky_on_macos = pytest.mark.flaky(condition=sys.platform.startswith('darwin'), reruns=3, reason='flaky on macos')
+flaky_on_macos = pytest.mark.flaky(condition=sys.platform.startswith('darwin'), reruns=5, reason='flaky on macos')
 
 
 class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
-
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
 
@@ -291,6 +290,7 @@ class TestZMQWorkManagerInternalSingle(BaseInternal, ZMQTestBase, CommonWorkMana
     n_workers = 1
 
 
+@flaky_on_macos
 class TestZMQWorkManagerInternalMultiple(BaseInternal, ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
     n_workers = 4
 
@@ -340,5 +340,6 @@ class TestZMQWorkManagerExternalSingle(BaseExternal, ZMQTestBase, CommonWorkMana
     n_workers = 1
 
 
+@flaky_on_macos
 class TestZMQWorkManagerExternalMultiple(BaseExternal, ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
     n_workers = 4

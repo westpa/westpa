@@ -159,13 +159,6 @@ Command-line options
             except ValueError:
                 self.total_walkers[:] += west['summary'][:-1]['n_particles'][: len(self.total_walkers)]
 
-    class Segment:
-        def __init__(self, weight=0, iteration=0, simid=0, recycled_in=0):
-            self.weight = weight
-            self.iteration = iteration
-            self.simid = simid
-            self.recycled_in = recycled_in
-
     def go(self):
         pi = self.progress.indicator
         self.istates = True  # Assume serendipitously istates is same between runs...
@@ -174,7 +167,11 @@ Command-line options
             self.open_files()
             self.total_number_of_walkers()
             if self.auxall is True:
-                self.aux = list(self.westH5[1]['iterations/iter_00000001/auxdata'].keys())
+                try:
+                    self.aux = list(self.westH5[1]['iterations/iter_00000001/auxdata'].keys())
+                except KeyError:
+                    self.aux = None
+                    log.warning('No auxdata. Proceeding forward without merging auxdata.')
             # Create a giant WEST.h5 file, separating the individual walkers, and renormalizing the weights.
             # It should then be compatible with existing toolsets.
             # Isn't really going to start with auxdata, but we'll add it in.
@@ -240,7 +237,7 @@ Command-line options
                 self.futr_iter[i] = []
                 self.past_rm[i] = []
                 self.futr_rm[i] = []
-            print(pi.new_operation('Recreating...', self.niters))
+            pi.new_operation('Recreating...', self.niters)
             # tracker = SummaryTracker()
             # self.output_file.close()
 
@@ -262,11 +259,19 @@ Command-line options
                         if addition.dtype != istate_dtype:
                             addition = create_idtype_array(addition)
                         final_istate_index = np.append(final_istate_index, addition)
-                        final_istate_pcoord = np.append(final_istate_pcoord, west['ibstates/0/istate_pcoord'][:])
+                        final_istate_pcoord = np.append(final_istate_pcoord, west['ibstates/0/istate_pcoord'][:], axis=0)
 
                 # Saving them into self.output_file
                 self.output_file['ibstates/0'].create_dataset('istate_index', data=final_istate_index, dtype=istate_dtype)
                 self.output_file['ibstates/0'].create_dataset('istate_pcoord', data=final_istate_pcoord)
+
+                # Remaking the ibstates index link
+                master_index_row = self.output_file['ibstates/index'][0]
+                master_index_row['iter_valid'] = 0
+                master_index_row['n_bstates'] = len(self.output_file['ibstates/0/bstate_index'])
+                master_index_row['group_ref'] = self.output_file['ibstates/0'].ref
+
+                self.output_file['ibstates/index'][0] = master_index_row
 
             for iter in range(self.niters):
                 # We have the following datasets in each iteration:

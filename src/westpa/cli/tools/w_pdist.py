@@ -423,7 +423,10 @@ Command-line options
             lb, ub = self.data_range[idim]
             # Advance just beyond the upper bound of the range, so that we catch
             # the maximum in the histogram
-            ub *= 1.01
+            if ub > 0:
+                ub *= 1.01
+            else:
+                ub /= 1.01
 
             boundset = np.linspace(lb, ub, bins + 1)
             midpoints = (boundset[:-1] + boundset[1:]) / 2.0
@@ -440,7 +443,10 @@ Command-line options
             lb, ub = self.data_range[idim]
             # Advance just beyond the upper bound of the range, so that we catch
             # the maximum in the histogram
-            ub *= 1.01
+            if ub > 0:
+                ub *= 1.01
+            else:
+                ub /= 1.01
 
             boundset = np.linspace(lb, ub, bins[idim] + 1)
             midpoints = (boundset[:-1] + boundset[1:]) / 2.0

@@ -1,12 +1,12 @@
-from datetime import timedelta
-from itertools import zip_longest
 import logging
 import math
 import operator
-from pickle import PickleError
 import random
 import time
-
+from datetime import timedelta
+from pickle import PickleError
+from itertools import zip_longest
+from collections import Counter
 
 import numpy as np
 
@@ -114,28 +114,40 @@ class WESimManager:
         #   handles specifically the problem that causes in plugin loading.
         try:
             # Before checking for set membership of (priority, function.__name__, function), just check
-            #   function names for collisions in this hook.
-            hook_function_names = [callback[1] for callback in self._callback_table[hook]]
+            #   function hash for collisions in this hook.
+            hook_function_hash = [hash(callback[2]) for callback in self._callback_table[hook]]
         except KeyError:
             # If there's no entry in self._callback_table for this hook, then there definitely aren't any collisions
             #   because no plugins are registered to it yet in the first place.
             pass
         else:
-            # If there are plugins registered to this hook, check for duplicate names.
-            if function.__name__ in hook_function_names:
-                log.debug("This plugin has already been loaded, skipping")
-                return
+            # If there are plugins registered to this hook, check for duplicate hash, which will definitely have the same name, module, function.
+            try:
+                if hash(function) in hook_function_hash:
+                    log.info('{!r} has already been loaded, skipping'.format(function))
+                    return
+            except KeyError:
+                pass
 
         try:
             self._callback_table[hook].add((priority, function.__name__, function))
         except KeyError:
             self._callback_table[hook] = set([(priority, function.__name__, function)])
 
+        # Raise warning if there are multiple callback with same priority.
+        for priority, count in Counter([callback[0] for callback in self._callback_table[hook]]).items():
+            if count > 1:
+                log.warning(
+                    f'{count} callbacks in {hook} have identical priority {priority}. The order of callback execution is not guaranteed.'
+                )
+                log.warning(f'{hook}: {self._callback_table[hook]}')
+
         log.debug('registered callback {!r} for hook {!r}'.format(function, hook))
 
     def invoke_callbacks(self, hook, *args, **kwargs):
         callbacks = self._callback_table.get(hook, [])
-        sorted_callbacks = sorted(callbacks)
+        # Sort by priority, function name, then module name
+        sorted_callbacks = sorted(callbacks, key=lambda x: (x[0], x[1], x[2].__module__))
         for priority, name, fn in sorted_callbacks:
             log.debug('invoking callback {!r} for hook {!r}'.format(fn, hook))
             fn(*args, **kwargs)
@@ -404,7 +416,7 @@ class WESimManager:
         )
 
         total_prob = float(sum(segment.weight for segment in segments))
-        pstatus(f'1-prob: {1-total_prob:.4e}')
+        pstatus(f'1-prob: {1 - total_prob:.4e}')
 
         target_counts = self.we_driver.bin_target_counts
         # Do not include bins with target count zero (e.g. sinks, never-filled bins) in the (non)empty bins statistics
