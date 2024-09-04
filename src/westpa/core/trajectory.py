@@ -294,6 +294,7 @@ def load_trajectory(folder):
     '''
     traj_file = top_file = None
     file_list = [f_name for f_name in os.listdir(folder) if not f_name.startswith('.')]
+
     for filename in file_list:
         filepath = os.path.join(folder, filename)
         if not os.path.isfile(filepath):
