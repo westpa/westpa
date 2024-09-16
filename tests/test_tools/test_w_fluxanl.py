@@ -3,6 +3,7 @@ import pytest
 import h5py
 import numpy
 
+from common import flaky_on_macos
 from westpa.cli.tools.w_fluxanl import WFluxanlTool
 
 
@@ -90,6 +91,7 @@ class Test_W_FLUXANL_NEW:
 class Test_W_Fluxanl_System:
     '''System level tests for w_fluxanl'''
 
+    @flaky_on_macos
     def test_alpha(self, ref_50iter):
         '''Confidence interval size decreases as alpha increases'''
 
