@@ -1,9 +1,8 @@
 import pytest
 import os
 import glob
-
-from shutil import copyfile, copy
 import tempfile
+from shutil import copyfile, copy
 
 import westpa
 
@@ -22,6 +21,12 @@ STARTING_PATH = os.getcwd()
 def copy_ref(dest_dir):
     for filename in glob.glob(os.path.join(REFERENCE_PATH, '*.*')):
         copy(filename, dest_dir)
+
+
+def clear_state():
+    os.chdir(STARTING_PATH)
+    del os.environ['WEST_SIM_ROOT']
+    westpa.rc = westpa.core._rc.WESTRC()
 
 
 @pytest.fixture
@@ -224,9 +229,3 @@ def ref_executable(request, tmpdir):
     westpa.rc = westpa.core._rc.WESTRC()
 
     request.addfinalizer(clear_state)
-
-
-def clear_state():
-    os.chdir(STARTING_PATH)
-    del os.environ['WEST_SIM_ROOT']
-    westpa.rc = westpa.core._rc.WESTRC()
