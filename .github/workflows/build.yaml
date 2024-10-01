@@ -36,7 +36,7 @@ jobs:
         run: "brew install hdf5"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
+        uses: pypa/cibuildwheel@v2.21.1
         env:
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
