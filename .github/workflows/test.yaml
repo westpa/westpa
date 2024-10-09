@@ -55,7 +55,6 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v3
       with:
         python-version: ${{ matrix.python-version }}
-        miniforge-variant: Mambaforge
         environment-file: devtools/conda-envs/test_env.yaml
         activate-environment: test_env
         channel-priority: true
