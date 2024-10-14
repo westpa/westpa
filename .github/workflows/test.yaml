@@ -36,7 +36,6 @@ jobs:
       matrix:
         os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-
     steps:
     - uses: actions/checkout@v4
       with: 
