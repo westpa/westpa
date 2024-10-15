@@ -1,6 +1,5 @@
 import logging
 from argparse import ArgumentParser
-import numpy as np
 
 import westpa
 
@@ -53,13 +52,6 @@ def entry_point():
 
     for i in range(n_iter, dm.current_iteration + 1):
         dm.del_iter_group(i)
-
-    # check if there has been WESS reweighting, and if so, truncate
-    if 'wess' in dm.we_h5file:
-        reweighting_history = np.array(dm.we_h5file['wess'])
-        reweighting_history = reweighting_history[reweighting_history < n_iter]
-        dm.we_h5file['wess'].resize((reweighting_history.size), axis=0)
-        dm.we_h5file['wess'][:] = reweighting_history
 
     dm.del_iter_summary(n_iter)
     dm.current_iteration = n_iter - 1

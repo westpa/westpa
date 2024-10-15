@@ -114,6 +114,12 @@ class WESSDriver:
             wess_global_group = self.data_manager.we_h5file.require_dataset('wess', (1,), maxshape=(None,), dtype=int)
             last_reweighting = int(wess_global_group[-1])
 
+        if last_reweighting > n_iter:
+            reweighting_history = np.array(wess_global_group)
+            reweighting_history = reweighting_history[reweighting_history < n_iter]
+            wess_global_group.resize((reweighting_history.size), axis=0)
+            wess_global_group[:] = reweighting_history
+
         if n_iter - last_reweighting < self.reweight_period:
             # Not time to reweight yet
             log.debug('not reweighting')
