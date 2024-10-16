@@ -101,7 +101,7 @@ class WEEDDriver:
             last_reweighting = int(weed_global_group.attrs.get('last_reweighting', 0))
             if last_reweighting > n_iter:
                 last_reweighting = n_iter - 1
-                reweighting_history = np.array(reweighting_history_dataset)
+                reweighting_history = reweighting_history_dataset[:]
                 reweighting_history = reweighting_history[reweighting_history < n_iter]
                 reweighting_history_dataset.resize((reweighting_history.size), axis=0)
 
