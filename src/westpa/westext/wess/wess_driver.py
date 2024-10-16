@@ -111,14 +111,16 @@ class WESSDriver:
             return
 
         with self.data_manager.lock:
-            wess_global_group = self.data_manager.we_h5file.require_dataset('wess', (1,), maxshape=(None,), dtype=int)
-            last_reweighting = int(wess_global_group[-1])
-
-        if last_reweighting > n_iter:
-            reweighting_history = np.array(wess_global_group)
-            reweighting_history = reweighting_history[reweighting_history < n_iter]
-            wess_global_group.resize((reweighting_history.size), axis=0)
-            wess_global_group[:] = reweighting_history
+            wess_global_group = self.data_manager.we_h5file.require_group('wess')
+            reweighting_history_dataset = wess_global_group.require_dataset(
+                'reweighting_history', (1,), maxshape=(None,), dtype=int
+            )
+            last_reweighting = int(wess_global_group.attrs.get('last_reweighting', 0))
+            if last_reweighting > n_iter:
+                last_reweighting = n_iter - 1
+                reweighting_history = np.array(reweighting_history_dataset)
+                reweighting_history = reweighting_history[reweighting_history < n_iter]
+                reweighting_history_dataset.resize((reweighting_history.size), axis=0)
 
         if n_iter - last_reweighting < self.reweight_period:
             # Not time to reweight yet
@@ -203,8 +205,9 @@ class WESSDriver:
                 if len(bin):
                     bin.reweight(newprob)
 
-            wess_global_group.resize((wess_global_group.shape[0] + 1), axis=0)
-            wess_global_group[-1] = n_iter
+            reweighting_history_dataset.resize((reweighting_history_dataset.shape[0] + 1), axis=0)
+            reweighting_history_dataset[-1] = n_iter
+            wess_global_group.attrs['last_reweighting'] = n_iter
 
         assert (
             abs(1 - np.fromiter(map(operator.attrgetter('weight'), bins), dtype=np.float64, count=n_bins).sum())
