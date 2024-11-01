@@ -3,13 +3,15 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.12
+  - python
   - cython
   - numpy
   - scipy
   - h5py
   - pyyaml
   - pyzmq
+  - pytables
+  - mdtraj
   - matplotlib-base
   - blessings
   - ipykernel
