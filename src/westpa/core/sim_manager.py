@@ -229,7 +229,9 @@ class WESimManager:
 
     def get_bstate_pcoords(self, basis_states, label='basis'):
         '''For each of the given ``basis_states``, calculate progress coordinate values
-        as necessary.  The HDF5 file is not updated.'''
+        as necessary.  The HDF5 file is not updated. The BasisState objects are explicitly
+        copied from the futures in order to retain auxdata/restart files (under BasisState.data)
+        from certain work managers (e.g., the ``processes`` work manager.)'''
 
         self.rc.pstatus('Calculating progress coordinate values for {} states.'.format(label))
         futures = [self.work_manager.submit(wm_ops.get_pcoord, args=(basis_state,)) for basis_state in basis_states]
