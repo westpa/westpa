@@ -153,3 +153,19 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
           # To test: 
           #repository_url: https://test.pypi.org/legacy/
+
+  update-tags:
+    name: Update develop branch tags
+    needs: [upload_pypi]
+    runs-on: ubuntu-latest
+    # Assuming that since it has sucessfully uploaded to PyPI, this release is safe.
+    # We will now automatically update the tags for develop.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: pulling tags
+        run: |
+          git checkout develop
+          git pull --tags origin westpa2
+          git push origin develop --tags
