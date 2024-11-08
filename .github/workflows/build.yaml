@@ -169,3 +169,5 @@ jobs:
           git checkout develop
           git pull --tags origin westpa2
           git push origin develop --tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
