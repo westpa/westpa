@@ -10,6 +10,8 @@ dependencies:
   - h5py
   - pyyaml
   - pyzmq
+  - pytables
+  - mdtraj
   - matplotlib-base
   - blessings
   - ipykernel
