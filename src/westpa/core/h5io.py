@@ -722,6 +722,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
                 createparents=True,
             )
 
+        # SOMETHING IS WRONG HERE, IT"S NOT SAVING THE WHOLE THING
         if slog is not None:
             if self._has_node('/log', str(segment.seg_id)):
                 self._remove_node('/log', name=str(segment.seg_id), recursive=True)

@@ -30,7 +30,7 @@ SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) if name.star
 
 
 def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
-    """Read progress coordinate data into the ``pcoord`` field on ``destobj``.
+    """Read progress coordinate data into the ``pcoord`` field on ``destobj``
     An exception will be raised if the data is malformed.  If ``single_point`` is true,
     then only one (N-dimensional) point will be read, otherwise system.pcoord_len points
     will be read.
@@ -59,26 +59,34 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
     destobj.pcoord = pcoord
 
 
-def aux_data_loader(fieldname, data_filename, segment, single_point):
+def aux_data_loader(fieldname, data_filename, state, single_point):
+    '''Default data loader for loading auxdata as text files. ``state`` is the
+    ``Segment``, ``BasisState``, or ``InitialState`` object that the data is
+    associated with.'''
     data = np.loadtxt(data_filename)
-    segment.data[fieldname] = data
+    state.data[fieldname] = np.atleast_1d(data)
     if data.nbytes == 0:
         raise ValueError('could not read any data for {}'.format(fieldname))
 
 
-def npy_data_loader(fieldname, coord_file, segment, single_point):
+def npy_data_loader(fieldname, coord_file, state, single_point):
+    '''Optional data loader for loading ``.npy`` or ``pickle`` objects. ``state`` is
+    the ``Segment``, ``BasisState``, or ``InitialState`` object that the data is
+    associated with.'''
     log.debug('using npy_data_loader')
     data = np.load(coord_file, allow_pickle=True)
-    segment.data[fieldname] = data
+    state.data[fieldname] = data
     if data.nbytes == 0:
         raise ValueError('could not read any data for {}'.format(fieldname))
 
 
-def pickle_data_loader(fieldname, coord_file, segment, single_point):
+def pickle_data_loader(fieldname, coord_file, state, single_point):
+    '''Optional data loader for loading pickle objects. ``state`` is the ``Segment``,
+    ``BasisState``, or ``InitialState`` object that the data is associated with.'''
     log.debug('using pickle_data_loader')
     with open(coord_file, 'rb') as fo:
         data = pickle.load(fo)
-    segment.data[fieldname] = data
+    state.data[fieldname] = data
     if data.nbytes == 0:
         raise ValueError('could not read any data for {}'.format(fieldname))
 
@@ -309,6 +317,12 @@ class ExecutablePropagator(WESTPropagator):
                 dsinfo['loader'] = loader
             self.data_info.setdefault(dsname, {}).update(dsinfo)
 
+        # For auxdata in ibstates.
+        self.ibsubset_keys = ['pcoord', 'trajectory', 'restart', 'log']
+        self.ibsubset_keys += [
+            ds for ds in self.data_info if (self.data_info[ds].get('enabled', False) and self.data_info[ds].get('ibstates', False))
+        ]
+
         log.debug('data_info: {!r}'.format(self.data_info))
 
     @staticmethod
@@ -479,6 +493,54 @@ class ExecutablePropagator(WESTPropagator):
         environ[self.ENV_CURRENT_SEG_DATA_REF] = self.makepath(self.segment_ref_template, template_args)
         return template_args, environ
 
+    def update_args_env_istate(self, template_args, environ, state):
+        template_args['istate'] = state
+
+        # This segment is initiated from a basis state; WEST_PARENT_SEG_ID and WEST_PARENT_DATA_REF are
+        # set to the basis state ID and data ref
+        initial_state = state
+
+        if initial_state.istate_type == InitialState.ISTATE_TYPE_START:
+            basis_state = BasisState(
+                label=f"sstate_{initial_state.state_id}", pcoord=initial_state.pcoord, probability=0.0, auxref=""
+            )
+
+        else:
+            basis_state = self.basis_states[initial_state.basis_state_id]
+
+        if self.ENV_BSTATE_ID not in environ:
+            self.update_args_env_basis_state(template_args, environ, basis_state)
+        if self.ENV_ISTATE_ID not in environ:
+            self.update_args_env_initial_state(template_args, environ, initial_state)
+
+        assert initial_state.istate_type in (
+            InitialState.ISTATE_TYPE_BASIS,
+            InitialState.ISTATE_TYPE_GENERATED,
+            InitialState.ISTATE_TYPE_START,
+        )
+        if initial_state.istate_type == InitialState.ISTATE_TYPE_BASIS:
+            environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
+
+        elif initial_state.istate_type == InitialState.ISTATE_TYPE_START:
+            # This points to the start-state PDB
+            environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF] + '/' + initial_state.basis_auxref
+        else:  # initial_state.type == InitialState.ISTATE_TYPE_GENERATED
+            environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
+
+        # environ[self.ENV_CURRENT_SEG_ID] = str(segment.seg_id if state.basis_state_id is not None else -1)
+        # environ[self.ENV_CURRENT_SEG_DATA_REF] = self.makepath(self.segment_ref_template, template_args)
+        return template_args, environ
+
+    def update_args_env_bstate(self, template_args, environ, state):
+        template_args['bstate'] = state
+
+        basis_state = self.basis_states[state.basis_state_id]
+
+        if self.ENV_BSTATE_ID not in environ:
+            self.update_args_env_basis_state(template_args, environ, basis_state)
+
+        return template_args, environ
+
     def template_args_for_segment(self, segment):
         template_args, environ = {}, {}
         self.update_args_env_iter(template_args, environ, segment.n_iter)
@@ -495,6 +557,20 @@ class ExecutablePropagator(WESTPropagator):
         self.prepare_file_system(segment, environ)
         child_info['cwd'] = environ[self.ENV_CURRENT_SEG_DATA_REF]
         return self.exec_child_from_child_info(child_info, template_args, environ)
+
+    def template_args_for_istates(self, state):
+        '''Create necessary environmental variables for istates'''
+        template_args, environ = {}, {}
+        self.update_args_env_iter(template_args, environ, state.iter_used)
+        self.update_args_env_istate(template_args, environ, state)
+        return template_args
+
+    def template_args_for_bstates(self, state):
+        '''Create necessary environmental variables for istates'''
+        template_args, environ = {}, {}
+        self.update_args_env_iter(template_args, environ, 0)
+        self.update_args_env_bstate(template_args, environ, state)
+        return template_args
 
     def exec_for_iteration(self, child_info, n_iter, addtl_env=None):
         '''Execute a child process with environment and template expansion from the given
@@ -531,11 +607,12 @@ class ExecutablePropagator(WESTPropagator):
         if self.data_info['restart']['enabled']:
             restart_writer(environ[self.ENV_CURRENT_SEG_DATA_REF], segment=segment)
 
-    def setup_dataset_return(self, segment=None, subset_keys=None):
-        '''Set up temporary files and environment variables that point to them for segment
-        runners to return data. ``segment`` is the ``Segment`` object that the return data
-        is associated with. ``subset_keys`` specifies the names of a subset of data to be
-        returned.'''
+    def setup_dataset_return(self, state=None, subset_keys=None):
+        '''Set up temporary files and environment variables that point to them for state
+        runners to return data. ``state`` is the ``Segment``, ``BasisState``, or ``TargetState``
+        object that the return data is associated with. ``subset_keys`` specifies the names
+        of a subset of data to be returned.'''
+
         if subset_keys is None:
             subset_keys = self.data_info.keys()
 
@@ -552,9 +629,15 @@ class ExecutablePropagator(WESTPropagator):
 
             return_template = self.data_info[dataset].get('filename')
             if return_template:
-                if segment is None:
-                    raise ValueError('segment needs to be provided for dataset return')
-                return_files[dataset] = self.makepath(return_template, self.template_args_for_segment(segment))
+                if state is None:
+                    raise ValueError('{} needs to be provided for dataset return'.format(return_state_type(state)[0]))
+                elif isinstance(state, Segment):
+                    return_files[dataset] = self.makepath(return_template, self.template_args_for_segment(state))
+                elif isinstance(state, BasisState):  # case when bstate
+                    return_files[dataset] = self.makepath(return_template, self.template_args_for_bstates(state))
+                elif isinstance(state, InitialState):  # case for istate
+                    return_files[dataset] = self.makepath(return_template, self.template_args_for_istates(state))
+
                 del_return_files[dataset] = False
             else:
                 isdir = self.data_info[dataset].get('dir', False)
@@ -590,6 +673,7 @@ class ExecutablePropagator(WESTPropagator):
 
             filename = return_files[dataset]
             loader = self.data_info[dataset]['loader']
+
             try:
                 loader(dataset, filename, state, single_point=single_point)
             except Exception as e:
@@ -629,9 +713,7 @@ class ExecutablePropagator(WESTPropagator):
             raise TypeError('state must be a BasisState or InitialState')
 
         child_info = self.exe_info.get('get_pcoord')
-        addtl_env, return_files, del_return_files = self.setup_dataset_return(
-            subset_keys=['pcoord', 'trajectory', 'restart', 'log']
-        )
+        addtl_env, return_files, del_return_files = self.setup_dataset_return(subset_keys=self.ibsubset_keys)
         addtl_env[self.ENV_STRUCT_DATA_REF] = struct_ref
 
         rc, rusage = execfn(child_info, state, addtl_env)

@@ -2,6 +2,10 @@ import numpy as np
 
 from westpa.core.segment import Segment
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 class BasisState:
     '''Describes an basis (micro)state. These basis states are used to generate
@@ -19,13 +23,13 @@ class BasisState:
                         with this state (usually a filesystem path).
     '''
 
-    def __init__(self, label, probability, pcoord=None, auxref=None, state_id=None):
+    def __init__(self, label, probability, pcoord=None, auxref=None, state_id=None, data={}):
         self.label = str(label, encoding="UTF-8") if type(label) is bytes else label
         self.probability = probability
         self.pcoord = np.atleast_1d(pcoord)
         self.auxref = auxref
         self.state_id = state_id
-        self.data = {}
+        self.data = data
 
     def __repr__(self):
         return '{} state_id={self.state_id!r} label={self.label!r} prob={self.probability!r} pcoord={self.pcoord!r}>'.format(
@@ -188,6 +192,7 @@ class InitialState:
         pcoord=None,
         basis_state=None,
         basis_auxref=None,
+        data={},
     ):
         self.state_id = state_id
         self.basis_state_id = basis_state_id
@@ -198,7 +203,7 @@ class InitialState:
         self.iter_used = iter_used
         self.pcoord = np.atleast_1d(pcoord)
         self.basis_auxref = basis_auxref
-        self.data = {}
+        self.data = data
 
     def __repr__(self):
         return '{} state_id={self.state_id!r} istate_type={self.istate_type!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r} pcoord={self.pcoord!r}>'.format(
@@ -351,9 +356,7 @@ def return_state_type(state_obj):
 
     if isinstance(state_obj, Segment):
         return type(state_obj).__name__, state_obj.seg_id
-    elif isinstance(state_obj, InitialState):
-        return type(state_obj).__name__, state_obj.state_id
-    elif isinstance(state_obj, BasisState):
+    elif isinstance(state_obj, (InitialState, BasisState)):
         return type(state_obj).__name__, state_obj.state_id
     else:
         return 'Unknown', float('inf')

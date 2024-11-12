@@ -24,6 +24,8 @@ determine how to access data even as the file format (i.e. organization of data 
 evolves.
 
 Version history:
+    Version 10
+        - Auxdata can now be saved for Initial and Basis States.
     Version 9
         - Basis states are now saved as iter_segid instead of just segid as a pointer label.
         - Initial states are also saved in the iteration 0 file, with a negative sign.
@@ -52,12 +54,12 @@ from operator import attrgetter
 from os.path import relpath, dirname
 
 import h5py
-from h5py import h5s
+from h5py import h5s, ExternalLink
 import numpy as np
 
 from . import h5io
 from .segment import Segment
-from .states import BasisState, TargetState, InitialState
+from .states import BasisState, TargetState, InitialState, return_state_type
 from .we_driver import NewWeightEntry
 from .propagators.executable import ExecutablePropagator
 
@@ -66,7 +68,7 @@ import westpa
 
 log = logging.getLogger(__name__)
 
-file_format_version = 9
+file_format_version = 10
 
 makepath = ExecutablePropagator.makepath
 
@@ -178,7 +180,7 @@ istate_dtype = np.dtype(
         ('basis_state_id', seg_id_dtype),  # Which basis state this state was generated from
         ('istate_type', istate_type_dtype),  # What type this initial state is (generated or basis)
         ('istate_status', istate_status_dtype),  # Whether this initial state is ready to go
-        ('basis_auxref', vstr_dtype),
+        ('basis_auxref', vstr_dtype),  # Used for start states, which are not saved as bstates
     ]
 )
 
@@ -202,6 +204,9 @@ nw_index_dtype = np.dtype(
 
 # Storage of bin identities
 binning_index_dtype = np.dtype([('hash', binhash_dtype), ('pickle_len', np.uint32)])
+
+# Auxdata path_prefix
+path_prefix = {'segment': 'auxdata', 'istate': 'istate_auxdata', 'bstate': 'bstate_auxdata'}
 
 
 class WESTDataManager:
@@ -253,11 +258,18 @@ class WESTDataManager:
         # Process dataset options
         dsopts_list = config.get(['west', 'data', 'datasets']) or []
         for dsopts in dsopts_list:
-            dsopts = normalize_dataset_options(dsopts, path_prefix='auxdata' if dsopts['name'] != 'pcoord' else '')
+            seg_dsopts = normalize_dataset_options(dsopts, path_prefix='auxdata' if dsopts['name'] != 'pcoord' else '')
             try:
-                self.dataset_options[dsopts['name']].update(dsopts)
+                self.dataset_options[dsopts['name']].update(seg_dsopts)
             except KeyError:
-                self.dataset_options[dsopts['name']] = dsopts
+                self.dataset_options[dsopts['name']] = seg_dsopts
+
+            if dsopts['name'] != 'pcoord' and dsopts.get('ibstates', False):
+                i_dsopts = normalize_dataset_options(dsopts, path_prefix='istate_auxdata')
+                try:
+                    self.ibstates_datasets[dsopts['name']].update(i_dsopts)
+                except KeyError:
+                    self.ibstates_datasets[dsopts['name']] = i_dsopts
 
         if 'pcoord' in self.dataset_options:
             if self.dataset_options['pcoord']['h5path'] != 'pcoord':
@@ -284,6 +296,7 @@ class WESTDataManager:
         self.store_h5 = False
 
         self.dataset_options = {}
+        self.ibstates_datasets = {}  # dictionary of all (name: dsopts) to be loaded ibstates
         self.process_config()
 
     @property
@@ -522,6 +535,14 @@ class WESTDataManager:
                 system = self.system
                 state_table = np.empty((len(basis_states),), dtype=bstate_dtype)
                 state_pcoords = np.empty((len(basis_states), system.pcoord_ndim), dtype=system.pcoord_dtype)
+
+                # Checking the first basis state to see if there are any auxdata, Will return empty dictionary if true
+                state_auxdata = {
+                    key: np.zeros((len(basis_states),) + ds.shape)
+                    for key, ds in basis_states[0].data.items()
+                    if not key.startswith('iterh5/')
+                }
+
                 for i, state in enumerate(basis_states):
                     state.state_id = i
                     state_table[i]['label'] = state.label
@@ -529,8 +550,17 @@ class WESTDataManager:
                     state_table[i]['auxref'] = state.auxref or ''
                     state_pcoords[i] = state.pcoord
 
+                    for key, val in state.data.items():
+                        if not key.startswith('iterh5/'):
+                            state_auxdata[key][i] = state.data[key]
+
                 state_group['bstate_index'] = state_table
                 state_group['bstate_pcoord'] = state_pcoords
+
+                if state_auxdata:
+                    aux_group = state_group.create_group('bstate_auxdata')
+                    for key, val in state_auxdata.items():
+                        aux_group.create_dataset(key, data=val, maxshape=(((None,) + val.shape[1:])))
 
             master_index[set_id] = master_index_row
             return state_group
@@ -581,6 +611,71 @@ class WESTDataManager:
         if 'trajectories' not in iter_group:
             iter_group['trajectories'] = h5py.ExternalLink(iter_ref_rel_path, '/')
 
+    def _update_auxdata(self, n_iter, states, state_type, iter_group, n_total_states):
+        '''Update segment auxdata information in the HDF5 file. Not to be called
+        directly, but part of ``data_manager.update_segments
+
+        If any state has any auxiliary data, then the aux dataset must spring into
+        existence. Each is named according to the name in state.data, and has shape
+        (n_total_states, ...) where the ... is the shape of the data in states.data (and may be empty
+        in the case of scalar data) and dtype is taken from the data type of the data entry
+        compression is on by default for datasets that will be more than 1MiB.'''
+
+        # a mapping of data set name to (per-state shape, data type) tuples
+        dsets = {}
+
+        # First we scan for presence, shape, and data type of auxiliary data sets
+        for state in states:
+            if state.data:
+                for dsname in state.data:
+                    if dsname.startswith('iterh5/'):
+                        continue
+                    data = np.asarray(state.data[dsname], order='C')
+                    state.data[dsname] = data
+                    dsets[dsname] = (data.shape, data.dtype)
+
+        # Then we iterate over data sets and store data
+        if dsets:
+            for dsname, (shape, dtype) in dsets.items():
+                # dset = self._require_aux_dataset(iter_group, dsname, n_total_states, shape, dtype)
+                try:
+                    if state_type == 'segment':
+                        dsopts = self.dataset_options[dsname]
+                    elif state_type == 'istate':
+                        dsopts = self.ibstates_datasets[dsname]
+                except KeyError:
+                    dsopts = normalize_dataset_options({'name': dsname}, path_prefix=path_prefix[state_type])
+
+                shape = (n_total_states,) + shape
+                dset = require_dataset_from_dsopts(
+                    iter_group, dsopts, shape, dtype, autocompress_threshold=self.aux_compression_threshold, n_iter=n_iter
+                )
+                if dset is None:
+                    # storage is suppressed
+                    continue
+                for state in states:
+                    state_name, state_id = return_state_type(state)
+                    try:
+                        auxdataset = state.data[dsname]
+                    except KeyError:
+                        pass
+                    else:
+                        source_rank = len(auxdataset.shape)
+                        source_sel = h5s.create_simple(auxdataset.shape, (h5s.UNLIMITED,) * source_rank)
+                        source_sel.select_all()
+                        dest_sel = dset.id.get_space()
+                        # Everything up to this point should be common
+                        # This next if statement is to catch if there isn't enough istates auxdata slots!
+                        if state_id >= len(dset):
+                            dset.resize((state_id,) + dset.shape[1:])
+                            dset[state_id] = auxdataset
+                        else:
+                            dest_sel.select_hyperslab((state_id,) + (0,) * source_rank, (1,) + auxdataset.shape)
+                            dset.id.write(source_sel, dest_sel, auxdataset)
+
+                if 'delram' in list(dsopts.keys()):
+                    del dsets[dsname]
+
     def get_basis_states(self, n_iter=None):
         '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
 
@@ -592,6 +687,16 @@ class WESTDataManager:
             except KeyError:
                 return []
             bstate_pcoords = ibstate_group['bstate_pcoord'][...]
+
+            if self.ibstates_datasets:
+                try:
+                    bstate_auxdata = ibstate_group['bstate_auxdata']
+                except KeyError:
+                    log.warning(f'attempting to load {self.ibstates_datasets} but not saved in HDF5 File.')
+                    bstate_auxdata = dict()
+            else:
+                bstate_auxdata = dict()
+
             bstates = [
                 BasisState(
                     state_id=i,
@@ -599,6 +704,7 @@ class WESTDataManager:
                     probability=row['probability'],
                     auxref=h5io.tostr(row['auxref']) or None,
                     pcoord=pcoord.copy(),
+                    data={key: val[i] for key, val in bstate_auxdata.items() if key in self.ibstates_datasets},
                 )
                 for (i, (row, pcoord)) in enumerate(zip(bstate_index, bstate_pcoords))
             ]
@@ -656,8 +762,9 @@ class WESTDataManager:
         istate_index[first_id:len_index] = index_entries
         return new_istates
 
-    def update_initial_states(self, initial_states, n_iter=None):
-        '''Save the given initial states in the HDF5 file'''
+    def update_initial_states(self, initial_states, n_iter=None, initialize=False):
+        '''Save the given initial states in the HDF5 file. If initialize is True, WESTPA will attempt to expand
+        the shape of the aux datsets'''
 
         system = self.system
         initial_states = sorted(initial_states, key=attrgetter('state_id'))
@@ -670,6 +777,34 @@ class WESTDataManager:
             state_ids = [state.state_id for state in initial_states]
             index_entries = ibstate_group['istate_index'][state_ids]
             pcoord_vals = np.empty((len(initial_states), system.pcoord_ndim), dtype=system.pcoord_dtype)
+            len_index = len(initial_states)
+
+            if self.ibstates_datasets:
+                # Creating the 'istate_auxdata' group in ibstate_group
+                try:
+                    istate_auxdata = ibstate_group['istate_auxdata']
+                except KeyError:
+                    istate_auxdata = ibstate_group.create_group('istate_auxdata')
+
+                # Creating or extending the relevant aux datasets
+                for dataset_name, dsopt in self.ibstates_datasets.items():
+                    try:
+                        istate_auxdata = ibstate_group['istate_auxdata'][dataset_name]
+                    except KeyError:
+                        # Create the dataset based on first returned istate if doesn't exist.
+                        auxdata_shape = initial_states[0].data[dataset_name].shape
+                        istate_auxdata.create_dataset(
+                            dataset_name,
+                            dtype=dsopt['dtype'],
+                            shape=((len_index,) + auxdata_shape),
+                            maxshape=((h5s.UNLIMITED,) + auxdata_shape),
+                        )
+                    else:
+                        if initialize:
+                            if len_index <= np.max([istate.state_id for istate in initial_states]):
+                                total_istates = len(istate_auxdata) + len_index
+                                istate_auxdata.resize(((total_istates,) + istate_auxdata.shape[1:]))
+
             for i, initial_state in enumerate(initial_states):
                 index_entries[i]['iter_created'] = initial_state.iter_created
                 index_entries[i]['iter_used'] = initial_state.iter_used or InitialState.ISTATE_UNUSED
@@ -684,6 +819,8 @@ class WESTDataManager:
 
             ibstate_group['istate_index'][state_ids] = index_entries
             ibstate_group['istate_pcoord'][state_ids] = pcoord_vals
+
+            self._update_auxdata(n_iter, initial_states, 'istate', ibstate_group, len(initial_states))
 
             if self.store_h5:
                 segments = []
@@ -711,6 +848,11 @@ class WESTDataManager:
                 return []
             istate_pcoords = ibstate_group['istate_pcoord'][...]
 
+            try:
+                istate_auxdata = ibstate_group['istate_auxdata']
+            except KeyError:
+                istate_auxdata = {}
+
             for state_id, (state, pcoord) in enumerate(zip(istate_index, istate_pcoords)):
                 states.append(
                     InitialState(
@@ -721,8 +863,10 @@ class WESTDataManager:
                         istate_type=int(state['istate_type']),
                         basis_auxref=h5io.tostr(state['basis_auxref']),
                         pcoord=pcoord.copy(),
+                        data={key: val[state_id] for key, val in istate_auxdata.items()},
                     )
                 )
+
             return states
 
     def get_segment_initial_states(self, segments, n_iter=None):
@@ -741,6 +885,11 @@ class WESTDataManager:
             istate_pcoords = ibstate_group['istate_pcoord'][sorted_istate_ids][...]
             istates = []
 
+            try:
+                istate_auxdata = ibstate_group['istate_auxdata']
+            except KeyError:
+                istate_auxdata = {}
+
             for state_id, state, pcoord in zip(sorted_istate_ids, istate_rows, istate_pcoords):
                 try:
                     b_auxref = h5io.tostr(state['basis_auxref'])
@@ -754,6 +903,7 @@ class WESTDataManager:
                     istate_type=int(state['istate_type']),
                     basis_auxref=b_auxref,
                     pcoord=pcoord.copy(),
+                    data={key: val[state_id] for key, val in istate_auxdata.items()},
                 )
                 istates.append(istate)
             return istates
@@ -773,6 +923,11 @@ class WESTDataManager:
             istate_pcoords = ibstate_group['istate_pcoord']
             n_index_entries = istate_index.len()
             chunksize = self.table_scan_chunksize
+
+            try:
+                istate_auxdata = ibstate_group['istate_auxdata']
+            except KeyError:
+                istate_auxdata = {}
 
             states = []
             istart = 0
@@ -795,6 +950,7 @@ class WESTDataManager:
                             istate_type=int(row['istate_type']),
                             pcoord=pcoord.copy(),
                             istate_status=ISTATE_STATUS_PREPARED,
+                            data={key: val[istart + ci] for key, val in istate_auxdata.items() if key in self.ibstates_datasets},
                         )
                         states.append(istate)
                     del row, pcoord, state_id
@@ -999,56 +1155,8 @@ class WESTDataManager:
             si_dsid.write(si_msel, si_fsel, seg_index_entries)
             pc_dsid.write(pc_msel, pc_fsel, pcoord_entries)
 
-            # Now, to deal with auxiliary data
-            # If any segment has any auxiliary data, then the aux dataset must spring into
-            # existence. Each is named according to the name in segment.data, and has shape
-            # (n_total_segs, ...) where the ... is the shape of the data in segment.data (and may be empty
-            # in the case of scalar data) and dtype is taken from the data type of the data entry
-            # compression is on by default for datasets that will be more than 1MiB
-
-            # a mapping of data set name to (per-segment shape, data type) tuples
-            dsets = {}
-
-            # First we scan for presence, shape, and data type of auxiliary data sets
-            for segment in segments:
-                if segment.data:
-                    for dsname in segment.data:
-                        if dsname.startswith('iterh5/'):
-                            continue
-                        data = np.asarray(segment.data[dsname], order='C')
-                        segment.data[dsname] = data
-                        dsets[dsname] = (data.shape, data.dtype)
-
-            # Then we iterate over data sets and store data
-            if dsets:
-                for dsname, (shape, dtype) in dsets.items():
-                    # dset = self._require_aux_dataset(iter_group, dsname, n_total_segments, shape, dtype)
-                    try:
-                        dsopts = self.dataset_options[dsname]
-                    except KeyError:
-                        dsopts = normalize_dataset_options({'name': dsname}, path_prefix='auxdata')
-
-                    shape = (n_total_segments,) + shape
-                    dset = require_dataset_from_dsopts(
-                        iter_group, dsopts, shape, dtype, autocompress_threshold=self.aux_compression_threshold, n_iter=n_iter
-                    )
-                    if dset is None:
-                        # storage is suppressed
-                        continue
-                    for segment in segments:
-                        try:
-                            auxdataset = segment.data[dsname]
-                        except KeyError:
-                            pass
-                        else:
-                            source_rank = len(auxdataset.shape)
-                            source_sel = h5s.create_simple(auxdataset.shape, (h5s.UNLIMITED,) * source_rank)
-                            source_sel.select_all()
-                            dest_sel = dset.id.get_space()
-                            dest_sel.select_hyperslab((segment.seg_id,) + (0,) * source_rank, (1,) + auxdataset.shape)
-                            dset.id.write(source_sel, dest_sel, auxdataset)
-                    if 'delram' in list(dsopts.keys()):
-                        del dsets[dsname]
+            # All the auxdata processing moved to separate method
+            self._update_auxdata(n_iter, segments, 'segment', iter_group, n_total_segments)
 
             self.update_iter_h5file(n_iter, segments)
 
@@ -1533,6 +1641,7 @@ def normalize_dataset_options(dsopts, path_prefix='', n_iter=0):
 
     dsopts['store'] = bool(dsopts['store']) if 'store' in dsopts else True
     dsopts['load'] = bool(dsopts['load']) if 'load' in dsopts else False
+    # dsopts['ibstates'] = bool(dsopts['ibstates']) if 'ibstates' in dsopts else True
 
     return dsopts
 
@@ -1544,8 +1653,6 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
         return None
 
     if 'file' in list(dsopts.keys()):
-        import h5py
-
         #        dsopts['file'] = str(dsopts['file']).format(n_iter=n_iter)
         h5_auxfile = h5io.WESTPAH5File(dsopts['file'].format(n_iter=n_iter))
         h5group = group
@@ -1650,10 +1757,8 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
         dset[...] = data
 
     if 'file' in list(dsopts.keys()):
-        import h5py
-
         if not dsopts['h5path'] in h5group:
-            h5group[dsopts['h5path']] = h5py.ExternalLink(
+            h5group[dsopts['h5path']] = ExternalLink(
                 dsopts['file'].format(n_iter=n_iter), ("/" + "iter_" + str(n_iter).zfill(8) + "/" + dsopts['h5path'])
             )
 

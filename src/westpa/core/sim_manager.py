@@ -336,6 +336,7 @@ class WESimManager:
                 initial_state.basis_state_id = basis_state.state_id
                 initial_state.basis_state = basis_state
                 initial_state.istate_type = istate_type
+                initial_state.data = basis_state.data
                 weights.append(basis_state.probability / segs_per_state)
                 initial_states.append(initial_state)
 
@@ -360,6 +361,8 @@ class WESimManager:
             for future in work_manager.as_completed(futures):
                 rbstate, ristate = future.get_result()
                 initial_states[ristate.state_id].pcoord = ristate.pcoord
+                initial_states[ristate.state_id].data = ristate.data
+
         else:
             for initial_state in initial_states:
                 basis_state = initial_state.basis_state
@@ -371,7 +374,7 @@ class WESimManager:
 
         # save list of initial states just generated
         # some of these may not be used, depending on how WE shakes out
-        data_manager.update_initial_states(initial_states, n_iter=1)
+        data_manager.update_initial_states(initial_states, n_iter=1, initialize=True)
 
         if not suppress_we:
             self.we_driver.populate_initial(initial_states, weights, system)
@@ -572,9 +575,10 @@ class WESimManager:
                 initial_state.istate_type = InitialState.ISTATE_TYPE_BASIS
                 initial_state.pcoord = basis_state.pcoord.copy()
                 initial_state.istate_status = InitialState.ISTATE_STATUS_PREPARED
+                initial_state.data = basis_state.data.copy()
                 self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
             updated_states.append(initial_state)
-        self.data_manager.update_initial_states(updated_states, n_iter=self.n_iter + 1)
+        self.data_manager.update_initial_states(updated_states, n_iter=self.n_iter + 1, initialize=True)
         return futures
 
     def propagate(self):
