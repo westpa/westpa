@@ -145,8 +145,8 @@ cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=No
         del indices
 
     f_synth_sorted = sort(f_synth)
-    lbi = int(math.floor(n_sets*alpha/2.0))
-    ubi = int(math.ceil(n_sets*(1-alpha/2.0)))
+    lbi = math.floor(n_sets*alpha/2.0)
+    ubi = math.ceil(n_sets*(1-alpha/2.0))
     lb = f_synth_sorted[lbi]
     ub = f_synth_sorted[ubi]
     sterr = numpy.std(f_synth_sorted)
@@ -194,8 +194,8 @@ cpdef mcbs_correltime_small(dataset, alpha, n_sets):
         raise ValueError('alpha ({}) > 0.5'.format(alpha))
 
     dlen = len(dataset)
-    lbi = int(math.floor(n_sets*alpha/2.0))
-    ubi = int(math.ceil(n_sets*(1-alpha/2.0)))
+    lbi = math.floor(n_sets*alpha/2.0)
+    ubi = math.ceil(n_sets*(1-alpha/2.0))
 
     synth_sets = numpy.empty((n_sets,)+dataset.shape, dtype=dataset.dtype)
     synth_acf_elems = numpy.empty((n_sets,), numpy.float64)
