@@ -529,7 +529,7 @@ class WEDriver:
         to_split = segments[weights > self.weight_split_threshold * ideal_weight]
 
         for segment in to_split:
-            m = int(math.ceil(segment.weight / ideal_weight))
+            m = math.ceil(segment.weight / ideal_weight)
             bin.remove(segment)
             new_segments_list = self._split_walker(segment, m, bin)
             bin.update(new_segments_list)
@@ -622,7 +622,7 @@ class WEDriver:
 
         to_split = segments[weights > self.largest_allowed_weight]
         for segment in to_split:
-            m = int(math.ceil(segment.weight / self.largest_allowed_weight))
+            m = math.ceil(segment.weight / self.largest_allowed_weight)
             bin.remove(segment)
             subgroup.remove(segment)
             new_segments_list = self._split_walker(segment, m, bin)
