@@ -2,6 +2,7 @@
 statistics.'''
 
 import numpy as np
+from numpy.random import Generator, MT19937
 
 from ._mclib import mcbs_correltime, get_bssize, mcbs_ci
 
@@ -98,6 +99,8 @@ def mcbs_ci_correl(
         # We don't try and pretend we're doing any error analysis.
         return return_set, return_set, return_set, 0, 1
 
+    rng = Generator(MT19937())  # RNG
+
     # We need to pre-generate the data; why not do it here?  We're already set up for it...
     precalc_kwargs = estimator_kwargs.copy()
     precalc_kwargs['stride'] = 1
@@ -147,7 +150,7 @@ def mcbs_ci_correl(
             sort=np.msort,
         ) + (correl_len,)
     else:
-        subsample = subsample or (lambda x: x[np.random.randint(len(x))])
+        subsample = subsample or (lambda x: x[rng.integers(len(x))])
         # Let's make sure we decimate every array properly...
         decim_list = {}
         for key, dset in estimator_datasets.items():

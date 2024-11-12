@@ -1,5 +1,5 @@
 import numpy as np
-from numpy.random import normal as random_normal
+from numpy.random import Generator, MT19937
 
 from westpa.core.binning import RectilinearBinMapper
 from westpa.core.propagators import WESTPropagator
@@ -29,6 +29,8 @@ class ODLDPropagator(WESTPropagator):
         self.B = 10
         self.C = 0.5
         self.x0 = 1
+
+        self.rng = Generator(MT19937())
 
         # Implement a reflecting boundary at this x value
         # (or None, for no reflection)
@@ -68,7 +70,7 @@ class ODLDPropagator(WESTPropagator):
             eCx = np.exp(C * x)
             eCx_less_one = eCx - 1.0
 
-            all_displacements[:, istep, 0] = displacements = random_normal(scale=sigma, size=(n_segs,))
+            all_displacements[:, istep, 0] = displacements = self.rng.normal(scale=sigma, size=(n_segs,))
             grad = half_B / (eCx_less_one * eCx_less_one) * (twopi_by_A * eCx_less_one * np.sin(xarg) + C * eCx * np.cos(xarg))
 
             newx = x - gradfactor * grad + displacements
@@ -92,6 +94,30 @@ class ODLDPropagator(WESTPropagator):
             segment.status = segment.SEG_STATUS_COMPLETE
 
         return segments
+
+
+class SeededODLDPropagator(ODLDPropagator):
+    def __init__(self, rc=None):
+        super().__init__(rc)
+
+        self.coord_len = pcoord_len
+        self.coord_dtype = pcoord_dtype
+        self.coord_ndim = 1
+
+        self.initial_pcoord = np.array([8.0], dtype=self.coord_dtype)
+
+        self.sigma = 0.001 ** (0.5)
+
+        self.A = 2
+        self.B = 10
+        self.C = 0.5
+        self.x0 = 1
+
+        self.rng = Generator(MT19937(seed=8675309))
+
+        # Implement a reflecting boundary at this x value
+        # (or None, for no reflection)
+        self.reflect_at = 10.0
 
 
 class ODLDSystem(WESTSystem):
