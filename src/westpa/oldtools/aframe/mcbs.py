@@ -50,7 +50,7 @@ class MCBSMixin(AnalysisMixin):
         self.mcbs_alpha = 1 - args.mcbs_confidence
         self.mcbs_nsets = args.mcbs_size if args.mcbs_nsets else min(1000, calc_mcbs_nsets(self.mcbs_alpha))
         self.mcbs_display_confidence = '{:.{cp}f}'.format(
-            100 * args.mcbs_confidence, cp=-int(math.floor(math.log10(self.mcbs_alpha))) - 2
+            100 * args.mcbs_confidence, cp=-math.floor(math.log10(self.mcbs_alpha)) - 2
         )
         westpa.rc.pstatus(
             'Using bootstrap of {:d} sets to calculate {:s}% confidence interval (alpha={:g}).'.format(
@@ -85,7 +85,7 @@ def calc_mcbs_nsets(alpha):
 
 
 def calc_ci_bound_indices(n_sets, alpha):
-    return (int(math.floor(n_sets * alpha / 2)), int(math.ceil(n_sets * (1 - alpha / 2))))
+    return (math.floor(n_sets * alpha / 2), math.ceil(n_sets * (1 - alpha / 2)))
 
 
 def bootstrap_ci_ll(estimator, data, alpha, n_sets, storage, sort, eargs=(), ekwargs={}, fhat=None):
@@ -105,8 +105,8 @@ def bootstrap_ci_ll(estimator, data, alpha, n_sets, storage, sort, eargs=(), ekw
         storage[iset] = estimator(data[indices], *eargs, **ekwargs)
 
     synth_sorted = sort(storage)
-    lbi = int(math.floor(n_sets * alpha / 2))
-    ubi = int(math.ceil(n_sets * (1 - alpha / 2)))
+    lbi = math.floor(n_sets * alpha / 2)
+    ubi = math.ceil(n_sets * (1 - alpha / 2))
 
     lb = synth_sorted[lbi]
     ub = synth_sorted[ubi]

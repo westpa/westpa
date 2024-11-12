@@ -74,8 +74,8 @@ def bootstrap_ci(estimator, data, alpha, n_sets=None, args=(), kwargs={}, sort=n
         f_synth[i] = estimator(data[indices], *args, **kwargs)
 
     f_synth_sorted = sort(f_synth)
-    lbi = int(math.floor(n_sets * alpha / 2))
-    ubi = int(math.ceil(n_sets * (1 - alpha / 2)))
+    lbi = math.floor(n_sets * alpha / 2)
+    ubi = math.ceil(n_sets * (1 - alpha / 2))
     lb = f_synth_sorted[lbi]
     ub = f_synth_sorted[ubi]
 
