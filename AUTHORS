@@ -4,18 +4,18 @@ in collaboration with Daniel Zuckerman (zuckermd@ohsu.edu)
 The original version of WESTPA was written by Matthew Zwier (matthew.zwier@drake.edu) 
 as part of his Ph.D. dissertation with Lillian Chong.
 
-Other contributors are the following (In alphabetical order)
+Other core contributors are the following (in alphabetical order)
 
 Joshua Adelman
-Alex DeGrave
-Page Harrison
-Joseph Kaus
-Patrick Pisciuneri
-A. J. Pratt
-Nicholas Rego
+Anthony Bogetti
+Jeremy Leung
+AJ Pratt
+John Russo
 Ali Saglam
-David Wang
+Jeff Thompson
 Kim Wong
+Darian Yang
+She Zhang
 
 The work manager interface is derived from the ``concurrent.futures`` module
 of Python 3.2 by Brian Quinlan, (C) 2011 the Python Software Foundation.
