@@ -13,7 +13,7 @@ Currently Supported
     haMSM analysis/Restarting      <ext/westpa.westext.hamsm_restarting>
 
 
-Depreciated
+Deprecated
 -----------
 
 .. toctree::
