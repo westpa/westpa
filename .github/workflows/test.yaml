@@ -37,7 +37,7 @@ jobs:
       matrix:
         os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
         continue_bool: [True]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
     - uses: actions/checkout@v4
@@ -55,7 +55,6 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v3
       with:
         python-version: ${{ matrix.python-version }}
-        miniforge-variant: Mambaforge
         environment-file: devtools/conda-envs/test_env.yaml
         activate-environment: test_env
         channel-priority: true
