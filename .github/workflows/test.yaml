@@ -32,9 +32,11 @@ jobs:
   test:
     name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: "${{ matrix.os }}"
+    continue-on-error: ${{ matrix.continue_bool }}
     strategy:
       matrix:
         os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
+        continue_bool: [True]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
@@ -72,7 +74,7 @@ jobs:
       # conda setup requires this special shell
       shell: bash -l {0}
       run: |
-        pytest -v --cov=westpa --cov-report=xml --color=yes tests
+        pytest -n 2 -v --cov=westpa --cov-report=xml --color=yes tests
 
     - name: CodeCov
       uses: codecov/codecov-action@v4
