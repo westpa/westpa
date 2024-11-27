@@ -370,7 +370,8 @@ class RecursiveBinMapper(BinMapper):
             # This looks like uninitialized access, but self._output_map is always set during __init__
             # (by self.start_index = 0, or whatever value was passed in), so this modifies the existing
             # set chosen above
-            self._output_map[not_recursed] = np.arange(self._start_index, self._start_index + n_not_recursed, dtype=index_dtype)
+            all_output_map_indices = np.arange(self._start_index, self._start_index + len(self._recursion_map), dtype=index_dtype)
+            self._output_map[not_recursed] = all_output_map_indices[not_recursed]
         else:
             # No un-replaced bins
             self._output_map = None
