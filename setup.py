@@ -109,18 +109,18 @@ CLASSIFIERS = [
 ]
 
 INSTALL_REQUIRES = [
-    "numpy >=2.0.0, <3",
-    "scipy >= 1.13",
-    "h5py >= 3.11",
-    "mdtraj >= 1.9.10",
+    "numpy >= 1.16, <3",
+    "scipy >= 0.19.1",
+    "h5py >= 2.10",
+    "mdtraj >= 1.9.5",
     "pyyaml",
     "pyzmq",
-    "matplotlib>=3.8.4",
+    "matplotlib",
     "blessings",
     "ipykernel",
     "tqdm",
-    "pandas>=2.2.2",
-    "tables>=3.9.3",
+    "pandas",
+    "tables",
 ]
 
 EXTRAS_REQUIRE = {
