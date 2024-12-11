@@ -178,7 +178,7 @@ istate_dtype = np.dtype(
         ('basis_state_id', seg_id_dtype),  # Which basis state this state was generated from
         ('istate_type', istate_type_dtype),  # What type this initial state is (generated or basis)
         ('istate_status', istate_status_dtype),  # Whether this initial state is ready to go
-        ('basis_auxref', vstr_dtype),
+        ('basis_auxref', vstr_dtype),  # for start states to point back to their original location
     ]
 )
 

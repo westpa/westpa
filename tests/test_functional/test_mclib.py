@@ -5,9 +5,12 @@ from westpa.mclib import mcbs_ci, mcbs_ci_correl, mcbs_correltime
 
 n_sets = 1000
 
+
+# from numpy.random import Generator, MT19937
 # N = 10000
 # correl_len = 16
-# ds_uncorrel = np.array(np.random.random_integers(0,1, size=(N,)), dtype=np.float64)
+# rng = Generator(MT19937())
+# ds_uncorrel = rng.random(0, 1, size=(N,))
 # ds_correl = np.empty((N,), dtype=np.float64)
 # for i in xrange(0,N,correl_len):
 #    ds_correl[i:i+correl_len] = np.random.randint(0,2)
