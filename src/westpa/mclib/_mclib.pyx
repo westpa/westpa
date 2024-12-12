@@ -9,7 +9,7 @@ from libc.math cimport floor, ceil, log10
 #from libc.stdlib cimport RAND_MAX, rand, srand
 
 
-cdef msort(input_array):
+cpdef msort(input_array):
     return numpy.sort(input_array, axis=0)
 
 
