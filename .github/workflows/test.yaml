@@ -64,6 +64,7 @@ jobs:
       # conda setup requires this special shell
       shell: bash -l {0}
       run: |
+        conda list
         conda info --all
         python -m pip install . -v --no-deps
         conda list
