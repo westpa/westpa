@@ -8,7 +8,7 @@ ctypedef np.uint16_t index_t
 ctypedef np.float64_t weight_t
 ctypedef np.uint8_t bool_t
 ctypedef np.int64_t seg_id_t
-ctypedef np.uint_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
+ctypedef np.uintp_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
 
 cdef double NAN = np.nan
 

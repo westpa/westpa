@@ -8,6 +8,11 @@ from numpy cimport *
 from libc.math cimport floor, ceil, log10
 #from libc.stdlib cimport RAND_MAX, rand, srand
 
+
+cpdef msort(input_array):
+    return numpy.sort(input_array, axis=0)
+
+
 ctypedef fused _fptype:
     numpy.float32_t
     numpy.float64_t
@@ -79,7 +84,7 @@ cpdef Py_ssize_t get_bssize(double alpha) nogil:
         bssize *= 10
     return bssize
 
-cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=None, sort=numpy.msort):
+cpdef mcbs_ci(dataset, estimator, alpha, dlen, n_sets=None, args=None, kwargs=None, sort=msort):
     '''Perform a Monte Carlo bootstrap estimate for the (1-``alpha``) confidence interval
     on the given ``dataset`` with the given ``estimator``.  This routine is not appropriate
     for time-correlated data.

@@ -20,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: 3.12
       - name: Linting
         run: |
           pip install pre-commit
@@ -64,6 +64,7 @@ jobs:
       # conda setup requires this special shell
       shell: bash -l {0}
       run: |
+        conda list
         conda info --all
         python -m pip install . -v --no-deps
         conda list
@@ -96,7 +97,7 @@ jobs:
       - uses: "actions/checkout@v4"
       - uses: "actions/setup-python@v5"
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: "Install HDF5 with brew if macos-arm64"
         if: ${{ matrix.os == 'macos-latest' }}
         run: "brew install hdf5"
