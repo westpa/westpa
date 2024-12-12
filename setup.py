@@ -139,7 +139,7 @@ metadata = dict(
     version=versioneer.get_version(),
     keywords='',
     cmdclass=versioneer.get_cmdclass(),
-    python_requires=">=3.6",
+    python_requires=">=3.9",
     zip_safe=False,
     classifiers=CLASSIFIERS,
     entry_points={'console_scripts': console_scripts},

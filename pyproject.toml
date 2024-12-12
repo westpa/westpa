@@ -7,8 +7,7 @@ requires = [
     "wheel",
     "Cython >=0.29.16; python_version >='3.10'",  # Note: sync with setup.py
     "Cython <3.0.3, >=0.29.16; python_version <'3.10'",
-    "oldest-supported-numpy; python_version <'3.9'",
-    "numpy >=2.0.0, <3 ; python_version >='3.9'",
+    "numpy >=2.0.0, <3",  # Force numpy>=2 during build time so it works on both 1.XX and 2.XX
     "scipy >=0.19.1",
     "versioneer-518"
 ]
