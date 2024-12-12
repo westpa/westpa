@@ -64,13 +64,12 @@ def busy_identity(x):
 
 
 def random_int(seed=None):
-    import random
+    from numpy.random import Generator, MT19937
     import sys
 
-    if seed is not None:
-        random.seed(seed)
+    rng = Generator(MT19937(seed))
 
-    return random.randint(0, sys.maxsize)
+    return rng.integers(0, sys.maxsize)
 
 
 def get_process_index():
@@ -130,7 +129,7 @@ class CommonWorkManagerTests:
 
 class CommonParallelTests:
     def test_random_seq(self):
-        tasks = [(random_int, (), {}) for n in range(self.MED_TEST_SIZE)]
+        tasks = [(random_int, (), {}) for _ in range(self.MED_TEST_SIZE)]
         futures = self.work_manager.submit_many(tasks)
         self.work_manager.wait_all(futures)
         result_list = [future.get_result() for future in futures]
@@ -138,7 +137,7 @@ class CommonParallelTests:
         assert len(result_list) == len(result_set)
 
     def test_random_seq_improper_seeding(self):
-        tasks = [(random_int, (1979,), {}) for n in range(self.MED_TEST_SIZE)]
+        tasks = [(random_int, (1979,), {}) for _ in range(self.MED_TEST_SIZE)]
         futures = self.work_manager.submit_many(tasks)
         self.work_manager.wait_all(futures)
         result_list = [future.get_result() for future in futures]
