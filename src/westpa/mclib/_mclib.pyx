@@ -23,6 +23,7 @@ ctypedef fused _fptype:
 # calculation.
 cdef Py_ssize_t CORRELTIME_CROSSOVER = 512*1024*1024
 
+numpy.random.seed()
 
 @cython.cdivision(True)
 @cython.boundscheck(False)

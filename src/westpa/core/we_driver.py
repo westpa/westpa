@@ -1,9 +1,9 @@
 import logging
 import math
 import operator
-import random
 
 import numpy as np
+from numpy.random import Generator, MT19937
 
 import westpa
 from .segment import Segment
@@ -118,6 +118,8 @@ class WEDriver:
         self.used_initial_states = None
 
         self.avail_initial_states = None
+
+        self.rng = Generator(MT19937())
 
         # Make property for subgrouping function.
         self.subgroup_function = _group_walkers_identity
@@ -478,7 +480,7 @@ class WEDriver:
         # sees where this value falls among the (sorted) weights of the segments being merged;
         # this ensures that a walker with (e.g.) twice the weight of its brethren has twice the
         # probability of having its history selected for continuation
-        iparent = np.digitize((random.uniform(0, glom.weight),), cumul_weight)[0]
+        iparent = np.digitize((self.rng.uniform(0, glom.weight),), cumul_weight)[0]
         gparent_seg = segments[iparent]
 
         # Inherit history from this segment ("gparent" stands for "glom parent", as opposed to historical

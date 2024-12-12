@@ -1,7 +1,6 @@
 import logging
 import math
 import operator
-import random
 import time
 from datetime import timedelta
 from pickle import PickleError
@@ -9,6 +8,7 @@ from itertools import zip_longest
 from collections import Counter
 
 import numpy as np
+from numpy.random import Generator, MT19937
 
 import westpa
 from .data_manager import weight_dtype
@@ -97,6 +97,9 @@ class WESimManager:
 
         # Tracking of binning
         self.bin_mapper_hash = None  # Hash of bin mapper from most recently-run WE, for use by post-WE analysis plugins
+
+        # Pseudo Random Number Generator
+        self.rng = Generator(MT19937())
 
     def register_callback(self, hook, function, priority=0):
         '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
@@ -556,7 +559,7 @@ class WESimManager:
         updated_states = []
         for _i in range(n_istates_needed):
             # Select a basis state according to its weight
-            ibstate = np.digitize([random.random()], self.next_iter_bstate_cprobs)
+            ibstate = np.digitize([self.rng.random()], self.next_iter_bstate_cprobs)
             basis_state = self.next_iter_bstates[ibstate[0]]
             initial_state = self.data_manager.create_initial_states(1, n_iter=self.n_iter + 1)[0]
             initial_state.iter_created = self.n_iter
