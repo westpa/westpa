@@ -1,7 +1,9 @@
 import itertools
+import sys
+
+import networkx as nx
 import numpy as np
 import pandas as pd
-import sys
 
 from westpa.core.binning.assign import BinMapper
 from westpa.core.h5io import WESTPAH5File, tostr
@@ -138,14 +140,30 @@ class Run:
             raise ValueError(f'iteration number must be in {valid_range}')
         return Iteration(number, self)
 
+    def history_graph(self) -> nx.DiGraph:
+        """Return the history graph of the run.
+
+        The history graph is the directed graph whose edges (arcs) point from each
+        walker to its parent. The root nodes are initial walkers.
+
+        Returns
+        -------
+        nx.DiGraph
+            The history graph of the run.
+
+        """
+        return nx.DiGraph((walker, walker.parent) for walker in self.walkers if not walker.initial)
+
     def __len__(self):
         return self.num_iterations
 
     def __iter__(self):
         return iter(self.iterations)
 
-    def __contains__(self, iteration):
-        return iteration.run == self
+    def __contains__(self, item):
+        if not isinstance(item, (Iteration, Walker)):
+            return False
+        return item.run == self
 
     def __eq__(self, other):
         return self.h5file == other.h5file
@@ -434,8 +452,10 @@ class Iteration:
     def __iter__(self):
         return iter(self.walkers)
 
-    def __contains__(self, walker):
-        return walker.iteration == self
+    def __contains__(self, item):
+        if not isinstance(item, Walker):
+            return False
+        return item.iteration == self
 
     def __eq__(self, other):
         return self.number == other.number and self.run == other.run

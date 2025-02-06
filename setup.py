@@ -113,6 +113,7 @@ INSTALL_REQUIRES = [
     "scipy >= 0.19.1",
     "h5py >= 2.10",
     "mdtraj >= 1.9.5",
+    "networkx >=3, <4",
     "pyyaml",
     "pyzmq",
     "matplotlib",
