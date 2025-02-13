@@ -35,11 +35,13 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-        numpy-version: ['1', '2']
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        numpy-version: ["1", "2"]
         exclude:
           - python-version: "3.9"
-            numpy-version: '2'
+            numpy-version: "2"
+          - python-version: "3.13"
+            numpy-version: "1"
 
     steps:
     - uses: actions/checkout@v4

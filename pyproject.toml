@@ -8,7 +8,7 @@ requires = [
     "Cython >=0.29.16; python_version >='3.10'",  # Note: sync with setup.py
     "Cython <3.0.3, >=0.29.16; python_version <'3.10'",
     "numpy >=2.0.0, <3; python_version >='3.10'",  # Force numpy>=2 during build time so it works on both 1.XX and 2.XX
-    "numpy < 2.0.0; python_version <'3.10'", # Numpy 2 builds break PyTables in python 3.9
+    "numpy < 2.0.0; python_version <'3.10'", # Numpy 2 builds break PyTables on python 3.9
     "scipy >=0.19.1",
     "versioneer-518"
 ]
@@ -45,4 +45,16 @@ exclude = '''
      )
 )
 '''
+
+# See the docstring in versioneer.py for instructions. Note that you must
+# re-run 'versioneer.py setup' after changing this section, and commit the
+# resulting files.
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "src/westpa/_version.py"
+versionfile_build = "westpa/_version.py"
+tag_prefix = "v"
+parentdir_prefix = "westpa-"
 
