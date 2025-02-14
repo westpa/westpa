@@ -6,11 +6,16 @@ import logging
 import math
 
 import numpy as np
+from numpy.random import Generator, MT19937
 
 import westpa
 from westpa.oldtools.aframe import AnalysisMixin
 
 log = logging.getLogger(__name__)
+
+
+def msort(input_array):
+    return np.sort(input_array, axis=0)
 
 
 class MCBSMixin(AnalysisMixin):
@@ -96,12 +101,14 @@ def bootstrap_ci_ll(estimator, data, alpha, n_sets, storage, sort, eargs=(), ekw
     value ``fhat`` of the estimator must be pre-calculated to allocate ``storage``, then its value may be
     passed; otherwise, ``estimator(data,*eargs,**kwargs)`` will be called to calculate it.'''
 
+    rng = Generator(MT19937())
+
     if fhat is None:
         fhat = estimator(data, *eargs, **ekwargs)
     dlen = len(data)
 
     for iset in range(n_sets):
-        indices = np.random.randint(dlen, size=(dlen,))
+        indices = rng.integers(dlen, size=(dlen,))
         storage[iset] = estimator(data[indices], *eargs, **ekwargs)
 
     synth_sorted = sort(storage)
@@ -117,7 +124,7 @@ def bootstrap_ci_ll(estimator, data, alpha, n_sets, storage, sort, eargs=(), ekw
         del fhat, lb, ub, indices
 
 
-def bootstrap_ci(estimator, data, alpha, n_sets=None, sort=np.msort, eargs=(), ekwargs={}):
+def bootstrap_ci(estimator, data, alpha, n_sets=None, sort=msort, eargs=(), ekwargs={}):
     '''Perform a Monte Carlo bootstrap of a (1-alpha) confidence interval for the given ``estimator``.
     Returns (fhat, ci_lower, ci_upper), where fhat is the result of ``estimator(data, *eargs, **ekwargs)``,
     and ``ci_lower`` and ``ci_upper`` are the lower and upper bounds of the surrounding confidence

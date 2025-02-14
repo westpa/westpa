@@ -190,9 +190,9 @@ Command-line arguments
                         weights = all_weights.take(segs)
 
                         if what == 'lowweight':
-                            indices = np.argsort(weights)[:count]
+                            indices = np.argsort(weights, kind='stable')[:count]
                         elif what == 'highweight':
-                            indices = np.argsort(weights)[::-1][:count]
+                            indices = np.argsort(weights, kind='stable')[::-1][:count]
                         else:
                             assert what == 'random'
                             indices = np.random.permutation(len(weights))
