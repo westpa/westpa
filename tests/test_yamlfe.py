@@ -1,7 +1,7 @@
 import numpy as np
 
 import westpa
-from westpa.core.yamlcfg import ycf
+import westpa.core.yamlcfg as ycf
 from westpa.core.systems import WESTSystem
 from westpa.core.binning import RectilinearBinMapper
 
