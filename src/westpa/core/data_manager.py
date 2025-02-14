@@ -54,7 +54,7 @@ from operator import attrgetter
 from os.path import relpath, dirname
 
 import h5py
-from h5py import h5s, ExternalLink
+from h5py import h5s
 import numpy as np
 
 from . import h5io
@@ -1656,7 +1656,7 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
         #        dsopts['file'] = str(dsopts['file']).format(n_iter=n_iter)
         h5_auxfile = h5io.WESTPAH5File(dsopts['file'].format(n_iter=n_iter))
         h5group = group
-        if not ("iter_" + str(n_iter).zfill(8)) in h5_auxfile:
+        if ("iter_" + str(n_iter).zfill(8)) not in h5_auxfile:
             h5_auxfile.create_group("iter_" + str(n_iter).zfill(8))
         group = h5_auxfile[('/' + "iter_" + str(n_iter).zfill(8))]
 
@@ -1757,8 +1757,8 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
         dset[...] = data
 
     if 'file' in list(dsopts.keys()):
-        if not dsopts['h5path'] in h5group:
-            h5group[dsopts['h5path']] = ExternalLink(
+        if dsopts['h5path'] not in h5group:
+            h5group[dsopts['h5path']] = h5py.ExternalLink(
                 dsopts['file'].format(n_iter=n_iter), ("/" + "iter_" + str(n_iter).zfill(8) + "/" + dsopts['h5path'])
             )
 

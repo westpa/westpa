@@ -1,9 +1,19 @@
 import collections
+import pytest
 
 import numpy as np
+from numpy.random import Generator, MT19937
 
 from westpa.core.kinetics._kinetics import calc_rates, StreamingStats2D, StreamingStats1D
 from westpa.core.kinetics.rate_averaging import tuple2stats
+
+
+@pytest.fixture(autouse=True, scope='class')
+def rng_setup(request):
+    '''
+    This function is run everytime a new class is initiated during a test in this module.
+    '''
+    request.cls.rng = Generator(MT19937())
 
 
 class TestRateAverating:
@@ -11,7 +21,7 @@ class TestRateAverating:
         StreamingStatsTuple = collections.namedtuple('StreamingStatsTuple', ['M1', 'M2', 'n'])
         nbins = 100
         nsets = 10
-        data = np.random.normal(size=(nsets, nbins, nbins))
+        data = self.rng.normal(size=(nsets, nbins, nbins))
         mask = np.zeros((nbins, nbins), np.uint8)
 
         rate_stats = StreamingStats2D((nbins, nbins))
@@ -32,7 +42,7 @@ class TestRateAverating:
         StreamingStatsTuple = collections.namedtuple('StreamingStatsTuple', ['M1', 'M2', 'n'])
         nbins = 100
         nsets = 10
-        data = np.random.normal(size=(nsets, nbins))
+        data = self.rng.normal(size=(nsets, nbins))
         mask = np.zeros((nbins,), np.uint8)
 
         rate_stats = StreamingStats1D(nbins)
@@ -55,10 +65,10 @@ class TestKinetics:
         nbins = 100
         mask = np.zeros((nbins, nbins), np.uint8)
 
-        flux_matrix = np.random.normal(size=(nbins, nbins))
+        flux_matrix = self.rng.normal(size=(nbins, nbins))
         rate_matrix = np.zeros_like(flux_matrix)
 
-        population_vector = np.random.random(size=(nbins,)) + 0.0001
+        population_vector = self.rng.random(size=(nbins,)) + 0.0001
         population_vector[[0, 2, 5]] = 0.0
 
         calc_rates(flux_matrix, population_vector, rate_matrix, mask)
@@ -83,7 +93,7 @@ class TestStreamingStats2D:
     def test_nomask(self):
         nbins = 100
         nsets = 10
-        data = np.random.normal(size=(nsets, nbins, nbins))
+        data = self.rng.normal(size=(nsets, nbins, nbins))
         mask = np.zeros((nbins, nbins), np.uint8)
 
         rate_stats = StreamingStats2D((nbins, nbins))
@@ -101,7 +111,7 @@ class TestStreamingStats2D:
     def test_nomask_groups(self):
         nbins = 100
         nsets = 10
-        data = np.random.normal(size=(nsets, nbins, nbins))
+        data = self.rng.normal(size=(nsets, nbins, nbins))
         mask = np.zeros((nbins, nbins), np.uint8)
 
         rate_stats1 = StreamingStats2D((nbins, nbins))
@@ -124,8 +134,8 @@ class TestStreamingStats2D:
     def test_with_mask(self):
         nbins = 100
         nsets = 10
-        data = np.random.normal(size=(nsets, nbins, nbins))
-        mask = np.random.randint(2, size=data.shape).astype(np.uint8)
+        data = self.rng.normal(size=(nsets, nbins, nbins))
+        mask = self.rng.integers(2, size=data.shape, dtype=np.uint8)
 
         rate_stats = StreamingStats2D((nbins, nbins))
         for di, d in enumerate(data):
@@ -139,8 +149,8 @@ class TestStreamingStats2D:
     def test_with_mask_groups(self):
         nbins = 100
         nsets = 10
-        data = np.random.normal(size=(nsets, nbins, nbins))
-        mask = np.random.randint(2, size=data.shape).astype(np.uint8)
+        data = self.rng.normal(size=(nsets, nbins, nbins))
+        mask = self.rng.integers(2, size=data.shape, dtype=np.uint8)
 
         rate_stats1 = StreamingStats2D((nbins, nbins))
         for di, d in enumerate(data[: (nbins // 2)]):
@@ -166,7 +176,7 @@ class TestStreamingStats1D:
     def test_nomask(self):
         nbins = 100
         nsets = 10
-        data = np.random.normal(size=(nsets, nbins))
+        data = self.rng.normal(size=(nsets, nbins))
         mask = np.zeros((nbins,), np.uint8)
 
         rate_stats = StreamingStats1D(nbins)
@@ -179,7 +189,7 @@ class TestStreamingStats1D:
     def test_nomask_groups(self):
         nbins = 100
         nsets = 10
-        data = np.random.normal(size=(nsets, nbins))
+        data = self.rng.normal(size=(nsets, nbins))
         mask = np.zeros((nbins,), np.uint8)
 
         rate_stats1 = StreamingStats1D(nbins)
@@ -202,8 +212,8 @@ class TestStreamingStats1D:
     def test_with_mask(self):
         nbins = 100
         nsets = 10
-        data = np.random.normal(size=(nsets, nbins))
-        mask = np.random.randint(2, size=data.shape).astype(np.uint8)
+        data = self.rng.normal(size=(nsets, nbins))
+        mask = self.rng.integers(2, size=data.shape, dtype=np.uint8)
 
         rate_stats = StreamingStats1D(nbins)
         for di, d in enumerate(data):
@@ -217,8 +227,8 @@ class TestStreamingStats1D:
     def test_with_mask_groups(self):
         nbins = 100
         nsets = 10
-        data = np.random.normal(size=(nsets, nbins))
-        mask = np.random.randint(2, size=data.shape).astype(np.uint8)
+        data = self.rng.normal(size=(nsets, nbins))
+        mask = self.rng.integers(2, size=data.shape, dtype=np.uint8)
 
         rate_stats1 = StreamingStats1D(nbins)
         for di, d in enumerate(data[: (nbins // 2)]):

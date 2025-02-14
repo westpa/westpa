@@ -22,22 +22,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: 3.12
       - name: Linting
         run: |
           pip install pre-commit
           pre-commit run --all-files
 
   test:
-    name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}
+    name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}, Numpy ${{ matrix.numpy-version }}
     runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
         os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        numpy-version: ["1", "2"]
+        exclude:
+          - python-version: "3.9"
+            numpy-version: "2"
+          - python-version: "3.13"
+            numpy-version: "1"
 
     steps:
     - uses: actions/checkout@v4
@@ -55,7 +61,7 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v3
       with:
         python-version: ${{ matrix.python-version }}
-        environment-file: devtools/conda-envs/test_env.yaml
+        environment-file: devtools/conda-envs/test_env_numpy${{ matrix.numpy-version }}.yaml
         activate-environment: test_env
         channel-priority: true
         auto-update-conda: true
@@ -66,6 +72,7 @@ jobs:
       # conda setup requires this special shell
       shell: bash -l {0}
       run: |
+        conda list
         conda info --all
         python -m pip install . -v --no-deps
         conda list
@@ -77,9 +84,9 @@ jobs:
         pytest -v --cov=westpa --cov-report=xml --color=yes tests
 
     - name: CodeCov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
-        file: ./coverage.xml
+        files: ./coverage.xml
         flags: unittests
         name: codecov-{{ '${{ matrix.os }}' }}-py{{ '${{ matrix.python-version }}' }}
         fail_ci_if_error: false
@@ -98,7 +105,7 @@ jobs:
       - uses: "actions/checkout@v4"
       - uses: "actions/setup-python@v5"
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: "Install HDF5 with brew if macos-arm64"
         if: ${{ matrix.os == 'macos-latest' }}
         run: "brew install hdf5"

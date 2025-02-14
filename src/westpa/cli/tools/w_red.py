@@ -3,6 +3,11 @@ import numpy as np
 from westpa import rc
 from westpa.tools import WESTParallelTool
 
+try:
+    from numpy import trapezoid
+except ImportError:
+    from numpy import trapz as trapezoid
+
 
 class DurationCorrector(object):
     @staticmethod
@@ -128,9 +133,9 @@ class DurationCorrector(object):
 
         for i, tau in enumerate(taugrid):
             if i > 0 and tau < maxduration:
-                integral1[i] = np.trapz(f_tilde[: i + 1], taugrid[: i + 1])
+                integral1[i] = trapezoid(f_tilde[: i + 1], taugrid[: i + 1])
 
-        integral2 = np.trapz(integral1, taugrid)
+        integral2 = trapezoid(integral1, taugrid)
 
         if integral2 == 0:
             return 0.0

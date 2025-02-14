@@ -42,7 +42,7 @@ class EDF:
                 raise TypeError('values and weights have different lengths')
 
         # Sort values
-        sort_indices = numpy.argsort(values)
+        sort_indices = numpy.argsort(values, kind='stable')
         values = values[sort_indices]
         weights = weights[sort_indices]
 
