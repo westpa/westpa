@@ -144,7 +144,7 @@ def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.st
     min_seg_weight = weights.min()
     max_seg_weight = weights.max()
 
-    ndec = int(math.ceil(-math.log10(1 / n_active)))
+    ndec = math.ceil(-math.log10(1 / n_active))
 
     outfile.write('{:d} segments\n'.format(len(weights)))
     outfile.write(
