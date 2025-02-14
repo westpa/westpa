@@ -1,11 +1,9 @@
 import numpy as np
 from numpy.random import Generator, MT19937
 
-from westpa.core.binning import RectilinearBinMapper
+from westpa.core.binning import RectilinearBinMapper, MABBinMapper, BinlessMapper
 from westpa.core.propagators import WESTPropagator
 from westpa.core.systems import WESTSystem
-from westpa.core.binning.mab import MABBinMapper
-from westpa.core.binning.binless import BinlessMapper
 
 PI = np.pi
 
