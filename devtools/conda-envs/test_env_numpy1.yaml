@@ -1,21 +1,25 @@
-name: doc_env
+name: test_env
 channels:
   - conda-forge
   - defaults
 dependencies:
   - python
   - cython
-  - numpy
+  - numpy=1
   - scipy
   - h5py
   - pyyaml
   - pyzmq
-  - pytables
-  - mdtraj
   - matplotlib-base
   - blessings
   - ipykernel
   - mpi4py
-  - sphinx
-  - sphinx-rtd-theme
-  - pip
+  - tqdm
+  - mdtraj
+  - netCDF4
+  # testing
+  - pytest
+  - pytest-cov
+  - pytest-rerunfailures
+  - pytest-timeout
+  - codecov

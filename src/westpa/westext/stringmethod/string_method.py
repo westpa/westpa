@@ -1,6 +1,10 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
-from collections import Iterable
 import logging
+
+try:
+    from collections.abc import Iterable
+except ImportError:
+    from collections import Iterable
 
 import numpy as np
 
@@ -176,7 +180,7 @@ class DefaultStringMethod(WESTStringMethod):
                 ud[2:] = -self._kappan[ulen]
                 ld[:-2] = -self._kappan[ulen]
 
-                self._A[ulen] = np.mat([ud, d, ld])
+                self._A[ulen] = np.asmatrix([ud, d, ld])
 
             else:
                 self._A[ulen] = np.eye(ulen)

@@ -432,6 +432,22 @@ Command-line options
             else:
                 boundset[-1] /= 1.01
 
+    def _construct_bins_from_int_seq(self, bins):
+        if self.data_range is None:
+            self.scan_data_range()
+
+        self.binbounds = []
+        self.midpoints = []
+        for idim in range(self.ndim):
+            lb, ub = self.data_range[idim]
+            
+            # Advance just beyond the upper bound of the range, so that we catch
+            # the maximum in the histogram
+            if ub > 0:
+                ub *= 1.01
+            else:
+                ub /= 1.01
+
             self.binbounds.append(boundset)
             self.midpoints.append(midpoints)
 
