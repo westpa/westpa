@@ -99,9 +99,7 @@ class PredicateValidator(ast.NodeVisitor):
         return ast.get_source_segment(self.source, node)
 
     def visit_Attribute(self, node):
-        if type(node.value) is not ast.Name:
-            self.visit(node.value)
-        raise ValueError('attribute references are not supported')
+        raise ValueError(f'attribute references are not supported: {self.get_source_segment(node)}')
 
     def visit_BinOp(self, node):
         if type(node.op) not in (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow):
@@ -154,7 +152,7 @@ class PredicateValidator(ast.NodeVisitor):
         if type(node.slice) is not ast.Constant:
             raise ValueError('index must be a constant value')
         if not isinstance(node.slice.value, int):
-            typename = type(node.value).__name__
+            typename = type(node.slice.value).__name__
             raise TypeError(f'indexes must be integers, not {typename}: {self.get_source_segment(node)}')
 
     def visit_UnaryOp(self, node):
