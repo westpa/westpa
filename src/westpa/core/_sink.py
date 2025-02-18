@@ -143,7 +143,7 @@ class PredicateValidator(ast.NodeVisitor):
 
     def visit_Subscript(self, node):
         if type(node.value) is not ast.Name:
-            raise ValueError(f'invalid subscript: {self.get_source_segment(node)}')
+            raise ValueError(f'subscripted object must be a variable name: {self.get_source_segment(node)}')
         if node.value.id not in self.variable_names:
             raise ValueError(f'{node.value.id!r} is not a recognized variable name')
         if self.unpacked:
