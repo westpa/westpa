@@ -440,7 +440,7 @@ Command-line options
         self.midpoints = []
         for idim in range(self.ndim):
             lb, ub = self.data_range[idim]
-            
+
             # Advance just beyond the upper bound of the range, so that we catch
             # the maximum in the histogram
             if ub > 0:
