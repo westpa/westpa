@@ -16,7 +16,7 @@ import westpa.core.data_manager
 from westpa.core.binning.assign import BinMapper
 from westpa.core.binning import RectilinearBinMapper, RecursiveBinMapper, MABBinMapper, BinlessMapper
 from .yamlcfg import YAMLConfig
-from .yamlcfg import YAMLSystem
+from .systems import WESTSystem
 from . import extloader
 from ..work_managers import SerialWorkManager
 
@@ -548,7 +548,7 @@ class WESTRC:
           the parsed settings from the config file.
         """
 
-        yamlSystem = YAMLSystem()
+        system = WESTSystem()
         print("System building only off of the configuration file")
         # Now for the building of the system from YAML we need to use
         # require for these settings since they are musts.
@@ -564,10 +564,10 @@ class WESTRC:
         trgt_cnt = self.config.require(['west', 'system', 'system_options', 'bin_target_counts'])
         # Now add the parsed settings to the system
         mapper = bins_from_yaml_dict(bins_obj)
-        setattr(yamlSystem, 'pcoord_ndim', ndim)
-        setattr(yamlSystem, 'pcoord_len', plen)
-        setattr(yamlSystem, 'pcoord_dtype', ptype)
-        setattr(yamlSystem, 'bin_mapper', mapper)
+        setattr(system, 'pcoord_ndim', ndim)
+        setattr(system, 'pcoord_len', plen)
+        setattr(system, 'pcoord_dtype', ptype)
+        setattr(system, 'bin_mapper', mapper)
         # Check if the supplied target count object is
         # an iterable or not,
 
@@ -588,15 +588,15 @@ class WESTRC:
             assert trgt_cnt == int(trgt_cnt), "Counts are not integer valued, ambiguous input"
             trgt_cnt_arr = np.zeros(mapper.nbins)
             trgt_cnt_arr[:] = trgt_cnt
-        setattr(yamlSystem, 'bin_target_counts', trgt_cnt_arr)
+        setattr(system, 'bin_target_counts', trgt_cnt_arr)
 
         # Attach generic attribute to system
         for attr in system_dict.keys():
-            if not hasattr(yamlSystem, attr):
-                setattr(yamlSystem, attr, system_dict[attr])
+            if not hasattr(system, attr):
+                setattr(system, attr, system_dict[attr])
 
         # Return complete system
-        return yamlSystem
+        return system
 
     def update_from_yaml(self, init_system, system_dict):
         """
