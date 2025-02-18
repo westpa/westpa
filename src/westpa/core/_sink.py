@@ -153,7 +153,7 @@ class PredicateValidator(ast.NodeVisitor):
             raise ValueError('index must be a constant value')
         if not isinstance(node.slice.value, int):
             typename = type(node.slice.value).__name__
-            raise TypeError(f'indexes must be integers, not {typename}: {self.get_source_segment(node)}')
+            raise TypeError(f'index must be an integer, not {typename}: {self.get_source_segment(node)}')
 
     def visit_UnaryOp(self, node):
         if type(node.op) not in (ast.UAdd, ast.USub, ast.Not):
