@@ -62,7 +62,7 @@ def probAdjustEquil(binProb, rates, uncert, threshold=0.0, fullCalcClust=False, 
     j = j[nzi]
 
     vals = ma.vstack((ratios_average.vals[i, j], ratios_average.vals[j, i]))
-    ias = ma.argsort(vals, axis=0, fill_value=np.inf)
+    ias = ma.argsort(vals, axis=0, kind='stable', fill_value=np.inf)
 
     ordered_ind = np.vstack((i, j))
     flip_ind = np.nonzero(ias[0, :])  # Find pairs in which to select ji rather than ij
@@ -73,7 +73,7 @@ def probAdjustEquil(binProb, rates, uncert, threshold=0.0, fullCalcClust=False, 
     uncertij = ratios_average.uncert[iind, jind]  # Get the uncert for ij pairs
 
     count = uncertij.count()  # Count of the unmasked uncertainties
-    ias = ma.argsort(uncertij, fill_value=np.inf)  # Get the indices that would sort uncertij
+    ias = ma.argsort(uncertij, kind='stable', fill_value=np.inf)  # Get the indices that would sort uncertij
     iind = iind[ias[:count]]  # Sort the indices excluding masked/undefined values
     jind = jind[ias[:count]]
 

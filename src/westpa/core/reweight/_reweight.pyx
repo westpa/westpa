@@ -21,7 +21,7 @@ ctypedef numpy.uint16_t index_t
 ctypedef numpy.float64_t weight_t
 ctypedef numpy.uint8_t bool_t
 ctypedef numpy.int64_t trans_t
-ctypedef numpy.uint_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
+ctypedef numpy.uintp_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
 ctypedef unsigned short Ushort
 ctypedef double complex Cdouble
 
