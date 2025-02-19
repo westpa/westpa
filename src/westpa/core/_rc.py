@@ -19,6 +19,7 @@ from .yamlcfg import YAMLConfig
 from .systems import WESTSystem
 from . import extloader
 from ..work_managers import SerialWorkManager
+from ._sink import Sink
 
 log = logging.getLogger('westpa.rc')
 
@@ -568,6 +569,10 @@ class WESTRC:
         setattr(system, 'pcoord_len', plen)
         setattr(system, 'pcoord_dtype', ptype)
         setattr(system, 'bin_mapper', mapper)
+
+        if string := self.config.get(['west', 'system', 'system_options', 'sink']):
+            system.sink = Sink.from_string(string)
+
         # Check if the supplied target count object is
         # an iterable or not,
 
@@ -626,6 +631,10 @@ class WESTRC:
                 self.overwrite_option(init_system, key, value)
             elif key == "bins":
                 self.overwrite_option(init_system, 'bin_mapper', bins_from_yaml_dict(value))
+
+        if 'sink' in system_dict:
+            init_system.sink = Sink.from_string(system_dict['sink'])
+
         # Target counts have to be parsed after we have a mapper in
         # place
         try:

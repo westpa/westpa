@@ -1,3 +1,4 @@
+import itertools
 import logging
 import math
 import operator
@@ -189,13 +190,15 @@ class WEDriver:
 
     @property
     def recycling_segments(self):
-        '''Segments designated for recycling'''
-        if len(self.target_states):
-            for ibin, tstate in self.target_states.items():
-                for segment in self.final_binning[ibin]:
+        """Segments designated for recycling."""
+        if self.system.sink is not None:
+            for segment in itertools.chain(*self.final_binning):
+                if segment.pcoord[-1] in self.system.sink:
                     yield segment
         else:
-            return
+            for ibin in self.target_states:
+                for segment in self.final_binning[ibin]:
+                    yield segment
 
     @property
     def n_recycled_segs(self):
@@ -393,18 +396,28 @@ class WEDriver:
 
         used_istate_ids = set()
         istateiter = iter(self.avail_initial_states.values())
-        for ibin, target_state in self.target_states.items():
-            target_bin = self.next_iter_binning[ibin]
-            for segment in set(target_bin):
+
+        for ibin, bin_ in enumerate(self.next_iter_binning):
+            if self.system.sink is not None:
+                segments_to_move = filter(lambda s: s.pcoord[0] in self.system.sink, bin_)
+                target_state = None
+            elif ibin in self.target_states:
+                segments_to_move = iter(bin_)
+                target_state = self.target_states[ibin]
+            else:
+                continue
+
+            for segment in segments_to_move:
                 initial_state = next(istateiter)
                 istate_assignment = self.bin_mapper.assign([initial_state.pcoord])[0]
                 parent = self._parent_map[segment.parent_id]
                 parent.endpoint_type = Segment.SEG_ENDPOINT_RECYCLED
 
                 if log.isEnabledFor(logging.DEBUG):
-                    log.debug(
-                        'recycling {!r} from target state {!r} to initial state {!r}'.format(segment, target_state, initial_state)
-                    )
+                    if self.system.sink is not None:
+                        log.debug(f'recycling {segment!r} from sink to initial state {initial_state!r}')
+                    else:
+                        log.debug(f'recycling {segment!r} from target state {target_state!r} to initial state {initial_state!r}')
                     log.debug('parent is {!r}'.format(parent))
 
                 segment.parent_id = -(initial_state.state_id + 1)
@@ -420,7 +433,7 @@ class WEDriver:
                         prev_init_pcoord=parent.pcoord[0].copy(),
                         prev_final_pcoord=parent.pcoord[-1].copy(),
                         new_init_pcoord=initial_state.pcoord.copy(),
-                        target_state_id=target_state.state_id,
+                        target_state_id=target_state.state_id if target_state is not None else -1,
                         initial_state_id=initial_state.state_id,
                     )
                 )
@@ -433,9 +446,10 @@ class WEDriver:
                 initial_state.iter_used = segment.n_iter
                 log.debug('marking initial state {!r} as used'.format(initial_state))
                 used_istate_ids.add(initial_state.state_id)
-                target_bin.remove(segment)
+                bin_.remove(segment)
 
-            assert len(target_bin) == 0
+            if self.system.sink is None:
+                assert len(bin_) == 0
 
         # Transfer newly-assigned states from "available" to "used"
         for state_id in used_istate_ids:
