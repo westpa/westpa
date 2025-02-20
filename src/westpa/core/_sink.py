@@ -2,18 +2,14 @@ import ast
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Union
 
 import numpy as np
-from numpy.typing import NDArray
-
-
-Bool = Union[bool, np.bool_]
+from numpy.typing import ArrayLike
 
 
 @dataclass
 class Sink:
-    indicator_function: Callable[[NDArray], Bool]
+    indicator_function: Callable[[ArrayLike], bool]
 
     def __contains__(self, x):
         return self.indicator_function(x)
@@ -82,11 +78,13 @@ class Sink:
             result = indicator_function(np.zeros(ndim))
         except Exception as e:
             raise RuntimeError(f'an error occurred while evaluating the predicate: {e}')
-        else:
-            if not isinstance(result, Bool):
-                raise TypeError(f'predicate must evaluate to a boolean, not {type(result).__name__}')
+        if not isinstance(result, (bool, np.bool_)):
+            raise TypeError(f'predicate must evaluate to a boolean, not {type(result).__name__}')
 
-        return cls(indicator_function)
+        if isinstance(result, np.bool_):
+            return cls(lambda x: bool(indicator_function(x)))
+        else:
+            return cls(indicator_function)
 
 
 @dataclass
@@ -114,11 +112,35 @@ class PredicateValidator(ast.NodeVisitor):
     def visit_Call(self, node):
         if type(node.func) is not ast.Name:
             self.visit(node.func)
-        else:
-            try:
-                getattr(math, node.func.id)
-            except AttributeError:
-                raise ValueError(f'{node.func.id}() is not a recognized math function')
+        elif node.func.id not in (
+            'acos',
+            'acosh',
+            'asin',
+            'asinh',
+            'atan',
+            'atanh',
+            'cos',
+            'cosh',
+            'degrees',
+            'erf',
+            'erfc',
+            'exp',
+            'expm1',
+            'gamma',
+            'lgamma',
+            'log',
+            'log10',
+            'log1p',
+            'log2',
+            'pow',
+            'radians',
+            'sin',
+            'sinh',
+            'sqrt',
+            'tan',
+            'tanh',
+        ):
+            raise ValueError(f'{node.func.id}() is not a recognized function')
         for arg in node.args + node.keywords:
             self.visit(arg)
 
@@ -169,7 +191,7 @@ class MathFunctionTransformer(ast.NodeTransformer):
     def visit_Call(self, node):
         return ast.Call(
             func=ast.Attribute(
-                value=ast.Name(id='math', ctx=ast.Load()),
+                value=ast.Name(id=math.__name__, ctx=ast.Load()),
                 attr=node.func.id,
                 ctx=ast.Load(),
             ),
