@@ -1,15 +1,64 @@
 import ast
 import math
-from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
-from numpy.typing import ArrayLike
+
+
+@dataclass
+class IndicatorFunction:
+    variables: str
+    predicate: str
+
+    def __post_init__(self):
+        # Parse the variables (e.g., 'x' or 'x, y').
+        expr = ast.parse(self.variables, mode='eval')
+        if type(expr.body) is ast.Name:
+            variable_names = {expr.body.id}
+            unpacked = False
+        elif type(expr.body) is ast.Tuple and all(type(elt) is ast.Name for elt in expr.body.elts):
+            variable_names = {elt.id for elt in expr.body.elts}
+            unpacked = True
+        else:
+            raise ValueError('<variables> must be a variable name or a tuple of variable names')
+        if '_x' in variable_names:
+            raise ValueError("variable name '_x' is reserved")
+
+        # Parse and compile the predicate (e.g., 'x[0] > 0' or 'x**2 and y**2 < 1').
+        expr = ast.parse(self.predicate, mode='eval')
+        validator = PredicateValidator(self.predicate, variable_names, unpacked)
+        try:
+            validator.visit(expr.body)
+        except (TypeError, ValueError):
+            raise
+        else:
+            # Transform function calls from 'func()' to 'math.func()'.
+            transformer = MathFunctionTransformer()
+            expr = ast.fix_missing_locations(transformer.visit(expr))
+        self._predicate = compile(expr, '<string>', 'eval')
+
+        # Infer the minimum dimension of the coordinate space.
+        if unpacked:
+            ndim = len(variable_names)
+        else:
+            ndim = 1 + max(node.slice.value for node in ast.walk(expr) if type(node) is ast.Subscript)
+
+        # Check that the predicate evaluates to a boolean.
+        try:
+            result = self(np.zeros(ndim))
+        except Exception as e:
+            raise RuntimeError(f'an error occurred while evaluating the predicate: {e}')
+        if not isinstance(result, (bool, np.bool_)):
+            raise TypeError(f'predicate must evaluate to a boolean, not {type(result).__name__}')
+
+    def __call__(self, _x):
+        exec(f'{self.variables} = _x')
+        return eval(self._predicate)
 
 
 @dataclass
 class Sink:
-    indicator_function: Callable[[ArrayLike], bool]
+    indicator_function: IndicatorFunction
 
     def __contains__(self, x):
         return self.indicator_function(x)
@@ -37,54 +86,10 @@ class Sink:
         if len(words) != 2:
             raise ValueError('invalid syntax: expected <variables>: <predicate>')
         variables, predicate = [word.strip() for word in words]
+        return cls(IndicatorFunction(variables, predicate))
 
-        # Parse the variables (e.g., 'x' or 'x, y').
-        expr = ast.parse(variables, mode='eval')
-        if type(expr.body) is ast.Name:
-            variable_names = {expr.body.id}
-            unpacked = False
-        elif type(expr.body) is ast.Tuple and all(type(elt) is ast.Name for elt in expr.body.elts):
-            variable_names = {elt.id for elt in expr.body.elts}
-            unpacked = True
-        else:
-            raise ValueError('<variables> must be a variable name or a tuple of variable names')
-        if '_x' in variable_names:
-            raise ValueError("variable name '_x' is reserved")
-
-        # Parse the predicate (e.g., 'x[0] > 0' or 'x**2 and y**2 < 1').
-        expr = ast.parse(predicate, mode='eval')
-        validator = PredicateValidator(predicate, variable_names, unpacked)
-        try:
-            validator.visit(expr.body)
-        except (TypeError, ValueError):
-            raise
-        else:
-            # Transform function calls from 'func()' to 'math.func()'.
-            transformer = MathFunctionTransformer()
-            expr = ast.fix_missing_locations(transformer.visit(expr))
-
-        def indicator_function(_x):
-            exec(f'{variables} = _x')
-            return eval(compile(expr, '<string>', 'eval'))
-
-        # Infer the minimum dimension of the coordinate space.
-        if unpacked:
-            ndim = len(variable_names)
-        else:
-            ndim = 1 + max(node.slice.value for node in ast.walk(expr) if type(node) is ast.Subscript)
-
-        # Check that the predicate evaluates to a boolean.
-        try:
-            result = indicator_function(np.zeros(ndim))
-        except Exception as e:
-            raise RuntimeError(f'an error occurred while evaluating the predicate: {e}')
-        if not isinstance(result, (bool, np.bool_)):
-            raise TypeError(f'predicate must evaluate to a boolean, not {type(result).__name__}')
-
-        if isinstance(result, np.bool_):
-            return cls(lambda x: bool(indicator_function(x)))
-        else:
-            return cls(indicator_function)
+    def __str__(self):
+        return f'{self.indicator_function.variables}: {self.indicator_function.predicate}'
 
 
 @dataclass
