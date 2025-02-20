@@ -7,6 +7,7 @@ from westpa.core.binning.assign import BinMapper
 from westpa.core.h5io import WESTPAH5File, tostr
 from westpa.core.segment import Segment
 from westpa.core.states import BasisState, InitialState, TargetState
+from westpa.core._sink import Sink
 from westpa.tools.binning import mapper_from_hdf5
 
 
@@ -74,7 +75,7 @@ class Run:
             dtype=object,
         )
         df.pop('norm')  # should always be 1.0
-        df.pop('binhash')  # not human readable
+        df.pop('binhash')  # not human-readable
         return df
 
     @property
@@ -206,7 +207,7 @@ class Iteration:
             dtype=object,
         )
         df.pop('norm')  # should always be 1.0
-        df.pop('binhash')  # not human readable
+        df.pop('binhash')  # not human-readable
         return df.iloc[0]
 
     @property
@@ -348,11 +349,15 @@ class Iteration:
 
     @property
     def sink(self):
-        """BinUnion or None: Union of bins serving as the recycling sink."""
-        if not self.has_target_states:
+        """Sink, BinUnion, or None: Recycling sink."""
+        if 'sink' in self.run.h5file:
+            string = self.run.h5file['sink'][...].item().decode('utf-8')
+            return Sink.from_string(string)
+        elif self.has_target_states:
+            mapper = Iteration(self.number + 1, self.run).bin_mapper
+            return BinUnion(mapper.assign(self.target_state_pcoords), mapper)
+        else:
             return None
-        mapper = Iteration(self.number + 1, self.run).bin_mapper
-        return BinUnion(mapper.assign(self.target_state_pcoords), mapper)
 
     def bin(self, index):
         """Return the bin with the given index.
