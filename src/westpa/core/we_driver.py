@@ -399,10 +399,10 @@ class WEDriver:
 
         for ibin, bin_ in enumerate(self.next_iter_binning):
             if self.system.sink is not None:
-                segments_to_move = filter(lambda s: s.pcoord[0] in self.system.sink, bin_)
+                segments_to_move = [seg for seg in bin_ if seg.pcoord[0] in self.system.sink]
                 target_state = None
             elif ibin in self.target_states:
-                segments_to_move = iter(bin_)
+                segments_to_move = list(bin_)
                 target_state = self.target_states[ibin]
             else:
                 continue
