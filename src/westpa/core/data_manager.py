@@ -1510,6 +1510,12 @@ class WESTDataManager:
             else:
                 iter_group.attrs['binhash'] = ''
 
+    def save_sink(self):
+        """Save the sink definition."""
+        if self.system.sink is not None:
+            with self.lock:
+                self.we_h5file['sink'] = str(self.system.sink).encode('utf-8')
+
 
 def normalize_dataset_options(dsopts, path_prefix='', n_iter=0):
     dsopts = dict(dsopts)

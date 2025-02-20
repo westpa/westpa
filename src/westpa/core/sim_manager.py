@@ -299,6 +299,9 @@ class WESimManager:
         data_manager.save_target_states(target_states)
         self.report_target_states(target_states)
 
+        # Process sink
+        data_manager.save_sink()
+
         # Process basis states
         self.get_bstate_pcoords(basis_states)
         self.data_manager.create_ibstate_group(basis_states)
