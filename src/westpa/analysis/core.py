@@ -318,7 +318,7 @@ class Iteration:
 
     @property
     def has_target_states(self):
-        """bool: Whether target (sink) states are defined for this iteration."""
+        """bool: Whether target states are defined for this iteration."""
         return 'tstates' in self.h5group
 
     @property
