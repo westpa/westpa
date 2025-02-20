@@ -2,6 +2,7 @@ import logging
 import math
 import operator
 import time
+from collections import defaultdict
 from datetime import timedelta
 from pickle import PickleError
 from itertools import zip_longest
@@ -709,20 +710,20 @@ class WESimManager:
         self.data_manager.save_iter_binning(self.n_iter + 1, hashed, pickled, self.we_driver.bin_target_counts)
 
         # Report on recycling
-        recycling_events = {}
+        recycling_events = defaultdict(list)
         for nw in self.we_driver.new_weights:
-            try:
-                recycling_events[nw.target_state_id].append(nw.weight)
-            except KeyError:
-                recycling_events[nw.target_state_id] = list([nw.weight])
+            recycling_events[nw.target_state_id].append(nw.weight)
 
         tstates_by_id = {state.state_id: state for state in self.we_driver.target_states.values()}
 
         for tstate_id, weights in recycling_events.items():
-            tstate = tstates_by_id[tstate_id]
-            self.rc.pstatus(
-                'Recycled {:g} probability ({:d} walkers) from target state {!r}'.format(sum(weights), len(weights), tstate.label)
-            )
+            if tstate_id == -1:
+                self.rc.pstatus(f'Recycled {sum(weights):g} probability ({len(weights)} walkers) from the sink')
+            else:
+                tstate = tstates_by_id[tstate_id]
+                self.rc.pstatus(
+                    f'Recycled {sum(weights):g} probability ({len(weights)} walkers) from target state {tstate.label!r}'
+                )
 
     def prepare_new_iteration(self):
         '''Commit data for the coming iteration to the HDF5 file.'''
