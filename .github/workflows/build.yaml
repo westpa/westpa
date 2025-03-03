@@ -16,6 +16,10 @@ on:
   release:
     types:
       - published
+  workflow_dispatch:
+    branches:
+      - 'westpa2'
+      - 'develop'
 
 jobs:
   build_wheels:

@@ -14,6 +14,10 @@ on:
     #   Scheduled workflows run on the latest commit on the default or base branch.
     #   (from https://help.github.com/en/actions/reference/events-that-trigger-workflows#scheduled-events-schedule)
     - cron: "30 15 * * 4"
+  workflow_dispatch:
+    branches:
+      - 'westpa2'
+      - 'develop'
 
 jobs:
   lint:
