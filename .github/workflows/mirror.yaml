@@ -5,6 +5,8 @@ on:
     # Once a month on the 28th day at 4 pm UTC, which is ~11 am EST.
     - cron: "00 16 28 * *"
   workflow_dispatch:
+    branches:
+      - 'westpa2'
 
 jobs:
   mirror-develop-to-westpa2:
