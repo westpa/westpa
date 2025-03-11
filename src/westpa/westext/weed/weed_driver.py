@@ -83,13 +83,13 @@ class WEEDDriver:
     def prepare_new_iteration(self):
         n_iter = self.sim_manager.n_iter
         we_driver = self.sim_manager.we_driver
+        system = self.sim_manager.system
 
-        if we_driver.target_states and self.do_reweight:
-            log.warning('equilibrium reweighting requested but target states (sinks) present; reweighting disabled')
-            return
-
-        if not self.do_reweight:
-            # Reweighting not requested
+        if self.do_reweight:
+            if we_driver.target_states or system.sink is not None:
+                log.warning('Equilibrium reweighting requested but target states (sinks) present; reweighting disabled')
+                return
+        else:
             log.debug('Equilibrium reweighting not enabled')
             return
 
