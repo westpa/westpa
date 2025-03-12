@@ -69,6 +69,25 @@ def _extract_fluxes_fileversion_7(iter_start, iter_stop, data_manager):
     # but that's for another tool.
     by_target = {}
 
+    if data_manager.get_sink() is not None:
+        fluxdata = np.zeros((iter_count,), dtype=fluxentry_dtype)
+        fluxdata['count'][:] = -1
+        fluxdata['n_iter'][:] = iters[:]
+
+        for i, n_iter in enumerate(range(iter_start, iter_stop)):
+            try:
+                new_weight_index = data_manager.get_iter_group(n_iter + 1)['new_weights']['index']
+            except KeyError:
+                continue
+
+            recycled = new_weight_index['source_type'] == NewWeightEntry.NW_SOURCE_RECYCLED
+            recycle_count = recycled.sum()
+            fluxdata['count'][i] = recycle_count
+            if recycle_count:
+                fluxdata['flux'][i] = new_weight_index[recycled]['weight'].sum()
+
+        return {'sink': fluxdata}
+
     for iiter, n_iter in enumerate(range(iter_start, iter_stop)):
         target_states = data_manager.get_target_states(n_iter)
         try:

@@ -50,6 +50,7 @@ import time
 import builtins
 from operator import attrgetter
 from os.path import relpath, dirname
+from typing import Optional
 
 import h5py
 from h5py import h5s
@@ -60,6 +61,7 @@ from .segment import Segment
 from .states import BasisState, TargetState, InitialState
 from .we_driver import NewWeightEntry
 from .propagators.executable import ExecutablePropagator
+from ._sink import Sink
 
 import westpa
 
@@ -1515,6 +1517,13 @@ class WESTDataManager:
         if self.system.sink is not None:
             with self.lock:
                 self.we_h5file['sink'] = str(self.system.sink).encode('utf-8')
+
+    def get_sink(self) -> Optional[Sink]:
+        """Return the sink, or None if no sink is defined."""
+        with self.lock:
+            if 'sink' in self.we_h5file:
+                return Sink.from_string(self.we_h5file['sink'][...].item().decode('utf-8'))
+        return None
 
 
 def normalize_dataset_options(dsopts, path_prefix='', n_iter=0):
