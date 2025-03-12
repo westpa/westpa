@@ -79,7 +79,9 @@ class Sink:
         Returns
         -------
         Sink
-            A container object whose membership test evaluates the predicate.
+            A container object whose membership test first assigns the given
+            object to ``<variables>``, then returns the result of evaluating
+            the ``<predicate>`` expression.
 
         """
         words = string.split(':')
