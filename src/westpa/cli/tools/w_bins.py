@@ -89,11 +89,6 @@ modify the binning for the current iteration of a WEST simulation.
 
     def cmd_info(self):
         mapper = self.binning.mapper
-
-        # Get target states and their assignments
-        target_states = self.data_reader.get_target_states(self.n_iter)
-        n_target_states = len(target_states)
-
         iter_group = self.data_reader.get_iter_group(self.n_iter)
 
         # bin initial pcoords for iteration n_iter
@@ -106,7 +101,7 @@ modify the binning for the current iteration of a WEST simulation.
         # Get bin counts and weights
         weights = iter_group['seg_index']['weight']
 
-        write_bin_info(mapper, assignments, weights, n_target_states, detailed=self.args.detail)
+        write_bin_info(mapper, assignments, weights, detailed=self.args.detail)
 
     def cmd_rebin(self):
         mapper = self.binning.mapper
@@ -114,7 +109,6 @@ modify the binning for the current iteration of a WEST simulation.
         if self.n_iter == 1:
             sys.stderr.write('rebin is not supported for the first iteration; reinitialize with w_init instead\n')
             sys.exit(1)
-        n_target_states = len(self.data_reader.get_target_states(self.n_iter))
         we_driver = westpa.rc.get_we_driver()
         data_manager = self.data_reader.data_manager
 
@@ -139,7 +133,7 @@ modify the binning for the current iteration of a WEST simulation.
 
         weights = np.array([segment.weight for segment in we_driver.next_iter_segments])
         assignments = np.fromiter(we_driver.next_iter_assignments, dtype=int, count=len(weights))
-        write_bin_info(mapper, assignments, weights, n_target_states, detailed=self.args.detail)
+        write_bin_info(mapper, assignments, weights, detailed=self.args.detail)
 
         if self.args.confirm:
             data_manager.prepare_iteration(self.n_iter, list(we_driver.next_iter_segments))

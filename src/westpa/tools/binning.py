@@ -123,12 +123,10 @@ def mapper_from_dict(ybins):
             raise
 
 
-def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.stdout, detailed=False):
-    '''Write information about binning to ``outfile``, given a mapper (``mapper``) and the weights
-    (``weights``) and bin assignments (``assignments``) of a set of segments, along with a target state
-    count (``n_target_states``). If ``detailed`` is true, then per-bin information is written as well as
-    summary information about all bins.'''
-
+def write_bin_info(mapper, assignments, weights, outfile=sys.stdout, detailed=False):
+    """Write information about binning to ``outfile``, given a mapper (``mapper``) and the weights
+    (``weights``) and bin assignments (``assignments``) of a set of segments. If ``detailed`` is true,
+    then per-bin information is written as well as summary information about all bins."""
     norm = weights.sum()
     enorm = norm - 1.0
     enormeps = abs(enorm / EPS)
@@ -136,7 +134,6 @@ def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.st
     n_occupied = np.count_nonzero(bincounts)
     binweights = np.bincount(assignments, weights, minlength=len(assignments))
     nonzero_counts = bincounts > 0
-    n_active = mapper.nbins - n_target_states
     weights_by_bin = [[] for _i in range(mapper.nbins)]
 
     min_bin_weight = binweights[nonzero_counts].min()
@@ -144,13 +141,11 @@ def write_bin_info(mapper, assignments, weights, n_target_states, outfile=sys.st
     min_seg_weight = weights.min()
     max_seg_weight = weights.max()
 
-    ndec = int(math.ceil(-math.log10(1 / n_active)))
+    ndec = int(math.ceil(-math.log10(1 / mapper.nbins)))
 
     outfile.write('{:d} segments\n'.format(len(weights)))
     outfile.write(
-        '{:d} bins total, {:d} targets, {:d} ({:.{ndec}%}) occupied\n'.format(
-            mapper.nbins, n_target_states, n_occupied, n_occupied / n_active, ndec=ndec
-        )
+        '{:d} bins total, {:d} ({:.{ndec}%}) occupied\n'.format(mapper.nbins, n_occupied, n_occupied / mapper.nbins, ndec=ndec)
     )
     outfile.write('Minimum probability by bin:     {:23.17e}\n'.format(min_bin_weight))
     outfile.write('Maximum probability by bin:     {:23.17e}\n'.format(max_bin_weight))
