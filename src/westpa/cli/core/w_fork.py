@@ -79,6 +79,11 @@ def entry_point():
     target_states = dm_old.get_target_states(n_iter)
     dm_new.save_target_states(target_states, n_iter)
 
+    # Copy sink definition
+    sink = dm_old.get_sink()
+    if sink is not None:
+        dm_new.save_sink(sink)
+
     # Copy basis states
     basis_states = dm_old.get_basis_states(n_iter)
     dm_new.create_ibstate_group(basis_states, n_iter=1)

@@ -300,7 +300,8 @@ class WESimManager:
         self.report_target_states(target_states)
 
         # Process sink
-        data_manager.save_sink()
+        if system.sink is not None:
+            data_manager.save_sink(system.sink)
 
         # Process basis states
         self.get_bstate_pcoords(basis_states)

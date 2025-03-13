@@ -1512,11 +1512,17 @@ class WESTDataManager:
             else:
                 iter_group.attrs['binhash'] = ''
 
-    def save_sink(self):
-        """Save the sink definition."""
-        if self.system.sink is not None:
-            with self.lock:
-                self.we_h5file['sink'] = str(self.system.sink).encode('utf-8')
+    def save_sink(self, sink):
+        """Save the sink definition.
+
+        Parameters
+        ----------
+        sink : Sink
+            The sink whose definition to save.
+
+        """
+        with self.lock:
+            self.we_h5file['sink'] = str(sink).encode('utf-8')
 
     def get_sink(self) -> Optional[Sink]:
         """Return the sink, or None if no sink is defined."""
