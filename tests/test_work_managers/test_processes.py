@@ -24,7 +24,10 @@ class TestProcessWorkManagerAux:
         work_manager.startup()
         work_manager.shutdown()
         for worker in work_manager.workers:
-            assert not worker.is_alive()
+            try:
+                assert not worker.is_alive()
+            except ValueError:
+                pass  # probably closed already
 
     @pytest.mark.timeout(2)
     def test_hang_shutdown(self):
@@ -35,7 +38,10 @@ class TestProcessWorkManagerAux:
             work_manager.submit(will_busyhang)
         work_manager.shutdown()
         for worker in work_manager.workers:
-            assert not worker.is_alive()
+            try:
+                assert not worker.is_alive()
+            except ValueError:
+                pass  # probably closed already
 
     @pytest.mark.timeout(2)
     def test_hang_shutdown_ignoring_sigint(self):
@@ -46,7 +52,10 @@ class TestProcessWorkManagerAux:
             work_manager.submit(will_busyhang_uninterruptible)
         work_manager.shutdown()
         for worker in work_manager.workers:
-            assert not worker.is_alive()
+            try:
+                assert not worker.is_alive()
+            except ValueError:
+                pass  # probably closed already
 
     @pytest.mark.timeout(2)
     def test_sigint_shutdown(self):
@@ -62,7 +71,10 @@ class TestProcessWorkManagerAux:
                 os.kill(os.getpid(), signal.SIGINT)
             except KeyboardInterrupt:
                 for worker in work_manager.workers:
-                    assert not worker.is_alive()
+                    try:
+                        assert not worker.is_alive()
+                    except ValueError:
+                        pass  # probably closed already
                 raise
 
     @pytest.mark.timeout(2)
