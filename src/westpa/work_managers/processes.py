@@ -181,7 +181,10 @@ class ProcessWorkManager(WorkManager):
                 else:
                     log.debug('worker process {:d} terminated gracefully with code {:d}'.format(worker.pid, worker.exitcode))
 
-                worker.close()  # Release all resources
+                try:
+                    worker.close()  # Release all resources
+                except ValueError:
+                    pass  # Already closed.
 
             self._empty_queues()
             self.result_queue.put(result_shutdown_sentinel)
