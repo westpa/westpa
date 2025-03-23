@@ -49,6 +49,9 @@ class WESSDriver:
         self.windowsize = 0.5
         self.windowtype = 'fraction'
 
+        if self.system.sink is not None:
+            raise ValueError('the sink must be defined via target states when using WESS')
+
         windowsize = plugin_config.get('window_size')
         if windowsize is not None:
             if isinstance(windowsize, float):
