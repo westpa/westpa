@@ -22,20 +22,21 @@ Overall structure
 ::
 
     /
-        #ibstates/
+        ibstates/
             index
-            naming
+            0/
                 bstate_index
                 bstate_pcoord
                 istate_index
                 istate_pcoord
-        #tstates/
+            ...
+        tstates/
             index
         bin_topologies/
             index
             pickles
         iterations/
-            iter_XXXXXXXX/\|iter_XXXXXXXX/
+            iter_00000001/
                 auxdata/
                 bin_target_counts
                 ibstates/
@@ -46,7 +47,10 @@ Overall structure
                 pcoord
                 seg_index
                 wtgraph
+            iter_00000002/
+            iter_00000003/
             ...
+        sink
         summary
 
 The root group (/)
@@ -65,6 +69,7 @@ tstates/        Group                   Target (recycling) states for this
 bin_topologies/ Group                   Data pertaining to the binning scheme
                                         used in each iteration
 iterations/     Group                   Iteration data
+sink            Dataset (0-dimensional) Sink definition; optional
 summary         Dataset (1-dimensional, Summary data by iteration
                 compound)
 =============== ======================= =======================================
