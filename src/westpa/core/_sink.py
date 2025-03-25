@@ -70,7 +70,7 @@ class Sink:
         Parameters
         ----------
         string : str
-            A string of the form ``<variables>: <predicate>``, where
+            A string of the form ``'<variables> : <predicate>'``, where
             ``<variables>`` is a variable name or tuple of variable names, and
             ``<predicate>`` is a boolean expression involving those variables.
             The predicate may include arithmetic operations, comparisons, and
@@ -86,12 +86,12 @@ class Sink:
         """
         words = string.split(':')
         if len(words) != 2:
-            raise ValueError('invalid syntax: expected <variables>: <predicate>')
+            raise ValueError("invalid syntax: expected '<variables> : <predicate>'")
         variables, predicate = [word.strip() for word in words]
         return cls(IndicatorFunction(variables, predicate))
 
     def __str__(self):
-        return f'{self.indicator_function.variables}: {self.indicator_function.predicate}'
+        return f'{self.indicator_function.variables} : {self.indicator_function.predicate}'
 
 
 @dataclass
