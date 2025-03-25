@@ -4,7 +4,7 @@ from westpa.core._sink import Sink
 
 
 def test_from_string():
-    with pytest.raises(ValueError, match='invalid syntax: expected <variables>: <predicate>'):
+    with pytest.raises(ValueError, match="invalid syntax: expected '<variables> : <predicate>'"):
         Sink.from_string('x')
     with pytest.raises(ValueError, match="array variable 'x' must be subscripted"):
         Sink.from_string('x: x > 0')
