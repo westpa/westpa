@@ -5,6 +5,39 @@ from dataclasses import dataclass
 import numpy as np
 
 
+VALID_BINARY_OPS = {ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow}
+VALID_COMPARISON_OPS = {ast.Lt, ast.LtE, ast.Gt, ast.GtE}
+VALID_UNARY_OPS = {ast.UAdd, ast.USub, ast.Not}
+VALID_FUNCTIONS = {
+    'acos',
+    'acosh',
+    'asin',
+    'asinh',
+    'atan',
+    'atanh',
+    'cos',
+    'cosh',
+    'degrees',
+    'erf',
+    'erfc',
+    'exp',
+    'expm1',
+    'gamma',
+    'lgamma',
+    'log',
+    'log10',
+    'log1p',
+    'log2',
+    'pow',
+    'radians',
+    'sin',
+    'sinh',
+    'sqrt',
+    'tan',
+    'tanh',
+}
+
+
 @dataclass
 class IndicatorFunction:
     variables: str
@@ -107,7 +140,7 @@ class PredicateValidator(ast.NodeVisitor):
         raise ValueError(f'attribute references are not supported: {self.get_source_segment(node)}')
 
     def visit_BinOp(self, node):
-        if type(node.op) not in (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow):
+        if type(node.op) not in VALID_BINARY_OPS:
             raise ValueError(f'invalid binary operation: {self.get_source_segment(node)}')
         self.visit(node.left)
         self.visit(node.right)
@@ -119,41 +152,14 @@ class PredicateValidator(ast.NodeVisitor):
     def visit_Call(self, node):
         if type(node.func) is not ast.Name:
             self.visit(node.func)
-        elif node.func.id not in (
-            'acos',
-            'acosh',
-            'asin',
-            'asinh',
-            'atan',
-            'atanh',
-            'cos',
-            'cosh',
-            'degrees',
-            'erf',
-            'erfc',
-            'exp',
-            'expm1',
-            'gamma',
-            'lgamma',
-            'log',
-            'log10',
-            'log1p',
-            'log2',
-            'pow',
-            'radians',
-            'sin',
-            'sinh',
-            'sqrt',
-            'tan',
-            'tanh',
-        ):
+        elif node.func.id not in VALID_FUNCTIONS:
             raise ValueError(f'{node.func.id}() is not a recognized function')
         for arg in node.args + node.keywords:
             self.visit(arg)
 
     def visit_Compare(self, node):
         for op in node.ops:
-            if type(op) not in (ast.Lt, ast.LtE, ast.Gt, ast.GtE):
+            if type(op) not in VALID_COMPARISON_OPS:
                 raise ValueError(f'invalid comparison: {self.get_source_segment(node)}')
         self.visit(node.left)
         for comparator in node.comparators:
@@ -185,7 +191,7 @@ class PredicateValidator(ast.NodeVisitor):
             raise TypeError(f'index must be an integer, not {typename}: {self.get_source_segment(node)}')
 
     def visit_UnaryOp(self, node):
-        if type(node.op) not in (ast.UAdd, ast.USub, ast.Not):
+        if type(node.op) not in VALID_UNARY_OPS:
             raise ValueError(f'invalid unary operation: {self.get_source_segment(node)}')
         self.visit(node.operand)
 
