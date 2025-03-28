@@ -89,6 +89,7 @@ class TestProcessWorkManagerAux:
 
         with monkeypatch.context() as m:
             m.setattr(worker, 'close', lambda: exec('raise(ValueError)'))
+            m.setattr(worker, 'is_alive', lambda: True)
             m.setattr(work_manager, '_empty_queues', lambda: 0)
             work_manager.shutdown()
 
