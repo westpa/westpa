@@ -34,7 +34,7 @@ class TestProcessWorkManagerAux:
         work_manager = ProcessWorkManager()
         work_manager.shutdown_timeout = 0.1
         work_manager.startup()
-        for i in range(5):
+        for _ in range(5):
             work_manager.submit(will_busyhang)
         work_manager.shutdown()
         for worker in work_manager.workers:
@@ -48,7 +48,7 @@ class TestProcessWorkManagerAux:
         work_manager = ProcessWorkManager()
         work_manager.shutdown_timeout = 0.1
         work_manager.startup()
-        for i in range(5):
+        for _ in range(5):
             work_manager.submit(will_busyhang_uninterruptible)
         work_manager.shutdown()
         for worker in work_manager.workers:
@@ -63,7 +63,7 @@ class TestProcessWorkManagerAux:
         work_manager.install_sigint_handler()
         work_manager.shutdown_timeout = 0.1
         work_manager.startup()
-        for i in range(5):
+        for _ in range(5):
             work_manager.submit(will_busyhang)
 
         with pytest.raises(KeyboardInterrupt):
@@ -76,6 +76,24 @@ class TestProcessWorkManagerAux:
                     except ValueError:
                         pass  # probably closed already
                 raise
+
+    @pytest.mark.timeout(2)
+    def test_worker_close_fail(self, monkeypatch):
+        work_manager = ProcessWorkManager()
+        work_manager.install_sigint_handler()
+        work_manager.shutdown_timeout = 0.1
+        work_manager.startup()
+
+        work_manager.submit(will_busyhang_uninterruptible)
+        worker = work_manager.workers[0]
+
+        with monkeypatch.context() as m:
+            m.setattr(worker, 'close', lambda: exec('raise(ValueError)'))
+            m.setattr(work_manager, '_empty_queues', lambda: 0)
+            work_manager.shutdown()
+
+        # Clean up
+        work_manager.shutdown()
 
     @pytest.mark.timeout(2)
     def test_worker_ids(self):
