@@ -12,6 +12,7 @@ jobs:
   mirror-develop-to-westpa2:
     runs-on: ubuntu-latest
     name: Mirror develop branch to westpa2 branch
+    if: github.repository_owner == 'westpa'
     steps:
       - uses: actions/create-github-app-token@v1
         id: app-token
