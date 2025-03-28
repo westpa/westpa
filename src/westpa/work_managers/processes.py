@@ -186,7 +186,7 @@ class ProcessWorkManager(WorkManager):
                 except ValueError:
                     try:
                         if worker.is_alive():
-                            log.debug('worker process {:d} could not be closed'.format(worker.id))
+                            log.debug('worker process {:d} could not be closed'.format(worker.pid))
                     except ValueError:
                         pass  # Already closed.
 
