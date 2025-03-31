@@ -29,7 +29,7 @@ ci_dtype = np.dtype(
 
 # directory locations are stored in a .yaml file with this format:
 # ---
-# PATHS: ['/path/to/simulation/1','/path/to/simulation/2',...,
+# PATHS: ['/path/to/simulation/01','/path/to/simulation/02',...,
 # '/path/to/simulation/n']
 
 # Straight up stolen from the data manager.  In the future, maybe I can just sort it by subbing in the appropriate values.
@@ -218,7 +218,9 @@ Command-line options
                         check[0] = np.array_equal(bstate_index, west['ibstates/0/bstate_index'][:])
                         check[1] = np.array_equal(bstate_pcoord, west['ibstates/0/bstate_pcoord'][:])
                         if not np.all(check):
-                            print(f'File {ifile} used different bstates than the first file. Will skip exporting ibstates dataset.')
+                            print(
+                                f'H5 file in {ifile+1:>02} used different bstates than the first file. Will skip exporting ibstates dataset.'
+                            )
                             self.ibstates = False
                     except NameError:
                         bstate_index = west['ibstates/0/bstate_index'][:]  # noqa: F841

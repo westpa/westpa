@@ -229,7 +229,7 @@ class WESTMultiTool(WESTParallelTool):
         for i in range(1, self.ntrials + 1):
             # Need to not make this hard coded, but who cares for now.
             for key in key_list:
-                return_dict[key][i] = h5io.WESTPAH5File(os.path.join(self.master, str(i).zfill(2), key), 'r')
+                return_dict[key][i] = h5io.WESTPAH5File(f'{self.master}/{i:>02}/{key}', 'r')
         return return_dict
 
     def process_args(self, args):
