@@ -219,7 +219,7 @@ Command-line options
                         check[1] = np.array_equal(bstate_pcoord, west['ibstates/0/bstate_pcoord'][:])
                         if not np.all(check):
                             print(
-                                f'H5 file in {ifile+1:>02} used different bstates than the first file. Will skip exporting ibstates dataset.'
+                                f'H5 file in {ifile + 1:>02} used different bstates than the first file. Will skip exporting ibstates dataset.'
                             )
                             self.ibstates = False
                     except NameError:
