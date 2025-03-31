@@ -346,12 +346,7 @@ Command-line options
         self.output_filename = os.path.join(path, 'assign.h5')
 
         try:
-            os.mkdir(config['directory'])
-        except Exception:
-            pass
-
-        try:
-            os.mkdir(path)
+            os.makedirs(path, exist_ok=True)
         except Exception:
             pass
 
