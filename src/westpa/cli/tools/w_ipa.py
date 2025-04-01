@@ -78,7 +78,6 @@ class WIPI(WESTParallelTool):
         # Well, whatever, we'll just set it to that for now.
         self.interface = 'matplotlib'
         self._scheme = None
-        global iteration  # noqa: F824
 
     def add_args(self, parser):
         self.progress.add_args(parser)
