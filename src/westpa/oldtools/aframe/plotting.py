@@ -79,7 +79,8 @@ class PlottingMixin(AnalysisMixin):
     def __init__(self):
         super().__init__()
 
-        self.matplotlib_avail = 'matplotlib' in sys.modules and 'pyplot' in sys.modules
+        self.matplotlib_avail = 'matplotlib' in sys.modules and 'matplotlib.pyplot' in sys.modules
+        print(self.matplotlib_avail)
 
     def require_matplotlib(self):
         if not self.matplotlib_avail:
