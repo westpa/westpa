@@ -423,6 +423,7 @@ Command-line options
         for idim in range(self.ndim):
             lb, ub = self.data_range[idim]
             boundset = np.linspace(lb, ub, bins[idim] + 1)
+
             midpoints = (boundset[:-1] + boundset[1:]) / 2.0
 
             # Advance the final boundary slightly, just beyond the upper bound of the range,

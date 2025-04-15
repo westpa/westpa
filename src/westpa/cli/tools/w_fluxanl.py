@@ -1,7 +1,6 @@
 import h5py
 import numpy as np
 from scipy.signal import fftconvolve
-from warnings import warn
 
 import westpa
 
@@ -12,7 +11,7 @@ from westpa.tools import WESTTool, WESTDataReader, IterRangeSelection
 from westpa.tools.dtypes import iter_block_ci_dtype as ci_dtype
 import westpa.mclib as mclib
 
-fluxentry_dtype = np.dtype([('n_iter', n_iter_dtype), ('flux', weight_dtype), ('count', np.uint)])
+fluxentry_dtype = np.dtype([('n_iter', n_iter_dtype), ('flux', weight_dtype), ('count', np.int32)])
 
 target_index_dtype = np.dtype(
     [
@@ -370,7 +369,6 @@ the true value of ``tau``.
 
 
 def entry_point():
-    warn('w_fluxanl is being deprecated.  Please use w_assign and w_direct instead.')
     WFluxanlTool().main()
 
 

@@ -16,6 +16,10 @@ on:
   release:
     types:
       - published
+  workflow_dispatch:
+    branches:
+      - 'westpa2'
+      - 'develop'
 
 jobs:
   build_wheels:
@@ -24,10 +28,7 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86_64, macos-latest is arm64
-        python-version: [8, 9, 10, 11] # sub-versions of Python
-        exclude:
-          - os: macos-14
-            python-version: 8
+        python-version: [9, 10, 11, 12, 13] # sub-versions of Python
     steps:
       - uses: actions/checkout@v4
 
@@ -36,7 +37,7 @@ jobs:
         run: "brew install hdf5"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
+        uses: pypa/cibuildwheel@v2.23.2
         env:
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
@@ -75,7 +76,7 @@ jobs:
       
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Build sdist
         run: pipx run build --sdist
@@ -115,7 +116,7 @@ jobs:
     # alternatively, to publish when a GitHub Release is created, use the following rule:
     if: |
       github.repository == 'westpa/westpa' &&
-      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+      (github.event_name == 'release' && github.event.action == 'published')
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -131,7 +132,7 @@ jobs:
 
   upload_pypi:
     name: PyPI
-    needs: [build_wheels, build_sdist]
+    needs: [upload_testpypi]
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -156,3 +157,21 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
           # To test: 
           #repository_url: https://test.pypi.org/legacy/
+
+  update-tags:
+    name: Update develop branch tags
+    needs: [upload_pypi]
+    runs-on: ubuntu-latest
+    # Assuming that since it has sucessfully uploaded to PyPI, this release is safe.
+    # We will now automatically update the tags for develop.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: pulling tags
+        run: |
+          git checkout develop
+          git pull --tags origin westpa2
+          git push origin develop --tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

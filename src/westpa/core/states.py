@@ -20,7 +20,7 @@ class BasisState:
     '''
 
     def __init__(self, label, probability, pcoord=None, auxref=None, state_id=None):
-        self.label = str(label, encoding="UTF-8") if type(label) is bytes else label
+        self.label = str(label, encoding="UTF-8") if isinstance(label, bytes) else label
         self.probability = probability
         self.pcoord = np.atleast_1d(pcoord)
         self.auxref = auxref
@@ -28,7 +28,7 @@ class BasisState:
         self.data = {}
 
     def __repr__(self):
-        return '{} state_id={self.state_id!r} label={self.label!r} prob={self.probability!r} pcoord={self.pcoord!r}>'.format(
+        return '{} state_id={self.state_id!s} label={self.label!s} prob={self.probability!s} pcoord={self.pcoord!s}>'.format(
             object.__repr__(self)[:-1], self=self
         )
 
@@ -43,7 +43,7 @@ class BasisState:
         max_auxref_len = max(8, max(len(state.auxref or '') for state in states))
         fmt = (
             '{state.label:<{max_label_len}s}    {state.probability:12.7g}    {auxref_str:<{max_auxref_len}s}'
-            '    # state_id={state_id_str:s}    pcoord={pcoord_str}\n'
+            '    # state_id={state_id_str:s}    pcoord={pcoord_str:s}\n'
         )
         fileobj.write(
             '# {:{max_label_len}s}    {:>12s}    {:{max_auxref_len}s}\n'.format(
@@ -52,7 +52,7 @@ class BasisState:
         )
         for state in states:
             state_id_str = str(state.state_id) if state.state_id is not None else 'None'
-            pcoord_str = str(list(state.pcoord))
+            pcoord_str = str(state.pcoord.tolist())
             auxref_str = 'None' if state.auxref == b'' or state.auxref == "b''" else str(state.auxref)
             fileobj.write(
                 fmt.format(
@@ -99,7 +99,7 @@ class BasisState:
             try:
                 probability = float(fields[1])
             except ValueError:
-                raise ValueError('invalid probability ({!r}) {} line {:d}'.format(fields[1], statefile, lineno))
+                raise ValueError('invalid probability ({!s}) {} line {:d}'.format(fields[1], statefile, lineno))
 
             try:
                 auxref = fields[2].strip()
@@ -201,7 +201,7 @@ class InitialState:
         self.data = {}
 
     def __repr__(self):
-        return '{} state_id={self.state_id!r} istate_type={self.istate_type!r} basis_state_id={self.basis_state_id!r} iter_created={self.iter_created!r} pcoord={self.pcoord!r}>'.format(
+        return '{} state_id={self.state_id!s} istate_type={self.istate_type!s} basis_state_id={self.basis_state_id!s} iter_created={self.iter_created!s} pcoord={self.pcoord!s}>'.format(
             object.__repr__(self)[:-1], self=self
         )
 
@@ -263,7 +263,7 @@ class TargetState:
         self.state_id = state_id
 
     def __repr__(self):
-        return '{} state_id={self.state_id!r} label={self.label!r} pcoord={self.pcoord!r}>'.format(
+        return '{} state_id={self.state_id!s} label={self.label!s} pcoord={self.pcoord!s}>'.format(
             object.__repr__(self)[:-1], self=self
         )
 

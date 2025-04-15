@@ -157,7 +157,7 @@ def initialize(mode, bstates, _bstate_file, tstates, _tstate_file):
                             bstate.probability *= pscale
 
                     # Assign progress coordinates to basis states
-                    sim_manager.get_bstate_pcoords(basis_states, n_iter)
+                    sim_manager.get_bstate_pcoords(basis_states)
                     data_manager.create_ibstate_group(basis_states, n_iter)
                     sim_manager.report_basis_states(basis_states)
 

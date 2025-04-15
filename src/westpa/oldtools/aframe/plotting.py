@@ -1,3 +1,4 @@
+import sys
 import logging
 
 import numpy as np
@@ -66,25 +67,22 @@ else:
     cm_pdr = matplotlib.colors.LinearSegmentedColormap('pdr', _pdr_data, 2048)
     cm_pdr_r = cm_pdr.reversed()
 
-    matplotlib.cm.register_cmap('pdr', cm_pdr)
-    matplotlib.cm.register_cmap('pdr_r', cm_pdr_r)
-    matplotlib.cm.register_cmap('hovmol', cm_hovmol)
-    matplotlib.cm.register_cmap('hovmol_r', cm_hovmol_r)
+    matplotlib.colormaps.register(cmap=cm_pdr, name='pdr')
+    matplotlib.colormaps.register(cmap=cm_pdr_r, name='pdr_r')
+    matplotlib.colormaps.register(cmap=cm_hovmol, name='hovmol')
+    matplotlib.colormaps.register(cmap=cm_hovmol_r, name='hovmol_r')
 
     del cmap_data
 
 
 class PlottingMixin(AnalysisMixin):
     def __init__(self):
-        global matplotlib, pyplot
-
         super().__init__()
 
-        self.matplotlib_avail = matplotlib is not None and pyplot is not None
+        self.matplotlib_avail = 'matplotlib' in sys.modules and 'matplotlib.pyplot' in sys.modules
 
     def require_matplotlib(self):
-        global matplotlib
         if not self.matplotlib_avail:
             raise RuntimeError('matplotlib is not available')
         else:
-            return matplotlib
+            return sys.modules['matplotlib']

@@ -1,9 +1,7 @@
 import pytest
 import os
 import glob
-
 from shutil import copyfile, copy
-import tempfile
 
 import westpa
 
@@ -24,14 +22,20 @@ def copy_ref(dest_dir):
         copy(filename, dest_dir)
 
 
+def clear_state():
+    os.chdir(STARTING_PATH)
+    del os.environ['WEST_SIM_ROOT']
+    westpa.rc = westpa.core._rc.WESTRC()
+
+
 @pytest.fixture
-def ref_3iter(request):
+def ref_3iter(request, tmp_path):
     """
     Fixture that prepares a simulation directory with a completed 3-iteration WESTPA,
     west.h5, plus the config file west.cfg
     """
 
-    test_dir = tempfile.mkdtemp()
+    test_dir = str(tmp_path)
     os.chdir(test_dir)
 
     copy_ref(test_dir)
@@ -48,12 +52,12 @@ def ref_3iter(request):
 
 
 @pytest.fixture
-def ref_cfg(request, tmpdir):
+def ref_cfg(request, tmp_path):
     """
     Fixture that prepares a simulation directory with a populated west.cfg file.
     """
 
-    test_dir = str(tmpdir)
+    test_dir = str(tmp_path)
     os.chdir(test_dir)
 
     copy_ref(test_dir)
@@ -72,13 +76,13 @@ def ref_cfg(request, tmpdir):
 
 
 @pytest.fixture
-def ref_initialized(request, tmpdir):
+def ref_initialized(request, tmp_path):
     """
     Fixture that prepares a simulation directory with an initialized WESTPA system,
     west.h5, plus the config file west.cfg
     """
 
-    test_dir = str(tmpdir)
+    test_dir = str(tmp_path)
 
     os.chdir(test_dir)
     copy_ref(test_dir)
@@ -96,13 +100,13 @@ def ref_initialized(request, tmpdir):
 
 
 @pytest.fixture
-def ref_50iter(request, tmpdir):
+def ref_50iter(request, tmp_path):
     """
     Fixture that prepares a simulation directory with a completed 50-iteration WESTPA,
     west.h5, plus the config file west.cfg
     """
 
-    test_dir = str(tmpdir)
+    test_dir = str(tmp_path)
 
     os.chdir(test_dir)
     copy_ref(test_dir)
@@ -120,13 +124,13 @@ def ref_50iter(request, tmpdir):
 
 
 @pytest.fixture
-def ref_multi(request, tmpdir):
+def ref_multi(request, tmp_path):
     """
     Fixture that prepares a simulation directory for w_multi_west, including a master
     folder with sub folders 01, 02, 03 containing west_aux_ref.h5 renamed as west.h5.
     """
 
-    test_dir = str(tmpdir)
+    test_dir = str(tmp_path)
 
     os.chdir(test_dir)
     copy_ref(test_dir)
@@ -150,13 +154,13 @@ def ref_multi(request, tmpdir):
 
 
 @pytest.fixture
-def ref_multi_noaux(request, tmpdir):
+def ref_multi_noaux(request, tmp_path):
     """
     Fixture that prepares a simulation directory for w_multi_west, including a master
     folder with sub folders 01, 02, 03 containing west_aux_ref.h5 renamed as west.h5.
     """
 
-    test_dir = str(tmpdir)
+    test_dir = str(tmp_path)
 
     os.chdir(test_dir)
     copy_ref(test_dir)
@@ -180,11 +184,11 @@ def ref_multi_noaux(request, tmpdir):
 
 
 @pytest.fixture
-def ref_idtype(request):
+def ref_idtype(request, tmp_path):
     """
     Fixture that prepares the west.h5 file and also links in the "correct" istate dtype array.
     """
-    test_dir = tempfile.mkdtemp()
+    test_dir = str(tmp_path)
     os.chdir(test_dir)
 
     copy_ref(test_dir)
@@ -201,12 +205,12 @@ def ref_idtype(request):
 
 
 @pytest.fixture
-def ref_executable(request, tmpdir):
+def ref_executable(request, tmp_path):
     """
     Fixture that prepares a simulation directory with a populated west_executable.cfg file.
     """
 
-    test_dir = str(tmpdir)
+    test_dir = str(tmp_path)
     os.chdir(test_dir)
 
     copy_ref(test_dir)
@@ -224,9 +228,3 @@ def ref_executable(request, tmpdir):
     westpa.rc = westpa.core._rc.WESTRC()
 
     request.addfinalizer(clear_state)
-
-
-def clear_state():
-    os.chdir(STARTING_PATH)
-    del os.environ['WEST_SIM_ROOT']
-    westpa.rc = westpa.core._rc.WESTRC()
