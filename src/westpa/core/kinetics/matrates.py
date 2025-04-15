@@ -61,7 +61,7 @@ def get_steady_state(rates):
 
     vals = np.abs(vals)
     log.debug('eigenvalues: {!r}'.format(list(reversed(sorted(vals)))))
-    asort = np.argsort(vals)
+    asort = np.argsort(vals, kind='stable')
     vec = vecs[:, asort[-1]]
     ss = np.abs(vec)
 

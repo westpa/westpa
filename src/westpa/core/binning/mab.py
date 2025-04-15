@@ -173,8 +173,8 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
     if skip is None:
         skip = [0] * ndim
 
-    allcoords = np.copy(coords)
-    allmask = np.copy(mask)
+    allcoords = coords.copy()
+    allmask = mask.copy()
 
     weights = None
     isfinal = None
@@ -294,16 +294,20 @@ def detect_bottlenecks(unmasked_coords, unmasked_weights, n_coords, n):
     """
     # Grabbing all unmasked coords in current dimension, plus corresponding weights
     # Sort by current dimension in coord, smallest to largest
-    sorted_indices = unmasked_coords[:, n].argsort()
+    sorted_indices = unmasked_coords[:, n].argsort(kind='stable')
+
     # Grab sorted coords and weights
     coords_srt = unmasked_coords[sorted_indices, :]
     weights_srt = unmasked_weights[sorted_indices]
+
     # Also sort in reverse order for opposite direction
     coords_srt_flip = np.flipud(coords_srt)
     weights_srt_flip = np.flipud(weights_srt)
+
     # Initialize the max directional differences along current dimension as None (these may not be updated)
     bottleneck_coords, bottleneck_coords_flip = None, None
     maxdiff, maxdiff_flip = -np.inf, -np.inf
+
     # Looping through all non-boundary coords
     # Compute the cumulative weight on either side of each non-boundary walker
     for i in range(1, n_coords - 1):

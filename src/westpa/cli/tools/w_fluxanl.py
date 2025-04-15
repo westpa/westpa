@@ -11,7 +11,7 @@ from westpa.tools import WESTTool, WESTDataReader, IterRangeSelection
 from westpa.tools.dtypes import iter_block_ci_dtype as ci_dtype
 import westpa.mclib as mclib
 
-fluxentry_dtype = np.dtype([('n_iter', n_iter_dtype), ('flux', weight_dtype), ('count', np.uint)])
+fluxentry_dtype = np.dtype([('n_iter', n_iter_dtype), ('flux', weight_dtype), ('count', np.int32)])
 
 target_index_dtype = np.dtype(
     [
