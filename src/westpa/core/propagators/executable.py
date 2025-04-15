@@ -488,7 +488,7 @@ class ExecutablePropagator(WESTPropagator):
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
 
             elif initial_state.istate_type == InitialState.ISTATE_TYPE_START:
-                # This points to the start-state PDB
+                # This points to the start-state ref (as defined in west.cfg)
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF] + '/' + initial_state.basis_auxref
             else:  # initial_state.type == InitialState.ISTATE_TYPE_GENERATED
                 environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
@@ -526,13 +526,11 @@ class ExecutablePropagator(WESTPropagator):
             environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
 
         elif initial_state.istate_type == InitialState.ISTATE_TYPE_START:
-            # This points to the start-state PDB
+            # This points to the start-state ref (as defined in west.cfg)
             environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF] + '/' + initial_state.basis_auxref
         else:  # initial_state.type == InitialState.ISTATE_TYPE_GENERATED
             environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
 
-        # environ[self.ENV_CURRENT_SEG_ID] = str(segment.seg_id if state.basis_state_id is not None else -1)
-        # environ[self.ENV_CURRENT_SEG_DATA_REF] = self.makepath(self.segment_ref_template, template_args)
         return template_args, environ
 
     def update_args_env_bstate(self, template_args, environ, state):
