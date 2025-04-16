@@ -612,8 +612,8 @@ class WESTDataManager:
                 move(f'{iter_ref_h5_file_template}_repacked', iter_ref_h5_file_template)
             except CalledProcessError as e:  # Unsuccessful in repacking file
                 log.warning(f'Unable to repack into {iter_ref_h5_file_template}_repacked.h5: {e}')
-                if exists(f'{iter_ref_h5_file_template+"_repacked.h5"}'):
-                    remove(f'{iter_ref_h5_file_template+"_repacked.h5"}')
+                if exists(f'{iter_ref_h5_file_template}_repacked.h5'):
+                    remove(f'{iter_ref_h5_file_template}_repacked.h5')
 
         iter_group = self.get_iter_group(n_iter)
 
