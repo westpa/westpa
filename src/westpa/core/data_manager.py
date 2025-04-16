@@ -606,9 +606,7 @@ class WESTDataManager:
 
             # Launch a subprocess to repack the file to reclaim space, replacing template with smaller file
             try:
-                run(
-                    f'h5repack {iter_ref_h5_file_template} {iter_ref_h5_file_template + "_repacked"}', shell=True
-                ).check_returncode()
+                run(f'h5repack {iter_ref_h5_file_template} {iter_ref_h5_file_template}_repacked', shell=True).check_returncode()
                 move(f'{iter_ref_h5_file_template}_repacked', iter_ref_h5_file_template)
             except CalledProcessError as e:  # Unsuccessful in repacking file
                 log.warning(f'Unable to repack into {iter_ref_h5_file_template}_repacked.h5: {e}')
