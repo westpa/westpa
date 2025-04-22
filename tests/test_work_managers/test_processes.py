@@ -24,29 +24,38 @@ class TestProcessWorkManagerAux:
         work_manager.startup()
         work_manager.shutdown()
         for worker in work_manager.workers:
-            assert not worker.is_alive()
+            try:
+                assert not worker.is_alive()
+            except ValueError:
+                pass  # probably closed already
 
     @pytest.mark.timeout(2)
     def test_hang_shutdown(self):
         work_manager = ProcessWorkManager()
         work_manager.shutdown_timeout = 0.1
         work_manager.startup()
-        for i in range(5):
+        for _ in range(5):
             work_manager.submit(will_busyhang)
         work_manager.shutdown()
         for worker in work_manager.workers:
-            assert not worker.is_alive()
+            try:
+                assert not worker.is_alive()
+            except ValueError:
+                pass  # probably closed already
 
     @pytest.mark.timeout(2)
     def test_hang_shutdown_ignoring_sigint(self):
         work_manager = ProcessWorkManager()
         work_manager.shutdown_timeout = 0.1
         work_manager.startup()
-        for i in range(5):
+        for _ in range(5):
             work_manager.submit(will_busyhang_uninterruptible)
         work_manager.shutdown()
         for worker in work_manager.workers:
-            assert not worker.is_alive()
+            try:
+                assert not worker.is_alive()
+            except ValueError:
+                pass  # probably closed already
 
     @pytest.mark.timeout(2)
     def test_sigint_shutdown(self):
@@ -54,7 +63,7 @@ class TestProcessWorkManagerAux:
         work_manager.install_sigint_handler()
         work_manager.shutdown_timeout = 0.1
         work_manager.startup()
-        for i in range(5):
+        for _ in range(5):
             work_manager.submit(will_busyhang)
 
         with pytest.raises(KeyboardInterrupt):
@@ -62,8 +71,30 @@ class TestProcessWorkManagerAux:
                 os.kill(os.getpid(), signal.SIGINT)
             except KeyboardInterrupt:
                 for worker in work_manager.workers:
-                    assert not worker.is_alive()
+                    try:
+                        assert not worker.is_alive()
+                    except ValueError:
+                        pass  # probably closed already
                 raise
+
+    @pytest.mark.timeout(2)
+    def test_worker_close_fail(self, monkeypatch):
+        work_manager = ProcessWorkManager()
+        work_manager.install_sigint_handler()
+        work_manager.shutdown_timeout = 0.1
+        work_manager.startup()
+
+        work_manager.submit(will_busyhang_uninterruptible)
+        worker = work_manager.workers[0]
+
+        with monkeypatch.context() as m:
+            m.setattr(worker, 'close', lambda: exec('raise(ValueError)'))
+            m.setattr(worker, 'is_alive', lambda: True)
+            m.setattr(work_manager, '_empty_queues', lambda: 0)
+            work_manager.shutdown()
+
+        # Clean up
+        work_manager.shutdown()
 
     @pytest.mark.timeout(2)
     def test_worker_ids(self):
