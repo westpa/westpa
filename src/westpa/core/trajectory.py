@@ -13,7 +13,7 @@ def parseResidueAtoms(residue, map):
 
 
 def loadNameReplacementTables():
-    '''Load the list of atom and residue name replacements. Taken from MDTraj.'''
+    '''Load the list of atom and residue name replacements. Taken from OpenMM 8.2.0.'''
 
     # importing things here because they're only used in this function
     try:
@@ -28,7 +28,6 @@ def loadNameReplacementTables():
     atomNameReplacements = {}
 
     # This XML file is a to map all sorts of atom names/ residue names to the PDB 3.0 convention.
-    # Taken from MDTraj.
     tree = etree.parse(files('westpa') / 'data/pdbNames.xml')
     allResidues = {}
     proteinResidues = {}
