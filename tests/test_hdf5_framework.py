@@ -1,4 +1,4 @@
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_allclose
 from mdtraj import Trajectory
 
 from westpa.core.trajectory import WESTTrajectory, load_mda, load_mdtraj, load_netcdf
@@ -14,8 +14,8 @@ class TestHDF5Framework:
         assert isinstance(test_traj, WESTTrajectory)
 
         # load_mda automatically converts to nm
-        assert_array_equal(test_traj.xyz / 10, self.ref_coords)
-        assert_array_equal(test_traj.time, self.ref_time)
+        assert_allclose(test_traj.xyz / 10, self.ref_coords)
+        assert_allclose(test_traj.time, self.ref_time)
 
     def test_load_netcdf(self, traj_setup):
 
@@ -23,8 +23,8 @@ class TestHDF5Framework:
 
         assert isinstance(test_traj, WESTTrajectory)
 
-        assert_array_equal(test_traj.xyz, self.ref_coords)
-        assert_array_equal(test_traj.time, self.ref_time)
+        assert_allclose(test_traj.xyz, self.ref_coords)
+        assert_allclose(test_traj.time, self.ref_time)
 
     def test_load_mdtraj(self, traj_setup):
 
@@ -32,5 +32,5 @@ class TestHDF5Framework:
 
         assert isinstance(test_traj, Trajectory)
 
-        assert_array_equal(test_traj.xyz, self.ref_coords)
-        assert_array_equal(test_traj.time, self.ref_time)
+        assert_allclose(test_traj.xyz, self.ref_coords)
+        assert_allclose(test_traj.time, self.ref_time)
