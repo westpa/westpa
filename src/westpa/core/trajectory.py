@@ -515,18 +515,21 @@ def load_netcdf(folder):
     '''
     from scipy.io import netcdf_file
 
-    _, traj_file = find_top_traj_file(folder, [], ['.nc', '.ncdf'])
+    _, traj_file = find_top_traj_file(folder, [], ['.nc', '.ncdf', '.ncrst'])
 
     # Extracting these datasets
     datasets = {'coordinates': None, 'cell_lengths': None, 'cell_angles': None, 'time': None}
     convert = ['coordinates', 'cell_lengths']  # Length-based datasets that need to be converted from Å to nm
+    optional = ['cell_lengths', 'cell_angles']
 
     with netcdf_file(traj_file) as rootgrp:
         for key, val in datasets.items():
-            if key in convert and key in rootgrp.variables:
-                datasets[key] = rootgrp.variables[key][:].copy() / 10  # From Å to nm
+            if key in optional:
+                pass
+            elif key in convert and key in rootgrp.variables:
+                datasets[key] = rootgrp.variables[key][()].copy() / 10  # From Å to nm
             else:
-                datasets[key] = rootgrp.variables[key][:].copy()  # noqa: F841
+                datasets[key] = rootgrp.variables[key][()].copy()  # noqa: F841
 
     map_dataset = {
         'coordinates': datasets['coordinates'],
@@ -556,19 +559,23 @@ def load_mda(folder):
 
     tot_frames = len(u.trajectory)
     coords = np.zeros((tot_frames, len(u.atoms), 3))
-    cell_lengths = np.zeros((tot_frames, 3))
-    cell_angles = np.zeros((tot_frames, 3))
     time = np.zeros((tot_frames))
 
-    convert = [coords, cell_lengths]  # Length-based datasets that need to be converted
+    # Periodic Boundary Conditions
+    periodic = u.trajectory.periodic
+    cell_lengths = np.zeros((tot_frames, 3)) if periodic else None
+    cell_angles = np.zeros((tot_frames, 3)) if periodic else None
 
-    # Loop through each frame and add that frame to the relevant datasets
     for iframe, frame in enumerate(u.trajectory):
         coords[iframe] = frame._pos
-        cell_lengths[iframe] = frame.dimensions[:3]
-        cell_angles[iframe] = frame.dimensions[3:]
         time[iframe] = frame.time
 
+        if periodic:
+            cell_lengths[iframe] = frame.dimensions[:3]
+            cell_angles[iframe] = frame.dimensions[3:]
+
+    # Length-based datasets that need to be converted
+    convert = [coords, cell_lengths] if periodic else [coords]
     for dset in convert:
         dset = mda.units.convert(dset, 'angstrom', 'nanometer')
 

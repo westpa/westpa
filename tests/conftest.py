@@ -3,6 +3,8 @@ import os
 import glob
 from shutil import copyfile, copy
 
+from scipy.io import netcdf_file
+
 import westpa
 
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
@@ -33,6 +35,7 @@ def ref_3iter(request, tmp_path):
     """
     Fixture that prepares a simulation directory with a completed 3-iteration WESTPA,
     west.h5, plus the config file west.cfg
+
     """
 
     test_dir = str(tmp_path)
@@ -53,10 +56,7 @@ def ref_3iter(request, tmp_path):
 
 @pytest.fixture
 def ref_cfg(request, tmp_path):
-    """
-    Fixture that prepares a simulation directory with a populated west.cfg file.
-    """
-
+    """Fixture that prepares a simulation directory with a populated west.cfg file."""
     test_dir = str(tmp_path)
     os.chdir(test_dir)
 
@@ -80,8 +80,8 @@ def ref_initialized(request, tmp_path):
     """
     Fixture that prepares a simulation directory with an initialized WESTPA system,
     west.h5, plus the config file west.cfg
-    """
 
+    """
     test_dir = str(tmp_path)
 
     os.chdir(test_dir)
@@ -104,8 +104,8 @@ def ref_50iter(request, tmp_path):
     """
     Fixture that prepares a simulation directory with a completed 50-iteration WESTPA,
     west.h5, plus the config file west.cfg
-    """
 
+    """
     test_dir = str(tmp_path)
 
     os.chdir(test_dir)
@@ -128,8 +128,8 @@ def ref_multi(request, tmp_path):
     """
     Fixture that prepares a simulation directory for w_multi_west, including a master
     folder with sub folders 01, 02, 03 containing west_aux_ref.h5 renamed as west.h5.
-    """
 
+    """
     test_dir = str(tmp_path)
 
     os.chdir(test_dir)
@@ -158,8 +158,8 @@ def ref_multi_noaux(request, tmp_path):
     """
     Fixture that prepares a simulation directory for w_multi_west, including a master
     folder with sub folders 01, 02, 03 containing west_aux_ref.h5 renamed as west.h5.
-    """
 
+    """
     test_dir = str(tmp_path)
 
     os.chdir(test_dir)
@@ -185,9 +185,7 @@ def ref_multi_noaux(request, tmp_path):
 
 @pytest.fixture
 def ref_idtype(request, tmp_path):
-    """
-    Fixture that prepares the west.h5 file and also links in the "correct" istate dtype array.
-    """
+    """Fixture that prepares the west.h5 file and also links in the "correct" istate dtype array."""
     test_dir = str(tmp_path)
     os.chdir(test_dir)
 
@@ -206,10 +204,7 @@ def ref_idtype(request, tmp_path):
 
 @pytest.fixture
 def ref_executable(request, tmp_path):
-    """
-    Fixture that prepares a simulation directory with a populated west_executable.cfg file.
-    """
-
+    """Fixture that prepares a simulation directory with a populated west_executable.cfg file."""
     test_dir = str(tmp_path)
     os.chdir(test_dir)
 
@@ -228,3 +223,25 @@ def ref_executable(request, tmp_path):
     westpa.rc = westpa.core._rc.WESTRC()
 
     request.addfinalizer(clear_state)
+
+
+@pytest.fixture
+def traj_setup(request, tmp_path):
+    """Fixture for testing the trajectory reading capabilities of the HDF5 Framework"""
+    test_dir = str(tmp_path)
+
+    os.chdir(test_dir)
+
+    traj_file_path = os.path.join(REFERENCE_PATH, 'ntl9.nc')
+    top_file_path = os.path.join(REFERENCE_PATH, 'ntl9_reference.pdb')
+
+    copyfile((traj_file_path), 'ntl9.nc')
+    copyfile(top_file_path, 'ntl9_reference.pdb')
+
+    request.cls.current_path = tmp_path
+
+    with netcdf_file(traj_file_path) as rootgrp:
+        request.cls.ref_coords = rootgrp.variables['coordinates'][()].copy() / 10
+        #        request.cls.ref_lengths = rootgrp.variables['cell_lengths'][()]
+        #        request.cls.ref_angles = rootgrp.variables['cell_angles'][()]
+        request.cls.ref_time = rootgrp.variables['time'][()].copy()
