@@ -16,10 +16,10 @@ class TestDataManager(unittest.TestCase):
         westpa.rc.add_args(parser)
 
         here = os.path.dirname(__file__)
-        # Set SIM_ROOT to fixtures folder with west.cfg for odld simulation
-        os.environ['WEST_SIM_ROOT'] = os.path.join(here, 'fixtures', 'odld')
+        # Set SIM_ROOT to refs folder with west.cfg for odld simulation
+        os.environ['WEST_SIM_ROOT'] = os.path.join(here, 'refs', 'odld')
 
-        config_file_name = os.path.join(here, 'fixtures', 'odld', 'west.cfg')
+        config_file_name = os.path.join(here, 'refs', 'odld', 'west.cfg')
         args = parser.parse_args(['-r={}'.format(config_file_name), "--verbose"])
         westpa.rc.process_args(args)
 
@@ -35,7 +35,7 @@ class TestDataManager(unittest.TestCase):
         """ 1. westpa.rc.get_data_manager() is executed and calls the new_data_manager function.
             2. The new_data_manager instantiates a WESTDataManager object, thus calling the
                WESTDataManager.__init__() constructor. In __init__, process_config() is executed.
-            3. process_config() will read in the fixtures/odld/west.cfg.
+            3. process_config() will read in the refs/odld/west.cfg.
                That's all that the setup does in it's current state.
             4. The test checks that the defaults that are set in __init__ are
                indeed the defaults and that the data-manager relevant parts specified

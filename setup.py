@@ -109,7 +109,8 @@ CLASSIFIERS = [
 ]
 
 INSTALL_REQUIRES = [
-    "numpy >= 1.16.0, <2",
+    "numpy >= 1.25.0, <3; python_version >='3.10'",
+    "numpy >= 1.25.0, <2; python_version <'3.10'",  # pytables is broken for numpy2/py3.9
     "scipy >= 0.19.1",
     "h5py >= 2.10",
     "mdtraj >= 1.9.5",
@@ -139,7 +140,7 @@ metadata = dict(
     version=versioneer.get_version(),
     keywords='',
     cmdclass=versioneer.get_cmdclass(),
-    python_requires=">=3.6",
+    python_requires=">=3.9",
     zip_safe=False,
     classifiers=CLASSIFIERS,
     entry_points={'console_scripts': console_scripts},
