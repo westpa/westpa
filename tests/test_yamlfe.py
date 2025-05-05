@@ -131,3 +131,16 @@ class TestYAMLFrontEnd:
         testSystem.initialize()
         testSystem.prepare_run()
         testSystem.finalize_run()
+
+
+class TestYAMLConfig:
+    def test_dubious_config_entry(self):
+        with pytest.warns(ycf.ConfigValueWarning):
+            ycf.warn_dubious_config_entry('1', 1, expected_type=str)
+            ycf.warn_dubious_config_entry('1', 1)
+
+    def test_check_bool(self):
+        with pytest.warns(ycf.ConfigValueWarning):
+            ycf.check_bool(100, action='warn')
+        with pytest.raises(ValueError):
+            ycf.check_bool(100, action='raise')
