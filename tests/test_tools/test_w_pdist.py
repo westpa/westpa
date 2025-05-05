@@ -1,8 +1,9 @@
 import os
+import argparse
+import numpy as np
 from unittest import mock
 from h5diff import H5Diff
-from westpa.cli.tools.w_pdist import entry_point
-import argparse
+from westpa.cli.tools.w_pdist import entry_point, WPDist
 
 
 class Test_W_PDIST:
@@ -40,3 +41,29 @@ class Test_W_PDIST:
 
         # clean up
         os.remove('pdist.h5')
+
+    def test_w_pdist_construct_bins(self):
+        '''Test min/max autobinning'''
+        correct_binbounds = np.asarray([[-20.0, -12.0, -4, 4.0, 12.0, 20.2] for _ in range(2)])
+        correct_midpoint = np.asarray([range(-16, 17, 8) for _ in range(2)])
+
+        pdist = WPDist()
+        pdist.ndim = 2
+        pdist.data_range = [(-20, 20), (-20, 20)]
+
+        # Constructing with a single value
+        pdist.construct_bins(5)
+        print(f'{pdist.midpoints=}')
+        assert np.array_equal(pdist.binbounds, correct_binbounds)
+        assert np.array_equal(pdist.midpoints, correct_midpoint)
+
+        # Constructing with a list of bin counts
+        pdist.construct_bins([5, 5])
+        assert np.array_equal(pdist.binbounds, correct_binbounds)
+        assert np.array_equal(pdist.midpoints, correct_midpoint)
+
+        pdist.construct_bins(np.asarray([range(-20, 21, 8) for _ in range(2)]))
+        print(f'{pdist.binbounds=}')
+        print(f'{correct_binbounds=}')
+        assert np.array_equal(pdist.binbounds, correct_binbounds)
+        assert np.array_equal(pdist.midpoints, correct_midpoint)
