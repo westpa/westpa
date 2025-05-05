@@ -7,6 +7,10 @@ from numpy.random import Generator, MT19937
 from ._mclib import mcbs_correltime, get_bssize, mcbs_ci
 
 
+def msort(input_array):
+    return np.sort(input_array, axis=0)
+
+
 def mcbs_ci_correl(
     estimator_datasets,
     estimator,
@@ -147,7 +151,7 @@ def mcbs_ci_correl(
             n_sets=n_sets,
             args=args,
             kwargs=estimator_kwargs,
-            sort=np.msort,
+            sort=msort,
         ) + (correl_len,)
     else:
         subsample = subsample or (lambda x: x[rng.integers(len(x))])
@@ -178,7 +182,7 @@ def mcbs_ci_correl(
             n_sets=n_sets,
             args=args,
             kwargs=estimator_kwargs,
-            sort=np.msort,
+            sort=msort,
         ) + (correl_len,)
 
 

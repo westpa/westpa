@@ -24,6 +24,8 @@ determine how to access data even as the file format (i.e. organization of data 
 evolves.
 
 Version history:
+    Version 10
+        - BinMapper pickle, hash, and bin_target_count are now saved for iteration 1
     Version 9
         - Basis states are now saved as iter_segid instead of just segid as a pointer label.
         - Initial states are also saved in the iteration 0 file, with a negative sign.
@@ -68,7 +70,7 @@ import westpa
 
 log = logging.getLogger(__name__)
 
-file_format_version = 9
+file_format_version = 10
 
 makepath = ExecutablePropagator.makepath
 
@@ -1570,7 +1572,7 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
         #        dsopts['file'] = str(dsopts['file']).format(n_iter=n_iter)
         h5_auxfile = h5io.WESTPAH5File(dsopts['file'].format(n_iter=n_iter))
         h5group = group
-        if not ("iter_" + str(n_iter).zfill(8)) in h5_auxfile:
+        if ("iter_" + str(n_iter).zfill(8)) not in h5_auxfile:
             h5_auxfile.create_group("iter_" + str(n_iter).zfill(8))
         group = h5_auxfile[('/' + "iter_" + str(n_iter).zfill(8))]
 
@@ -1673,7 +1675,7 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
     if 'file' in list(dsopts.keys()):
         import h5py
 
-        if not dsopts['h5path'] in h5group:
+        if dsopts['h5path'] not in h5group:
             h5group[dsopts['h5path']] = h5py.ExternalLink(
                 dsopts['file'].format(n_iter=n_iter), ("/" + "iter_" + str(n_iter).zfill(8) + "/" + dsopts['h5path'])
             )

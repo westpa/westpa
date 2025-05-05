@@ -8,6 +8,10 @@ import numpy as np
 from numpy.random import Generator, MT19937
 
 
+def msort(input_array):
+    return np.sort(input_array, axis=0)
+
+
 def add_mcbs_options(parser):
     '''Add arguments concerning Monte Carlo bootstrap (``confidence`` and ``bssize``) to the given parser'''
 
@@ -32,7 +36,7 @@ def get_bssize(alpha):
     return int(10 ** (math.ceil(-math.log10(alpha)) + 1))
 
 
-def bootstrap_ci(estimator, data, alpha, n_sets=None, args=(), kwargs={}, sort=np.msort, extended_output=False):
+def bootstrap_ci(estimator, data, alpha, n_sets=None, args=(), kwargs={}, sort=msort, extended_output=False):
     '''Perform a Monte Carlo bootstrap of a (1-alpha) confidence interval for the given ``estimator``.
     Returns (fhat, ci_lower, ci_upper), where fhat is the result of ``estimator(data, *args, **kwargs)``,
     and ``ci_lower`` and ``ci_upper`` are the lower and upper bounds of the surrounding confidence

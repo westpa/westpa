@@ -5,7 +5,7 @@ channels:
 dependencies:
   - python
   - cython
-  - numpy
+  - numpy=1
   - scipy
   - h5py
   - pyyaml
@@ -16,6 +16,7 @@ dependencies:
   - mpi4py
   - tqdm
   - mdtraj
+  - netCDF4
   # testing
   - pytest
   - pytest-cov
