@@ -1,4 +1,6 @@
+import pytest
 import numpy as np
+from numpy.testing import assert_array_equal
 
 import westpa
 import westpa.core.yamlcfg as ycf
@@ -112,3 +114,20 @@ class TestYAMLFrontEnd:
         rc.config['west', 'propagation', 'max_total_iteration'] = 1000
 
         assert rc.config['west', 'propagation', 'max_total_iteration'] == 1000
+
+    def testSystemDefaults(self):
+        # First the objects that will be used for testing
+        testSystem = WESTSystem()
+
+        with pytest.raises(NotImplementedError):
+            testSystem.new_region_set()
+
+        # Test that the new pcoord array is of the correct shape
+        test_zero = np.zeros((2, 1), np.float32)
+        pcoord_array = testSystem.new_pcoord_array()
+        assert testSystem.pcoord_len == 2
+        assert_array_equal(test_zero, pcoord_array)
+
+        testSystem.initialize()
+        testSystem.prepare_run()
+        testSystem.finalize_run()
