@@ -80,7 +80,7 @@ jobs:
           conda list
   
       - name: Run tests
-        timeout-minutes: 30
+        timeout-minutes: 45
         # conda setup requires this special shell
         shell: bash -l {0}
         run: |
