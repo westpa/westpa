@@ -57,7 +57,7 @@ class IndicatorFunction:
         if '_x' in variable_names:
             raise ValueError("variable name '_x' is reserved")
 
-        # Parse and compile the predicate (e.g., 'x[0] > 0' or 'x**2 and y**2 < 1').
+        # Parse and compile the predicate (e.g., 'x > 0' or 'x**2 + y**2 < 1').
         expr = ast.parse(self.predicate, mode='eval')
         validator = PredicateValidator(self.predicate, variable_names, unpacked)
         try:
