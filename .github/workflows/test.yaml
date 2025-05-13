@@ -65,6 +65,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           environment-file: devtools/conda-envs/test_env_numpy${{ matrix.numpy-version }}.yaml
           activate-environment: test_env
+          miniforge-version: latest
           channel-priority: true
           auto-update-conda: true
           auto-activate-base: false
