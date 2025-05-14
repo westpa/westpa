@@ -39,27 +39,59 @@ VALID_FUNCTIONS = {
 
 
 @dataclass
-class IndicatorFunction:
+class Sink:
+    """A container object representing the subset of progress coordinate space
+    designated as the sink."""
     variables: str
     predicate: str
+
+    @classmethod
+    def from_string(cls, string):
+        """Construct a :class:`Sink` object from its string representation.
+
+        Parameters
+        ----------
+        string : str
+            A string of the form ``'<variables> : <predicate>'``, where
+            ``<variables>`` is a comma separated list of variable names, and
+            ``<predicate>`` is a boolean expression involving those variables.
+            The variables are understood to correspond to consecutive axes of
+            progress coordinate space, starting at index 0. (Hence the maximum
+            number of variables that may be provided is ``pcoord_ndim``.)
+            The predicate may include floating-point constants, comparisons for
+            inequality (``>``, ``>=``, ``<``, ``<=``), and algebraic operations
+            (``+``, ``-``, ``*``, ``/``, ``**``), as well as power, exponential,
+            logarithmic, trigonometric, and hyperbolic functions defined by the
+            C standard (e.g., ``exp()``, ``sin()``, ``sqrt()``).
+
+        """
+        words = string.split(':')
+        if len(words) != 2:
+            raise ValueError("invalid syntax: expected '<variables> : <predicate>'")
+        variables, predicate = [word.strip() for word in words]
+        return cls(variables, predicate)
 
     def __post_init__(self):
         # Parse the variables (e.g., 'x' or 'x, y').
         expr = ast.parse(self.variables, mode='eval')
         if type(expr.body) is ast.Name:
-            variable_names = {expr.body.id}
-            unpacked = False
+            variable_names = [expr.body.id]
         elif type(expr.body) is ast.Tuple and all(type(elt) is ast.Name for elt in expr.body.elts):
-            variable_names = {elt.id for elt in expr.body.elts}
-            unpacked = True
+            variable_names = [elt.id for elt in expr.body.elts]
+            if len(variable_names) != len(set(variable_names)):
+                raise ValueError('variable names must be unique')
         else:
             raise ValueError('<variables> must be a variable name or a tuple of variable names')
-        if '_x' in variable_names:
-            raise ValueError("variable name '_x' is reserved")
+
+        # Compile the assignment (e.g., 'x, *_ = _x' or 'x, y, *_ = _x').
+        for name in variable_names:
+            if name in ('_', '_x'):
+                raise ValueError(f'variable name {name!r} is reserved')
+        self._assignment = compile(', '.join(variable_names) + ', *_ = _x', '<string>', 'exec')
 
         # Parse and compile the predicate (e.g., 'x > 0' or 'x**2 + y**2 < 1').
         expr = ast.parse(self.predicate, mode='eval')
-        validator = PredicateValidator(self.predicate, variable_names, unpacked)
+        validator = PredicateValidator(self.predicate, variable_names)
         try:
             validator.visit(expr.body)
         except (TypeError, ValueError):
@@ -70,68 +102,40 @@ class IndicatorFunction:
             expr = ast.fix_missing_locations(transformer.visit(expr))
         self._predicate = compile(expr, '<string>', 'eval')
 
-        # Infer the minimum dimension of the coordinate space.
-        if unpacked:
-            ndim = len(variable_names)
-        else:
-            ndim = 1 + max(node.slice.value for node in ast.walk(expr) if type(node) is ast.Subscript)
-
         # Check that the predicate evaluates to a boolean.
+        ndim = len(variable_names)
         try:
-            result = self(np.zeros(ndim))
+            result = np.zeros(ndim) in self
         except Exception as e:
             raise RuntimeError(f'an error occurred while evaluating the predicate: {e}')
         if not isinstance(result, (bool, np.bool_)):
             raise TypeError(f'predicate must evaluate to a boolean, not {type(result).__name__}')
 
-    def __call__(self, _x):
-        exec(f'{self.variables} = _x')
-        return eval(self._predicate)
-
-
-@dataclass
-class Sink:
-    indicator_function: IndicatorFunction
-
-    def __contains__(self, x):
-        return self.indicator_function(x)
-
-    @classmethod
-    def from_string(cls, string):
-        """Construct a sink from a string representation.
+    def __contains__(self, _x):
+        """Return whether the given progress coordinate value is in the sink.
 
         Parameters
         ----------
-        string : str
-            A string of the form ``'<variables> : <predicate>'``, where
-            ``<variables>`` is a variable name or tuple of variable names, and
-            ``<predicate>`` is a boolean expression involving those variables.
-            The predicate may include arithmetic operations, comparisons, and
-            calls to functions provided by the :py:mod:`math` module.
+        _x : ndarray, shape=(pcoord_ndim,)
+            A point in progress coordinate space.
 
         Returns
         -------
-        Sink
-            A container object whose membership test first assigns the given
-            object to ``<variables>``, then returns the result of evaluating
-            the ``<predicate>`` expression.
+        bool
+            True if `_x` is in the sink, else False.
 
         """
-        words = string.split(':')
-        if len(words) != 2:
-            raise ValueError("invalid syntax: expected '<variables> : <predicate>'")
-        variables, predicate = [word.strip() for word in words]
-        return cls(IndicatorFunction(variables, predicate))
+        exec(self._assignment)
+        return eval(self._predicate)
 
     def __str__(self):
-        return f'{self.indicator_function.variables} : {self.indicator_function.predicate}'
+        return f'{self.variables} : {self.predicate}'
 
 
 @dataclass
 class PredicateValidator(ast.NodeVisitor):
     source: str
     variable_names: set[str]
-    unpacked: bool
 
     def get_source_segment(self, node):
         return ast.get_source_segment(self.source, node)
@@ -173,16 +177,9 @@ class PredicateValidator(ast.NodeVisitor):
     def visit_Name(self, node):
         if node.id not in self.variable_names:
             raise ValueError(f'{node.id!r} is not a recognized variable name')
-        if not self.unpacked:
-            raise ValueError(f'array variable {node.id!r} must be subscripted')
 
     def visit_Subscript(self, node):
-        if type(node.value) is not ast.Name:
-            raise ValueError(f'subscripted object must be a variable name: {self.get_source_segment(node)}')
-        if node.value.id not in self.variable_names:
-            raise ValueError(f'{node.value.id!r} is not a recognized variable name')
-        if self.unpacked:
-            raise ValueError(f'unpacked variable {node.value.id!r} may not be subscripted')
+        raise ValueError(f'subscripts are not supported: {self.get_source_segment(node)}')
 
         if type(node.slice) is not ast.Constant:
             raise ValueError('index must be a constant value')
