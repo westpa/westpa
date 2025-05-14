@@ -42,6 +42,7 @@ VALID_FUNCTIONS = {
 class Sink:
     """A container object representing the subset of progress coordinate space
     designated as the sink."""
+
     variables: str
     predicate: str
 
