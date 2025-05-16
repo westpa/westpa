@@ -1,3 +1,4 @@
+import sys
 import logging
 
 import numpy as np
@@ -76,15 +77,12 @@ else:
 
 class PlottingMixin(AnalysisMixin):
     def __init__(self):
-        global matplotlib, pyplot
-
         super().__init__()
 
-        self.matplotlib_avail = matplotlib is not None and pyplot is not None
+        self.matplotlib_avail = 'matplotlib' in sys.modules and 'matplotlib.pyplot' in sys.modules
 
     def require_matplotlib(self):
-        global matplotlib
         if not self.matplotlib_avail:
             raise RuntimeError('matplotlib is not available')
         else:
-            return matplotlib
+            return sys.modules['matplotlib']

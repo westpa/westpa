@@ -16,6 +16,10 @@ on:
   release:
     types:
       - published
+  workflow_dispatch:
+    branches:
+      - 'westpa2'
+      - 'develop'
 
 jobs:
   build_wheels:
@@ -33,7 +37,7 @@ jobs:
         run: "brew install hdf5"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.0
+        uses: pypa/cibuildwheel@v2.23.3
         env:
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
@@ -112,7 +116,7 @@ jobs:
     # alternatively, to publish when a GitHub Release is created, use the following rule:
     if: |
       github.repository == 'westpa/westpa' &&
-      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+      (github.event_name == 'release' && github.event.action == 'published')
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -128,7 +132,7 @@ jobs:
 
   upload_pypi:
     name: PyPI
-    needs: [build_wheels, build_sdist]
+    needs: [upload_testpypi]
     runs-on: ubuntu-latest
     environment:
       name: pypi

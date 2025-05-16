@@ -24,8 +24,10 @@ determine how to access data even as the file format (i.e. organization of data 
 evolves.
 
 Version history:
-    Version 10
+    Version 11
         - Auxdata can now be saved for Initial and Basis States.
+    Version 10
+        - BinMapper pickle, hash, and bin_target_count are now saved for iteration 1
     Version 9
         - Basis states are now saved as iter_segid instead of just segid as a pointer label.
         - Initial states are also saved in the iteration 0 file, with a negative sign.
