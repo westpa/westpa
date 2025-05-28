@@ -8,6 +8,7 @@ import pytest
 
 from westpa.analysis import Run
 from westpa.analysis.core import Iteration, Walker
+from westpa.core.binning import RectilinearBinMapper
 from westpa.core.h5io import WESTPAH5File
 from westpa.core.states import InitialState
 
@@ -89,7 +90,7 @@ def test_walkers(run):
         assert walker.run is run
     assert len(list(run.walkers)) == run.num_walkers
     for iteration in run:
-        for walker, i in zip(iteration.walkers, range(iteration.num_walkers)):
+        for i, walker in enumerate(iteration.walkers):
             assert isinstance(walker, Walker)
             assert walker in run
             assert walker in iteration
@@ -136,13 +137,32 @@ def test_summary(run):
     summary = run.summary
     assert isinstance(summary, pd.DataFrame)
     assert len(summary) == len(run)
-    assert np.all(summary.index == np.arange(1, run.num_iterations + 1))
+    assert all(summary.index == range(1, run.num_iterations + 1))
     assert list(summary.axes[1]) == fields
     for iteration in run:
         summary = iteration.summary
         assert isinstance(summary, pd.Series)
         assert list(summary.index) == fields
         assert summary.name == iteration.number
+
+
+def test_segment_summaries(run):
+    fields = [
+        'weight',
+        'parent_id',
+        'wtg_n_parents',
+        'wtg_offset',
+        'cputime',
+        'walltime',
+        'endpoint_type',
+        'status',
+    ]
+    for iteration in run:
+        segment_summaries = iteration.segment_summaries
+        assert isinstance(segment_summaries, pd.DataFrame)
+        assert len(segment_summaries) == iteration.num_walkers
+        assert all(segment_summaries.index == range(iteration.num_walkers))
+        assert list(segment_summaries.axes[1]) == fields
 
 
 def test_h5filename(run, h5filename):
@@ -158,3 +178,52 @@ def test_h5group(run):
     for iteration in run:
         assert isinstance(iteration.h5group, h5py.Group)
         assert iteration.h5group == run.h5file.get_iter_group(iteration.number)
+
+
+def test_prev_next(run):
+    for iteration1, iteration2 in zip(run.iterations[:-1], run.iterations[1:]):
+        assert iteration1.next == iteration2
+        assert iteration2.prev == iteration1
+
+
+def test_pcoords(run):
+    for iteration in run:
+        assert iteration.pcoords.ndim == 3
+        assert len(iteration.pcoords) == iteration.num_walkers
+    pcoords = run.iteration(1).pcoords
+    for walker in run.iteration(1):
+        assert np.allclose(walker.pcoords, pcoords[walker.index])
+
+
+def test_weights(run):
+    for iteration in run:
+        assert iteration.weights.ndim == 1
+        assert len(iteration.weights) == iteration.num_walkers
+
+
+def test_weight(run):
+    weights = run.iteration(1).weights
+    for walker in run.iteration(1):
+        assert np.isclose(walker.weight, weights[walker.index])
+
+
+def test_bin_mapper(run):
+    for iteration in run:
+        mapper = iteration.bin_mapper
+        if mapper is not None:
+            assert isinstance(iteration.bin_mapper, RectilinearBinMapper)
+
+
+def test_bin_target_counts(run):
+    for iteration in run:
+        target_counts = iteration.bin_target_counts
+        if target_counts is not None:
+            assert len(target_counts) == iteration.bin_mapper.nbins
+
+
+def test_num_bins(run):
+    for iteration in run:
+        if iteration.number == 1:
+            assert iteration.num_bins == 1
+        else:
+            assert iteration.num_bins == iteration.bin_mapper.nbins
