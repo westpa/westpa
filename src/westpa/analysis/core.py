@@ -480,7 +480,7 @@ class Walker:
 
     @property
     def num_snapshots(self):
-        """int: Number of snapshots."""
+        """int: Number of progress coordinate snapshots (i.e., ``pcoord_len``)."""
         return self.pcoords.shape[0]
 
     @property
