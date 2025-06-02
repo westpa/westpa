@@ -692,15 +692,49 @@ class WESTIterationFile(HDF5TrajectoryFile):
 
             pointers = np.stack((iter_idx, seg_idx)).T
 
-            self.write_data('/', 'pointer', pointers)
+            # This is to deal with the case where the simulation ended mid-iteration and some segment data are saved but itself not marked as complete yet.
+            existing_labels = sorted(np.where(self.root['pointer'][:, 1] == traj.seg_labels))
+            if [n_iter, segment.seg_id] in self.root['pointer'][:]:
+                needed_extra = len(existing_labels) - len(pointers)
+                # If previous run did not save all frames
+                if needed_extra > 0:
+                    # Write extra rows for extra frames
+                    self.write_data('/', 'pointer', pointers[-needed_extra:])
 
-            # trajectory
-            self.write(
-                coordinates=in_units_of(traj.xyz, Trajectory._distance_unit, self.distance_unit),
-                time=traj.time,
-                cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
-                cell_angles=traj.unitcell_angles,
-            )
+                    # write trajectory for the extra rows
+                    self.write(
+                        coordinates=in_units_of(traj.xyz[-needed_extra:], Trajectory._distance_unit, self.distance_unit),
+                        time=traj.time[-needed_extra:],
+                        cell_lengths=in_units_of(
+                            traj.unitcell_lengths[-needed_extra:], Trajectory._distance_unit, self.distance_unit
+                        ),
+                        cell_angles=traj.unitcell_angles[-needed_extra:],
+                    )
+                elif needed_extra < 0:
+                    # Extra frames found, turning pointer for those rows to [-1, -1]
+                    log.warning(
+                        f'Extra frames for segment {n_iter}_{segment.seg_id} found in WESTIterationFile. Overwriting extra frame pointers with Sentinal [-1, -1].'
+                    )
+                    for row_idx in range(-needed_extra, 0):
+                        self.root['pointers'][existing_labels[row_idx]] = [-1, -1]
+                else:
+                    # Number of Frames match. None will return all frames and traj.
+                    needed_extra = None
+
+                # Replace existing rows with corresponding data, up until specified
+                self.replace_frames(existing_labels[:-needed_extra], traj[:-needed_extra])
+
+            else:
+                # Write pointers
+                self.write_data('/', 'pointer', pointers)
+
+                # trajectory
+                self.write(
+                    coordinates=in_units_of(traj.xyz, Trajectory._distance_unit, self.distance_unit),
+                    time=traj.time,
+                    cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
+                    cell_angles=traj.unitcell_angles,
+                )
 
             # topology
             if self.mode == 'a':
@@ -733,6 +767,15 @@ class WESTIterationFile(HDF5TrajectoryFile):
                 obj=slog,
                 createparents=True,
             )
+
+    def replace_frames(self, rows, traj):
+        datasets = {'coordinates': 'xyz', 'time': 'time', 'cell_angles': 'unitcell_angles', 'cell_lengths': 'unitcell_lengths'}
+        rows = sorted(rows)
+
+        for ptkey, mdkey in datasets.items():
+            if self._has_node('/', ptkey) and getattr(traj, mdkey) is not None:
+                for frame_idx, row in enumerate(rows):
+                    self.root[ptkey][row] = getattr(traj, mdkey)[frame_idx]
 
     @property
     def _create_group(self):
