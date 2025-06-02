@@ -72,15 +72,15 @@ def test_num_walkers(run):
 
 
 def test_walker(run):
-    for iteration in run:
-        for i in range(iteration.num_walkers):
-            walker = iteration.walker(i)
-            assert isinstance(walker, Walker)
-            assert walker in run
-            assert walker in iteration
-            assert walker.run is run
-            assert walker.iteration is iteration
-            assert walker.index == i
+    iteration = run.iteration(1)
+    for i in range(iteration.num_walkers):
+        walker = iteration.walker(i)
+        assert isinstance(walker, Walker)
+        assert walker in run
+        assert walker in iteration
+        assert walker.run is run
+        assert walker.iteration is iteration
+        assert walker.index == i
 
 
 def test_walkers(run):
@@ -98,6 +98,31 @@ def test_walkers(run):
             assert walker.iteration is iteration
             assert walker.index == i
     assert sum(len(list(iteration.walkers)) for iteration in run) == run.num_walkers
+
+
+def test_parent(run):
+    for walker in run.iteration(1):
+        assert isinstance(walker.parent, InitialState)
+    for walker in run.iteration(2):
+        assert isinstance(walker.parent, Walker)
+        assert walker.parent.iteration.number == 1
+
+
+def test_children(run):
+    for walker in run.iteration(1):
+        for child in walker.children:
+            assert isinstance(child, Walker)
+            assert child.iteration.number == 2
+
+
+def test_recycled(run):
+    for walker in run.iteration(1):
+        assert not walker.recycled
+
+
+def test_initial(run):
+    for walker in run.iteration(1):
+        assert walker.initial
 
 
 def test_recycled_walkers(run):
