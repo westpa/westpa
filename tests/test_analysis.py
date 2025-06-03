@@ -299,3 +299,11 @@ def test_binning(run):
             assert isinstance(bin_mapper, RectilinearBinMapper)
             assert len(iteration.bin_target_counts) == bin_mapper.nbins
             assert iteration.num_bins == bin_mapper.nbins
+
+
+def test_trace(run):
+    walker = run.iterations[-1].walker(0)
+    trace = walker.trace()
+    assert len(trace) == walker.iteration.number
+    assert all(isinstance(walker, Walker) for walker in trace)
+    assert isinstance(trace.initial_state, InitialState)
