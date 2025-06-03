@@ -2,6 +2,7 @@ import itertools
 from pathlib import Path
 
 import h5py
+import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
@@ -307,3 +308,11 @@ def test_trace(run):
     assert len(trace) == walker.iteration.number
     assert all(isinstance(walker, Walker) for walker in trace)
     assert isinstance(trace.initial_state, InitialState)
+
+
+def test_history_graph(run):
+    graph = run.history_graph()
+    assert all(isinstance(u, Walker) for u in graph)
+    assert len(graph) == run.num_walkers
+    for u, v in graph.edges:
+        assert v == u.parent
