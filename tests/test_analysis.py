@@ -2,7 +2,6 @@ import itertools
 from pathlib import Path
 
 import h5py
-import networkx as nx
 import numpy as np
 import pandas as pd
 import pytest
