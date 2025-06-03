@@ -234,7 +234,7 @@ class Iteration:
 
     @property
     def bin_target_counts(self):
-        """1D ndarray, dtype=uint64: Target count for each bin."""
+        """1D ndarray or None: Target count for each bin."""
         val = self.h5group.get('bin_target_counts')
         if val is None:
             return None
@@ -242,7 +242,7 @@ class Iteration:
 
     @property
     def bin_mapper(self):
-        """BinMapper: Bin mapper used in the iteration."""
+        """BinMapper or None: Bin mapper used in the iteration."""
         if self.bin_target_counts is None:
             return None
         mapper, _, _ = mapper_from_hdf5(self.run.h5file['bin_topologies'], self.h5group.attrs['binhash'])
