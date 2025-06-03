@@ -10,7 +10,7 @@ from westpa.analysis import Run
 from westpa.analysis.core import Iteration, Walker
 from westpa.core.binning import RectilinearBinMapper
 from westpa.core.h5io import WESTPAH5File
-from westpa.core.states import InitialState
+from westpa.core.states import BasisState, InitialState, TargetState
 
 
 @pytest.fixture(scope='module')
@@ -41,7 +41,7 @@ def run(h5filename) -> Run:
 
 def test_num_iterations(run):
     assert run.num_iterations == 50
-    assert len(run) == run.num_iterations  # __len__ is implemented
+    assert len(run) == run.num_iterations  # Run.__len__
 
 
 def test_iteration(run):
@@ -55,7 +55,7 @@ def test_iteration(run):
 
 def test_iterations(run):
     assert isinstance(run.iterations, list)
-    assert run.iterations == list(run)  # __iter__ is implemented
+    assert run.iterations == list(run)  # Run.__iter__, Iteration.__eq__
     for iteration, n in zip(run.iterations, range(1, run.num_iterations + 1)):
         assert isinstance(iteration, Iteration)
         assert iteration in run
@@ -90,6 +90,7 @@ def test_walkers(run):
         assert walker.run is run
     assert len(list(run.walkers)) == run.num_walkers
     for iteration in run:
+        assert list(iteration.walkers) == list(iteration)  # Iteration.__iter__, Walker.__eq__
         for i, walker in enumerate(iteration.walkers):
             assert isinstance(walker, Walker)
             assert walker in run
@@ -128,7 +129,6 @@ def test_initial(run):
 def test_recycled_walkers(run):
     for walker in run.recycled_walkers:
         assert walker.recycled
-        assert walker.pcoords[-1] in walker.iteration.sink
     assert len(list(run.recycled_walkers)) == 39
     for walker1, walker2 in zip(
         run.recycled_walkers,
@@ -147,6 +147,62 @@ def test_initial_walkers(run):
         itertools.chain(*(iteration.initial_walkers for iteration in run)),
     ):
         assert walker1 == walker2
+
+
+def test_auxiliary_data(run):
+    for iteration in run:
+        assert iteration.auxiliary_data is None
+    for walker in run.iteration(1):
+        assert walker.auxiliary_data == {}
+
+
+def test_basis_state_summaries(run):
+    for iteration in run:
+        summaries = iteration.basis_state_summaries
+        assert isinstance(summaries, pd.DataFrame)
+        assert list(summaries.axes[1]) == ['label', 'probability', 'auxref']
+
+
+def test_basis_state_pcoords(run):
+    for iteration in run:
+        assert iteration.basis_state_pcoords.ndim == 2
+
+
+def test_basis_states(run):
+    for iteration in run:
+        basis_states = iteration.basis_states
+        assert isinstance(basis_states, list)
+        assert all(isinstance(state, BasisState) for state in basis_states)
+
+
+def test_has_target_states(run):
+    for iteration in run:
+        assert iteration.has_target_states
+
+
+def test_target_state_summaries(run):
+    for iteration in run:
+        summaries = iteration.target_state_summaries
+        assert isinstance(summaries, pd.DataFrame)
+        assert list(summaries.axes[1]) == ['label']
+
+
+def test_target_state_pcoords(run):
+    for iteration in run:
+        assert iteration.target_state_pcoords.ndim == 2
+
+
+def test_target_states(run):
+    for iteration in run:
+        target_states = iteration.target_states
+        assert isinstance(target_states, list)
+        assert all(isinstance(state, TargetState) for state in target_states)
+
+
+def test_sink(run):
+    for walker in run.recycled_walkers:
+        assert walker.pcoords[0] not in walker.iteration.sink
+        assert walker.pcoords[-1] in walker.iteration.sink
 
 
 def test_summary(run):
@@ -183,11 +239,15 @@ def test_segment_summaries(run):
         'status',
     ]
     for iteration in run:
-        segment_summaries = iteration.segment_summaries
-        assert isinstance(segment_summaries, pd.DataFrame)
-        assert len(segment_summaries) == iteration.num_walkers
-        assert all(segment_summaries.index == range(iteration.num_walkers))
-        assert list(segment_summaries.axes[1]) == fields
+        summaries = iteration.segment_summaries
+        assert isinstance(summaries, pd.DataFrame)
+        assert len(summaries) == iteration.num_walkers
+        assert all(summaries.index == range(iteration.num_walkers))
+        assert list(summaries.axes[1]) == fields
+    for walker in run.iteration(1):
+        summary = walker.segment_summary
+        assert isinstance(summary, pd.Series)
+        assert list(summary.index) == fields
 
 
 def test_h5filename(run, h5filename):
@@ -224,31 +284,18 @@ def test_weights(run):
     for iteration in run:
         assert iteration.weights.ndim == 1
         assert len(iteration.weights) == iteration.num_walkers
-
-
-def test_weight(run):
     weights = run.iteration(1).weights
     for walker in run.iteration(1):
         assert np.isclose(walker.weight, weights[walker.index])
 
 
-def test_bin_mapper(run):
+def test_binning(run):
     for iteration in run:
-        mapper = iteration.bin_mapper
-        if mapper is not None:
-            assert isinstance(iteration.bin_mapper, RectilinearBinMapper)
-
-
-def test_bin_target_counts(run):
-    for iteration in run:
-        target_counts = iteration.bin_target_counts
-        if target_counts is not None:
-            assert len(target_counts) == iteration.bin_mapper.nbins
-
-
-def test_num_bins(run):
-    for iteration in run:
-        if iteration.number == 1:
-            assert iteration.num_bins == 1
+        bin_mapper = iteration.bin_mapper
+        if bin_mapper is None:
+            assert iteration.bin_target_counts is None
+            assert iteration.num_bins == 0
         else:
-            assert iteration.num_bins == iteration.bin_mapper.nbins
+            assert isinstance(bin_mapper, RectilinearBinMapper)
+            assert len(iteration.bin_target_counts) == bin_mapper.nbins
+            assert iteration.num_bins == bin_mapper.nbins
