@@ -152,7 +152,13 @@ class Run:
             The history graph of the run.
 
         """
-        return nx.DiGraph((walker, walker.parent) for walker in self.walkers if not walker.initial)
+        graph = nx.DiGraph()
+        for iteration in self:
+            parent_ids = iteration.h5group['seg_index']['parent_id']
+            for index, parent_id in enumerate(parent_ids):
+                if parent_id >= 0:
+                    graph.add_edge(iteration.walker(index), iteration.prev.walker(parent_id))
+        return graph
 
     def __len__(self):
         return self.num_iterations
