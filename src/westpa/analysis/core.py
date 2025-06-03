@@ -251,9 +251,7 @@ class Iteration:
     @property
     def num_bins(self):
         """int: Number of bins."""
-        if self.number == 1:
-            return 1
-        return self.bin_target_counts.shape[0]
+        return 0 if self.bin_target_counts is None else self.bin_target_counts.shape[0]
 
     @property
     def bins(self):
