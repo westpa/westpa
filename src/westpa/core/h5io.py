@@ -689,7 +689,7 @@ class WESTIterationFile(HDF5TrajectoryFile):
                 self._create_earray('/', name='pointer', atom=self.tables.Int64Atom(), shape=(0, 2))
 
             try:
-                existing_labels = np.where(self.root['pointer'][:, 1] == traj.seg_labels)[0]
+                existing_labels = np.where(self.root['pointer'][:, 1] == traj.seg_labels[0])[0]
             except ValueError:
                 existing_labels = []
 
@@ -697,33 +697,41 @@ class WESTIterationFile(HDF5TrajectoryFile):
             seg_idx = traj.seg_labels
 
             pointers = np.stack((iter_idx, seg_idx)).T
-
             # This is to deal with the case where the simulation ended mid-iteration and some segment data are saved but itself not marked as complete yet.
             if [segment.seg_id] in self.root['pointer'][:, 1]:
-                needed_extra = len(existing_labels) - len(pointers)
-
+                needed_extra = len(pointers) - len(existing_labels)
                 # If previous run did not save all frames
                 if needed_extra > 0:
                     # Write extra rows for extra frames
                     self.write_data('/', 'pointer', pointers[-needed_extra:])
 
                     # write trajectory for the extra rows
-                    self.write(
-                        coordinates=in_units_of(traj.xyz[-needed_extra:], Trajectory._distance_unit, self.distance_unit),
-                        time=traj.time[-needed_extra:],
-                        cell_lengths=in_units_of(
-                            traj.unitcell_lengths[-needed_extra:], Trajectory._distance_unit, self.distance_unit
-                        ),
-                        cell_angles=traj.unitcell_angles[-needed_extra:],
-                    )
-                    needed_extra *= -1
+                    if traj.unitcell_lengths is None:
+                        # Without unitcell
+                        self.write(
+                            coordinates=in_units_of(traj.xyz[-needed_extra:], Trajectory._distance_unit, self.distance_unit),
+                            time=traj.time[-needed_extra:],
+                        )
+                    else:
+                        # With unitcell
+                        self.write(
+                            coordinates=in_units_of(traj.xyz[-needed_extra:], Trajectory._distance_unit, self.distance_unit),
+                            time=traj.time[-needed_extra:],
+                            cell_lengths=in_units_of(
+                                traj.unitcell_lengths[-needed_extra:], Trajectory._distance_unit, self.distance_unit
+                            ),
+                            cell_angles=traj.unitcell_angles[-needed_extra:],
+                        )
+
+                    needed_extra = len(existing_labels)
                 elif needed_extra < 0:
                     # Extra frames found, turning pointer for those rows to sentinel
                     log.warning(
                         f'Extra frames for segment {n_iter}_{segment.seg_id} found in WESTIterationFile. Overwriting extra frame pointers with sentinal [-n_iter, -seg_id].'
                     )
-                    for row_idx in range(-needed_extra, 0):
-                        self.root['pointers'][existing_labels[row_idx]] = [-n_iter, -segment.seg_id]
+                    print(existing_labels)
+                    for row_idx in range(needed_extra, 0):
+                        self.root['pointer'][existing_labels[row_idx]] = [-n_iter, -segment.seg_id]
                     needed_extra = len(pointers)
                 else:
                     # Number of Frames match. None will return all frames and traj.
@@ -781,7 +789,6 @@ class WESTIterationFile(HDF5TrajectoryFile):
 
     def replace_frames(self, rows, traj):
         datasets = {'coordinates': 'xyz', 'time': 'time', 'cell_angles': 'unitcell_angles', 'cell_lengths': 'unitcell_lengths'}
-        rows = sorted(rows)
 
         for ptkey, mdkey in datasets.items():
             if self._has_node('/', ptkey) and getattr(traj, mdkey) is not None:

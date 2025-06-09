@@ -238,13 +238,13 @@ def ref_executable(request, tmp_path):
     request.addfinalizer(clear_state)
 
 
-@pytest.fixture
+@pytest.fixture(scope='function')
 def west_iteration_file(request, tmp_path):
     os.chdir(tmp_path)
     request.cls.h5_iter_file_path = tmp_path / 'WESTITERFILE.h5'
 
     request.cls.rng = rng = np.random.default_rng()
-    request.cls.dummy_data = {'iterh5/trajectory': rng.uniform(low=-3, high=3, size=(2, 4, 3))}
+    request.cls.dummy_data = {'iterh5/trajectory': rng.uniform(low=-3, high=3, size=(4, 5, 3))}
 
     # Initialize and close the file
     WESTIterationFile(request.cls.h5_iter_file_path, mode='w').close()
