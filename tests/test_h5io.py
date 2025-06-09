@@ -8,7 +8,7 @@ class Test_H5io:
     '''Class to test the h5io module.'''
 
     def test_write_segment(self, west_iteration_file):
-        '''Test that a segment is written successfully with WestIterationFile.'''
+        '''Segment is written successfully with WestIterationFile when there are duplicate pointers (and not).'''
 
         segment = Segment(n_iter=3, seg_id=5, data=self.dummy_data)
         shape = self.dummy_data['iterh5/trajectory'][:].shape
@@ -41,8 +41,7 @@ class Test_H5io:
             ), 'Unable to write extra trajectory coordinates'
 
     def test_write_segment_under(self, west_iteration_file):
-        '''Test that a segment is written successfully with WestIterationFilei when there are not
-        not enough rows.'''
+        '''Segment is written successfully in WestIterationFile when there are not enough rows.'''
 
         oneframe_data = {'iterh5/trajectory': self.dummy_data['iterh5/trajectory'][:1].copy()}
         self.dummy_data['iterh5/trajectory'][:] *= 2
@@ -66,8 +65,7 @@ class Test_H5io:
             ), 'Unable to overwrite trajectory coordinates'
 
     def test_write_segment_over(self, west_iteration_file):
-        '''Test that a segment is written successfully with WestIterationFile when there are extra
-        rows.'''
+        '''Segment is written successfully in WestIterationFile when there are extra rows.'''
 
         oneframe_data = {'iterh5/trajectory': self.dummy_data['iterh5/trajectory'][:1].copy()}
         self.dummy_data['iterh5/trajectory'][:] *= 2
