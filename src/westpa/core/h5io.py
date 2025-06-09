@@ -706,23 +706,17 @@ class WESTIterationFile(HDF5TrajectoryFile):
                     self.write_data('/', 'pointer', pointers[-needed_extra:])
 
                     # write trajectory for the extra rows
-                    if traj.unitcell_lengths is None:
-                        # Without unitcell
-                        self.write(
-                            coordinates=in_units_of(traj.xyz[-needed_extra:], Trajectory._distance_unit, self.distance_unit),
-                            time=traj.time[-needed_extra:],
+                    output_dict = {
+                        'coordinates': in_units_of(traj.xyz[-needed_extra:], Trajectory._distance_unit, self.distance_unit),
+                        'time': traj.time[-needed_extra:],
+                    }
+                    if traj.unitcell_lengths:
+                        output_dict['cell_lengths'] = in_units_of(
+                            traj.unitcell_lengths[-needed_extra:], Trajectory._distance_unit, self.distance_unit
                         )
-                    else:
-                        # With unitcell
-                        self.write(
-                            coordinates=in_units_of(traj.xyz[-needed_extra:], Trajectory._distance_unit, self.distance_unit),
-                            time=traj.time[-needed_extra:],
-                            cell_lengths=in_units_of(
-                                traj.unitcell_lengths[-needed_extra:], Trajectory._distance_unit, self.distance_unit
-                            ),
-                            cell_angles=traj.unitcell_angles[-needed_extra:],
-                        )
+                        output_dict['cell_angles'] = (traj.unitcell_angles[-needed_extra:],)
 
+                    self.write(**output_dict)
                     needed_extra = len(existing_labels)
                 elif needed_extra < 0:
                     # Extra frames found, turning pointer for those rows to sentinel
