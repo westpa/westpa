@@ -6,6 +6,7 @@ from shutil import copyfile, copy
 import numpy as np
 
 import westpa
+from westpa.core.h5io import WESTIterationFile
 
 
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
@@ -235,3 +236,15 @@ def ref_executable(request, tmp_path):
     westpa.rc = westpa.core._rc.WESTRC()
 
     request.addfinalizer(clear_state)
+
+
+@pytest.fixture
+def west_iteration_file(request, tmp_path):
+    os.chdir(tmp_path)
+    request.cls.h5_iter_file_path = tmp_path / 'WESTITERFILE.h5'
+
+    request.cls.rng = rng = np.random.default_rng()
+    request.cls.dummy_data = {'iterh5/trajectory': rng.uniform(low=-3, high=3, size=(2, 4, 3))}
+
+    # Initialize and close the file
+    WESTIterationFile(request.cls.h5_iter_file_path, mode='w').close()
