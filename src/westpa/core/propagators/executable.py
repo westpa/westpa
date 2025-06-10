@@ -22,6 +22,7 @@ from westpa.core.yamlcfg import check_bool
 
 from westpa.core.trajectory import load_trajectory
 from westpa.core.h5io import safe_extract
+from westpa.westext.trajectorystreaming.assign_port import assign_port
 
 log = logging.getLogger(__name__)
 
@@ -191,6 +192,9 @@ class ExecutablePropagator(WESTPropagator):
     ENV_RAND128 = 'WEST_RAND128'
     ENV_RANDFLOAT = 'WEST_RANDFLOAT'
 
+    # Environment variable for port assignment for trajectory streaming
+    ENV_PORT = 'WEST_SEG_PORT'
+
     def __init__(self, rc=None):
         super().__init__(rc)
 
@@ -342,6 +346,9 @@ class ExecutablePropagator(WESTPropagator):
             self.ENV_RANDFLOAT: str(self.rng.random()),
         }
 
+    def port_env_vars(self, seg_id):
+        return {self.ENV_PORT: str(assign_port(seg_id))}
+
     def exec_child(self, executable, environ=None, stdin=None, stdout=None, stderr=None, cwd=None):
         '''Execute a child process with the environment set from the current environment, the
         values of self.addtl_child_environ, the random numbers returned by self.random_val_env_vars, and
@@ -354,6 +361,7 @@ class ExecutablePropagator(WESTPropagator):
         all_environ.update(self.addtl_child_environ)
         all_environ.update(self.random_val_env_vars())
         all_environ.update(environ or {})
+        all_environ.update(self.port_env_vars(all_environ.get(self.ENV_CURRENT_SEG_ID, -1)))
 
         stdin = open(stdin, 'rb') if stdin else sys.stdin
         stdout = open(stdout, 'wb') if stdout else sys.stdout

@@ -10,7 +10,7 @@ class AssignPorts:
         self.system = sim_manager.system
 
         # Switch for the plugin    
-        self.assign_ports = check_bool(plugin_config.get('assign_ports', True))
+        self.assign_ports = check_bool(plugin_config.get('assign_ports', False))
 
         if self.assign_ports:
             sim_manager.register_callback(sim_manager.pre_propagation, self.pre_propagation, 0)
@@ -22,3 +22,10 @@ class AssignPorts:
         westpa.rc.pflush()
 
         # for seg in self.sim_manager.segments:
+
+def assign_port(seg_id):
+    """
+    Assign a port to a segment based on its ID.
+    """
+    
+    return seg_id
