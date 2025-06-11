@@ -5,7 +5,7 @@ from mdtraj import Trajectory
 
 
 def parseResidueAtoms(residue, map):
-    '''Parse all atoms from residue. Taken from MDTraj.'''
+    '''Parse all atoms from residue. Taken from OpenMM 8.2.0.'''
     for atom in residue.findall('Atom'):
         name = atom.attrib['name']
         for id in atom.attrib:
