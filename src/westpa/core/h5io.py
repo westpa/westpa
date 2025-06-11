@@ -723,7 +723,6 @@ class WESTIterationFile(HDF5TrajectoryFile):
                     log.warning(
                         f'Extra frames for segment {n_iter}_{segment.seg_id} found in WESTIterationFile. Overwriting extra frame pointers with sentinal [-n_iter, -seg_id].'
                     )
-                    print(existing_labels)
                     for row_idx in range(needed_extra, 0):
                         self.root['pointer'][existing_labels[row_idx]] = [-n_iter, -segment.seg_id]
                     needed_extra = len(pointers)
