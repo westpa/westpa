@@ -207,7 +207,7 @@ class SegmentCollector:
 
 class BasicMDTrajectory(Trajectory):
     """Trajectory reader for MD trajectories stored as in the
-    `Basic Tutorial <https://github.com/westpa/westpa_tutorials/tree/main/basic_nacl>`_.
+    `Basic Tutorial <https://github.com/westpa/westpa_tutorials/tree/main/tutorial7.1-basic-nacl>`_.
 
     Parameters
     ----------
