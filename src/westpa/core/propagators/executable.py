@@ -210,6 +210,7 @@ class ExecutablePropagator(WESTPropagator):
         self.exe_info['post_iteration'] = {}
         self.exe_info['get_pcoord'] = {}
         self.exe_info['gen_istate'] = {}
+        self.exe_info['stream_trajectory'] = {}
 
         # A mapping of data set name ('pcoord', 'coord', 'com', etc) to a dictionary of
         # attributes like 'loader', 'dtype', etc
@@ -239,7 +240,7 @@ class ExecutablePropagator(WESTPropagator):
         self.addtl_child_environ.update({k: str(v) for k, v in (config['west', 'executable', 'environ'] or {}).items()})
 
         # Load configuration items relating to child processes
-        for child_type in ('propagator', 'pre_iteration', 'post_iteration', 'get_pcoord', 'gen_istate', 'subgroup_walkers'):
+        for child_type in ('propagator', 'pre_iteration', 'post_iteration', 'get_pcoord', 'gen_istate', 'subgroup_walkers', 'stream_trajectory'):
             child_info = config.get(['west', 'executable', child_type])
             if not child_info:
                 continue
@@ -361,7 +362,7 @@ class ExecutablePropagator(WESTPropagator):
         all_environ.update(self.addtl_child_environ)
         all_environ.update(self.random_val_env_vars())
         all_environ.update(environ or {})
-        all_environ.update(self.port_env_vars(all_environ.get(self.ENV_CURRENT_SEG_ID, -1)))
+        # all_environ.update(self.port_env_vars(all_environ.get(self.ENV_CURRENT_SEG_ID, -1)))
 
         stdin = open(stdin, 'rb') if stdin else sys.stdin
         stdout = open(stdout, 'wb') if stdout else sys.stdout
@@ -700,6 +701,19 @@ class ExecutablePropagator(WESTPropagator):
             starttime = time.time()
 
             addtl_env, return_files, del_return_files = self.setup_dataset_return(segment)
+
+            # Check if trajectory streaming is enabled
+            traj_stream_child_info = self.exe_info.get('stream_trajectory')
+            if traj_stream_child_info and traj_stream_child_info['enabled']:
+                # Assign a port for trajectory streaming
+                addtl_env.update(self.port_env_vars(segment.seg_id))
+                # If trajectory streaming is enabled, a trajectory streaming executable is spawned for each segment
+                log.debug('spawning trajectory streaming executable for segment %d' % segment.seg_id)
+                log.debug('trajectory streaming executable: %s' % traj_stream_child_info['executable'])
+                log.debug('trajectory streaming executable environment: %s' % addtl_env)
+                # Pass the additional environment variables to the trajectory streaming executable
+                # rc_stream, rusage_stream = self.exec_for_segment(traj_stream_child_info, segment, addtl_env)
+
 
             # Spawn propagator and wait for its completion
             rc, rusage = self.exec_for_segment(child_info, segment, addtl_env)
