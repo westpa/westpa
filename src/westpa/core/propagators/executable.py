@@ -240,7 +240,15 @@ class ExecutablePropagator(WESTPropagator):
         self.addtl_child_environ.update({k: str(v) for k, v in (config['west', 'executable', 'environ'] or {}).items()})
 
         # Load configuration items relating to child processes
-        for child_type in ('propagator', 'pre_iteration', 'post_iteration', 'get_pcoord', 'gen_istate', 'subgroup_walkers', 'stream_trajectory'):
+        for child_type in (
+            'propagator',
+            'pre_iteration',
+            'post_iteration',
+            'get_pcoord',
+            'gen_istate',
+            'subgroup_walkers',
+            'stream_trajectory',
+        ):
             child_info = config.get(['west', 'executable', child_type])
             if not child_info:
                 continue
@@ -713,7 +721,6 @@ class ExecutablePropagator(WESTPropagator):
                 log.debug('trajectory streaming executable environment: %s' % addtl_env)
                 # Pass the additional environment variables to the trajectory streaming executable
                 # rc_stream, rusage_stream = self.exec_for_segment(traj_stream_child_info, segment, addtl_env)
-
 
             # Spawn propagator and wait for its completion
             rc, rusage = self.exec_for_segment(child_info, segment, addtl_env)
