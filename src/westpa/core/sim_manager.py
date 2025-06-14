@@ -610,7 +610,7 @@ class WESimManager:
             # If trajectory streaming is enabled submit a streaming process
             if self.do_trajectory_streaming:
                 self.work_manager.submit(wm_ops.stream_trajectory, args=(segment_block))
-            
+
             future = self.work_manager.submit(wm_ops.propagate, args=(pbstates, pistates, segment_block))
             futures.add(future)
             segment_futures.add(future)
