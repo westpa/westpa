@@ -45,6 +45,7 @@ class WESimManager:
         self.save_transition_matrices = config.get(['west', 'propagation', 'save_transition_matrices'], False)
         self.max_run_walltime = config.get(['west', 'propagation', 'max_run_wallclock'], default=None)
         self.max_total_iterations = config.get(['west', 'propagation', 'max_total_iterations'], default=None)
+        self.do_trajectory_streaming = config.get(['west', 'executable', 'stream_trajectory', 'enabled'], default=False)
 
     def __init__(self, rc=None):
         self.rc = rc or westpa.rc
@@ -77,6 +78,7 @@ class WESimManager:
         self.save_transition_matrices = False
         self.max_run_walltime = None
         self.max_total_iterations = None
+        self.do_trajectory_streaming = False
         self.process_config()
 
         # Per-iteration variables
@@ -605,6 +607,10 @@ class WESimManager:
             pbstates, pistates = westpa.core.states.pare_basis_initial_states(
                 self.current_iter_bstates, list(self.current_iter_istates.values()), segment_block
             )
+            # If trajectory streaming is enabled submit a streaming process
+            if self.do_trajectory_streaming:
+                self.work_manager.submit(wm_ops.stream_trajectory, args=(segment_block))
+            
             future = self.work_manager.submit(wm_ops.propagate, args=(pbstates, pistates, segment_block))
             futures.add(future)
             segment_futures.add(future)

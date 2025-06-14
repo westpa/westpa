@@ -32,6 +32,9 @@ def post_iter(n_iter, segments):
     propagator = westpa.rc.get_propagator()
     propagator.finalize_iteration(n_iter, segments)
 
+def stream_trajectory(segments):
+    propagator = westpa.rc.get_propagator()
+    propagator.stream_trajectory(segments)
 
 def propagate(basis_states, initial_states, segments):
     propagator = westpa.rc.get_propagator()
