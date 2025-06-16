@@ -17,6 +17,7 @@ dependencies:
   - tqdm
   - mdtraj
   - netCDF4
+  - networkx
   # testing
   - pytest
   - pytest-cov
