@@ -30,4 +30,4 @@ def assign_port(seg_id):
     Assign a port to a segment based on its ID.
     """
 
-    return seg_id
+    return 10000+seg_id

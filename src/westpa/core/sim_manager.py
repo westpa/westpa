@@ -596,6 +596,7 @@ class WESimManager:
         # all futures dispatched for this iteration
         futures = set()
         segment_futures = set()
+        stream_futures = set()
 
         # Immediately dispatch any necessary initial state generation
         istate_gen_futures = self.get_istate_futures()
@@ -609,7 +610,10 @@ class WESimManager:
             )
             # If trajectory streaming is enabled submit a streaming process
             if self.do_trajectory_streaming:
-                self.work_manager.submit(wm_ops.stream_trajectory, args=(segment_block))
+                log.debug('streaming trajectory for segment block of length: {:d}'.format(len(segment_block)))
+                future = self.work_manager.submit(wm_ops.stream_trajectory, args=(segment_block))
+                futures.add(future)
+                stream_futures.add(future)
 
             future = self.work_manager.submit(wm_ops.propagate, args=(pbstates, pistates, segment_block))
             futures.add(future)
@@ -644,6 +648,9 @@ class WESimManager:
                 with self.data_manager.expiring_flushing_lock():
                     self.data_manager.update_initial_states([initial_state], n_iter=self.n_iter + 1)
                 self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
+            elif future in stream_futures:
+                stream_futures.remove(future)
+                log.debug('streaming future completed')
             else:
                 log.error('unknown future {!r} received from work manager'.format(future))
                 raise AssertionError('untracked future {!r}'.format(future))

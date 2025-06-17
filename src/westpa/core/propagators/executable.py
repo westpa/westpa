@@ -370,7 +370,6 @@ class ExecutablePropagator(WESTPropagator):
         all_environ.update(self.addtl_child_environ)
         all_environ.update(self.random_val_env_vars())
         all_environ.update(environ or {})
-        # all_environ.update(self.port_env_vars(all_environ.get(self.ENV_CURRENT_SEG_ID, -1)))
 
         stdin = open(stdin, 'rb') if stdin else sys.stdin
         stdout = open(stdout, 'wb') if stdout else sys.stdout
@@ -702,22 +701,27 @@ class ExecutablePropagator(WESTPropagator):
                 if rc != 0:
                     log.warning('post-iteration executable {!r} returned {}'.format(child_info['executable'], rc))
 
-    def stream_trajectory(self, segments):
-        child_info = self.exe_info['propagator']
+    def stream_trajectory(self, segment):
+        child_info = self.exe_info['stream_trajectory']
+        try:
+            log.debug('streaming trajectory for %d segments' % len(segment))
+        except Exception as e:
+            log.debug('Issue with logging segments: %s' % e)
+        # Code doesn't run properly if segments is not iterable
+        # for segment in segments:
 
-        for segment in segments:
-
-            # NEED TO CHECK
-            # Can we just call this function again to get the correct variables for the dataset?
-            addtl_env, return_files, del_return_files = self.setup_dataset_return(segment)
-            # Assign a port for trajectory streaming
-            addtl_env.update(self.port_env_vars(segment.seg_id))
-            # If trajectory streaming is enabled, a trajectory streaming executable is spawned for each segment
-            log.debug('spawning trajectory streaming executable for segment %d' % segment.seg_id)
-            log.debug('trajectory streaming executable: %s' % traj_stream_child_info['executable'])
-            log.debug('trajectory streaming executable environment: %s' % addtl_env)
-            # Pass the additional environment variables to the trajectory streaming executable
-            rc_stream, rusage_stream = self.exec_for_segment(traj_stream_child_info, segment, addtl_env)
+        # NEED TO CHECK
+        # Can we just call this function again to get the correct variables for the dataset?
+        # addtl_env, return_files, del_return_files = self.setup_dataset_return(segment)
+        # Assign a port for trajectory streaming
+        addtl_env = {}
+        addtl_env.update(self.port_env_vars(segment.seg_id))
+        # If trajectory streaming is enabled, a trajectory streaming executable is spawned for each segment
+        log.debug('spawning trajectory streaming executable for segment %d' % segment.seg_id)
+        log.debug('trajectory streaming executable: %s' % child_info['executable'])
+        log.debug('trajectory streaming executable environment: %s' % addtl_env)
+        # Pass the additional environment variables to the trajectory streaming executable
+        rc_stream, rusage_stream = self.exec_for_segment(child_info, segment, addtl_env)
 
     def propagate(self, segments):
         child_info = self.exe_info['propagator']
