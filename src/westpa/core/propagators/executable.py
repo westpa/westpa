@@ -541,7 +541,7 @@ class ExecutablePropagator(WESTPropagator):
         return self.exec_child_from_child_info(child_info, template_args, environ)
 
     def exec_for_trajectory_streaming(self, child_info, segment, addtl_env=None):
-        '''Execute a child process for trajectory streaming. 
+        '''Execute a child process for trajectory streaming.
         This is used to stream trajectory data for on-the-fly analysis.'''
         # log.debug('Executing trajectory streaming child with child info: {!r}'.format( child_info))
         # log.debug('Segment for trajectory streaming child: {!r}'.format(segment))
@@ -723,11 +723,11 @@ class ExecutablePropagator(WESTPropagator):
         child_info = self.exe_info['stream_trajectory']
         log.debug('trajectory streaming executable: %s' % child_info['executable'])
         for segment in segments:
-        # NEED TO CHECK
-        # Can we just call this function again to get the correct variables for the dataset?
-        # addtl_env, return_files, del_return_files = self.setup_dataset_return(segment)
-        # Assign a port for trajectory streaming
-        # TODO - need to find a way to return the data to the correct place
+            # NEED TO CHECK
+            # Can we just call this function again to get the correct variables for the dataset?
+            # addtl_env, return_files, del_return_files = self.setup_dataset_return(segment)
+            # Assign a port for trajectory streaming
+            # TODO - need to find a way to return the data to the correct place
             addtl_env = {}
             addtl_env.update(self.port_env_vars(segment.seg_id))
             # If trajectory streaming is enabled, a trajectory streaming executable is spawned for each segment
@@ -738,7 +738,10 @@ class ExecutablePropagator(WESTPropagator):
             if rc_stream == 0:
                 log.debug('trajectory streaming child process for segment %d completed successfully' % segment.seg_id)
             elif rc_stream < 0:
-                log.error('trajectory streaming child process for segment %d exited on signal %d (%s)' % (segment.seg_id, -rc_stream, SIGNAL_NAMES[-rc_stream]))
+                log.error(
+                    'trajectory streaming child process for segment %d exited on signal %d (%s)'
+                    % (segment.seg_id, -rc_stream, SIGNAL_NAMES[-rc_stream])
+                )
             else:
                 log.error('trajectory streaming child process for segment %d exited with code %d' % (segment.seg_id, rc_stream))
 
