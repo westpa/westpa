@@ -611,7 +611,7 @@ class WESimManager:
             # If trajectory streaming is enabled submit a streaming process
             if self.do_trajectory_streaming:
                 log.debug('streaming trajectory for segment block of length: {:d}'.format(len(segment_block)))
-                future = self.work_manager.submit(wm_ops.stream_trajectory, args=(segment_block))
+                future = self.work_manager.submit(wm_ops.stream_trajectory, args=(segment_block,))
                 futures.add(future)
                 stream_futures.add(future)
 

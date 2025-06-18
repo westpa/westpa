@@ -540,6 +540,24 @@ class ExecutablePropagator(WESTPropagator):
         environ.update(addtl_env or {})
         return self.exec_child_from_child_info(child_info, template_args, environ)
 
+    def exec_for_trajectory_streaming(self, child_info, segment, addtl_env=None):
+        '''Execute a child process for trajectory streaming. 
+        This is used to stream trajectory data for on-the-fly analysis.'''
+        # log.debug('Executing trajectory streaming child with child info: {!r}'.format( child_info))
+        # log.debug('Segment for trajectory streaming child: {!r}'.format(segment))
+
+        template_args, environ = {}, {}
+        self.update_args_env_iter(template_args, environ, segment.n_iter)
+        # self.update_args_env_segment(template_args, environ, segment)
+        # Add the segment info to template_args
+        # this is typically done in the update_args_env_segment method
+        # but this requires istate and bstate info
+        template_args['segment'] = segment
+        environ.update(addtl_env or {})
+        log.debug('Environment for trajectory streaming child: {!r}'.format(environ))
+        log.debug('Template args for trajectory streaming child: {!r}'.format(template_args))
+        return self.exec_child_from_child_info(child_info, template_args, environ)
+
     def prepare_file_system(self, segment, environ):
         try:
             # If the filesystem is properly clean.
@@ -701,27 +719,28 @@ class ExecutablePropagator(WESTPropagator):
                 if rc != 0:
                     log.warning('post-iteration executable {!r} returned {}'.format(child_info['executable'], rc))
 
-    def stream_trajectory(self, segment):
+    def stream_trajectory(self, segments):
         child_info = self.exe_info['stream_trajectory']
-        try:
-            log.debug('streaming trajectory for %d segments' % len(segment))
-        except Exception as e:
-            log.debug('Issue with logging segments: %s' % e)
-        # Code doesn't run properly if segments is not iterable
-        # for segment in segments:
-
+        log.debug('trajectory streaming executable: %s' % child_info['executable'])
+        for segment in segments:
         # NEED TO CHECK
         # Can we just call this function again to get the correct variables for the dataset?
         # addtl_env, return_files, del_return_files = self.setup_dataset_return(segment)
         # Assign a port for trajectory streaming
-        addtl_env = {}
-        addtl_env.update(self.port_env_vars(segment.seg_id))
-        # If trajectory streaming is enabled, a trajectory streaming executable is spawned for each segment
-        log.debug('spawning trajectory streaming executable for segment %d' % segment.seg_id)
-        log.debug('trajectory streaming executable: %s' % child_info['executable'])
-        log.debug('trajectory streaming executable environment: %s' % addtl_env)
-        # Pass the additional environment variables to the trajectory streaming executable
-        rc_stream, rusage_stream = self.exec_for_segment(child_info, segment, addtl_env)
+        # TODO - need to find a way to return the data to the correct place
+            addtl_env = {}
+            addtl_env.update(self.port_env_vars(segment.seg_id))
+            # If trajectory streaming is enabled, a trajectory streaming executable is spawned for each segment
+            log.debug('spawning trajectory streaming executable for segment %d' % segment.seg_id)
+            log.debug('trajectory streaming executable environment: %s' % addtl_env)
+            # Pass the additional environment variables to the trajectory streaming executable
+            rc_stream, rusage_stream = self.exec_for_trajectory_streaming(child_info, segment, addtl_env)
+            if rc_stream == 0:
+                log.debug('trajectory streaming child process for segment %d completed successfully' % segment.seg_id)
+            elif rc_stream < 0:
+                log.error('trajectory streaming child process for segment %d exited on signal %d (%s)' % (segment.seg_id, -rc_stream, SIGNAL_NAMES[-rc_stream]))
+            else:
+                log.error('trajectory streaming child process for segment %d exited with code %d' % (segment.seg_id, rc_stream))
 
     def propagate(self, segments):
         child_info = self.exe_info['propagator']
