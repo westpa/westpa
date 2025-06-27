@@ -4,6 +4,7 @@ import argparse
 import pytest
 from westpa.cli.tools.w_timings import entry_point
 
+
 class Test_W_Timings:
     """Test class for w_timings tool."""
 
@@ -35,11 +36,10 @@ class Test_W_Timings:
         output = captured.out
 
         # Basic checks that output sections are present
-        #TODO: Replace with actual known values from reference
+        # TODO: Replace with actual known values from reference
         assert "===== WALLCLOCK  =====" in output
         assert "Total Wallclock Time:" in output
         assert "===== SIMULATION  =====" in output
         assert "Simulation time:" in output
         assert "===== RECYCLING =====" in output
         assert "Recycled walkers:" in output
-
