@@ -1,13 +1,9 @@
-import logging
 import MDAnalysis as mda
 from imdclient.IMD import IMDReader
 import subprocess
 import time
 import re
-from typing import Optional
 import socket
-
-log = logging.getLogger(__name__)
 
 # TODO: Add options for LAMMPS and NAMD
 ACCEPTABLE_MD_ENGINES = ["gromacs"]
@@ -77,7 +73,7 @@ class TrajectoryStreamer:
         assigned_port = None
         retcode = proc.poll()
         if retcode is not None and retcode != 0:
-            raise RuntimeError(f"Simulation returned with error code {retcode}. Check the simulation log for details.")
+            raise RuntimeError(f"Simulation returned with error code {retcode}. Check the simulation  for details.")
 
         start_time = time.time()
         for line in proc.stdout:
@@ -90,7 +86,7 @@ class TrajectoryStreamer:
                 raise RuntimeError("IMD port assignment was not printed within 1 minute. Make sure an IMD simulation is being run.")
         else:
             raise RuntimeError(
-                f"{self.md_engine.upper()} output did not contain expected '{IMD_PORT_OUTPUT[self.md_engine]}' pattern. Check the simulation log for details."
+                f"{self.md_engine.upper()} output did not contain expected '{IMD_PORT_OUTPUT[self.md_engine]}' pattern. Check the simulation  for details."
             )
         print(f"Assigned IMD port: {assigned_port}")
 
