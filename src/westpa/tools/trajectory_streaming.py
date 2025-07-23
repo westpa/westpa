@@ -6,14 +6,13 @@ import time
 import re
 from typing import Optional
 import socket
- 
+
 log = logging.getLogger(__name__)
 
 # TODO: Add options for LAMMPS and NAMD
 ACCEPTABLE_MD_ENGINES = ["gromacs"]
 IMD_FLAGS = {"gromacs": {"-imdwait": None, "-imdport": "0"}}
 IMD_PORT_OUTPUT = {"gromacs": r"IMD connection on port (\d+)"}
-
 
 
 class TrajectoryStreamer:
@@ -71,7 +70,6 @@ class TrajectoryStreamer:
         if self.simulation_function is None:
             raise ValueError("No simulation function has been set")
 
-
         print(f"Launching simulation with {self.md_engine} engine")
 
         proc = subprocess.Popen(self.simulation_function, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
@@ -89,9 +87,7 @@ class TrajectoryStreamer:
                 assigned_port = int(m.group(1))
                 break
             if time.time() - start_time > 60:  # 1 minute timeout
-                raise RuntimeError(
-                    "IMD port assignment was not printed within 1 minute. Make sure an IMD simulation is being run."
-                )
+                raise RuntimeError("IMD port assignment was not printed within 1 minute. Make sure an IMD simulation is being run.")
         else:
             raise RuntimeError(
                 f"{self.md_engine.upper()} output did not contain expected '{IMD_PORT_OUTPUT[self.md_engine]}' pattern. Check the simulation log for details."
@@ -115,7 +111,7 @@ class TrajectoryStreamer:
 
         u = mda.Universe(self.topology, f"imd://{host}:{port}")
         return u
-    
+
     def find_port():
         """Generic function to find an open port on the local machine."""
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
