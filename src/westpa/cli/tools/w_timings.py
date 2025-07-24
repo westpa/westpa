@@ -29,18 +29,16 @@ class WTimings(WESTTool):
         super().__init__()
         self.data_reader = WESTDataReader()
         self.iter_range = IterRangeSelection(self.data_reader)
-        self.iter_start = None
-        self.iter_stop = None
         self.tau = tau
 
     def go(self):
         with self.data_reader:
             we_h5file = self.data_reader.data_manager.we_h5file
-            self.iter_start = self.iter_range.iter_start
-            self.iter_stop = self.iter_range.iter_stop
+            iter_start = self.iter_range.iter_start
+            iter_stop = self.iter_range.iter_stop
 
-            walltime = we_h5file['summary']['walltime'][self.iter_start - 1 : self.iter_stop].sum()
-            aggtime = we_h5file['summary']['n_particles'][self.iter_start - 1 : self.iter_stop].sum()
+            walltime = we_h5file['summary']['walltime'][iter_start - 1 : iter_stop].sum()
+            aggtime = we_h5file['summary']['n_particles'][iter_start - 1 : iter_stop].sum()
 
             days = int(walltime) // 86400
             hours = (int(walltime) % 86400) // 3600
