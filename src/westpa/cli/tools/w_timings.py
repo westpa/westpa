@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from westpa.tools import (
     WESTTool,
     WESTDataReader,
@@ -40,18 +42,12 @@ class WTimings(WESTTool):
             walltime = we_h5file['summary']['walltime'][iter_start - 1 : iter_stop].sum()
             aggtime = we_h5file['summary']['n_particles'][iter_start - 1 : iter_stop].sum()
 
-            days = int(walltime) // 86400
-            hours = (int(walltime) % 86400) // 3600
-            minutes = (int(walltime) % 3600) // 60
-            seconds = walltime % 60
+        print(f'Total wall-clock time: {timedelta(seconds=walltime)}')
 
-            print("\n===== WALLCLOCK  =====")
-            print(f"{'Total Wallclock Time:':30}{days:>2}d {hours:>2}h {minutes:>2}m {seconds:>6.2f}s")
-
-            print("\n===== SIMULATION  =====")
-            print(f"{'Tau:':30} {self.tau} ps")
-            print(f"{'Total Segments:':30} {aggtime}")
-            print(f"{'Simulation time:':30} {((aggtime * self.tau) / 1000):.2f} ns")
+        print("\n===== SIMULATION  =====")
+        print(f"{'Tau:':30} {self.tau} ps")
+        print(f"{'Total Segments:':30} {aggtime}")
+        print(f"{'Simulation time:':30} {((aggtime * self.tau) / 1000):.2f} ns")
 
     def add_args(self, parser):
         self.data_reader.add_args(parser)
