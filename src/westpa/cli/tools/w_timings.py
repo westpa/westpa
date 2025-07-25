@@ -35,14 +35,14 @@ class WTimings(WESTTool):
         self.tau = tau
 
     def go(self):
+        start = self.iter_range.iter_start - 1
+        stop = self.iter_range.iter_stop - 1
         with self.data_reader:
-            we_h5file = self.data_reader.data_manager.we_h5file
-            iter_start = self.iter_range.iter_start
-            iter_stop = self.iter_range.iter_stop
+            iter_summaries = self.data_reader.we_h5file['summary'][start:stop]
 
-            walltime = we_h5file['summary']['walltime'][iter_start - 1 : iter_stop].sum()
-            cputime = we_h5file['summary']['cputime'][iter_start - 1 : iter_stop].sum()
-            aggtime = we_h5file['summary']['n_particles'][iter_start - 1 : iter_stop].sum()
+        walltime = iter_summaries['walltime'].sum()
+        cputime = iter_summaries['cputime'].sum()
+        aggtime = iter_summaries['n_particles'].sum()
 
         print(f'Total wall-clock time: {timedelta(seconds=walltime)}')
         if not math.isclose(cputime, 0):  # Only print CPU time if it was recorded.
