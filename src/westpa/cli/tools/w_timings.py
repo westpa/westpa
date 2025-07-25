@@ -9,7 +9,7 @@ from westpa.tools import (
 )
 
 
-# NumPy linear time units
+# NumPy fixed time units (excludes nonlinear units 'Y and 'M')
 TIME_UNITS = ('W', 'D', 'h', 'm', 's', 'ms', 'us', 'ns', 'ps', 'fs', 'as')
 
 
@@ -68,12 +68,14 @@ class WTimings(WESTTool):
     def add_args(self, parser):
         self.data_reader.add_args(parser)
         self.iter_range.add_args(parser)
+
+        unit_list = ', '.join(map(repr, TIME_UNITS[-1:0:-1])) + f', or {TIME_UNITS[0]!r}'
         parser.add_argument(
             '-t',
             '--tau',
             help=(
                 'WE resampling interval (format: <value>_<unit>, where <value> '
-                'is a positive integer and <unit> is a NumPy time unit code).'
+                f'is a positive integer and <unit> is {unit_list}).'
             ),
         )
 
@@ -81,9 +83,12 @@ class WTimings(WESTTool):
         self.data_reader.process_args(args)
         with self.data_reader:
             self.iter_range.process_args(args)
+
         if args.tau is not None:
-            value, *unit = args.tau.split('_')
-            self.tau = np.timedelta64(int(value), *unit)
+            value, unit = args.tau.split('_')
+            if unit not in TIME_UNITS:
+                raise ValueError(f'{unit!r} is not a recognized time unit')
+            self.tau = np.timedelta64(int(value), unit)
 
 
 def entry_point():
