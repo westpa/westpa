@@ -9,10 +9,12 @@ from westpa.tools import (
 )
 
 
-TIME_UNITS = ['as', 'fs', 'ps', 'ns', 'us', 'ms', 's', 'm', 'h']
+# NumPy linear time units
+TIME_UNITS = ('W', 'D', 'h', 'm', 's', 'ms', 'us', 'ns', 'ps', 'fs', 'as')
 
 
 def _unit(delta):
+    # Return the unit of a NumPy timedelta.
     words = str(delta.dtype).split('[')
     if len(words) == 1:
         return None
@@ -20,17 +22,17 @@ def _unit(delta):
 
 
 def _str(delta):
-    unit = _unit(delta)
-    if unit is None:
+    # Return a compact string representation of a NumPy timedelta.
+    if _unit(delta) is None:
         return str(delta)
-    for new_unit in TIME_UNITS[TIME_UNITS.index(unit) + 1 :]:
-        if delta < np.timedelta64(1, new_unit):
-            break
-        unit = new_unit
-        if delta % np.timedelta64(1, unit):
-            return f'{delta / np.timedelta64(1, unit)} {unit}'
-        delta = delta.astype(f'timedelta64[{unit}]')
-    return f'{delta.astype(int)} {unit}'
+    for unit in TIME_UNITS:
+        unit_delta = np.timedelta64(1, unit)
+        try:
+            if delta >= unit_delta:
+                break
+        except OverflowError:
+            continue
+    return f'{delta / unit_delta:g} {unit}'
 
 
 class WTimings(WESTTool):
