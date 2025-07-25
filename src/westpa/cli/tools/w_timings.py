@@ -1,3 +1,4 @@
+import math
 from datetime import timedelta
 
 from westpa.tools import (
@@ -40,9 +41,12 @@ class WTimings(WESTTool):
             iter_stop = self.iter_range.iter_stop
 
             walltime = we_h5file['summary']['walltime'][iter_start - 1 : iter_stop].sum()
+            cputime = we_h5file['summary']['cputime'][iter_start - 1 : iter_stop].sum()
             aggtime = we_h5file['summary']['n_particles'][iter_start - 1 : iter_stop].sum()
 
         print(f'Total wall-clock time: {timedelta(seconds=walltime)}')
+        if not math.isclose(cputime, 0):  # Only print CPU time if it was recorded.
+            print(f'Total CPU time: {timedelta(seconds=cputime)}')
 
         print("\n===== SIMULATION  =====")
         print(f"{'Tau:':30} {self.tau} ps")
