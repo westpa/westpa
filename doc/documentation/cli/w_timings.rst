@@ -13,7 +13,7 @@ Usage:
   w_timings [-h] [-r RCFILE] [--quiet | --verbose | --debug] [--version]
             [-W WEST_H5FILE] [--first-iter N_ITER] [--last-iter N_ITER] [-t TAU]
 
-Optional arguments:
+Tool-specific arguments:
 
 .. code-block:: shell
 
@@ -33,8 +33,12 @@ The default output includes the wall-clock time:
   Total segments: 9985
   Wall-clock time: 0:00:01.452625
 
-To determine the simulated time, the resampling time (``-t`` or ``--tau``)
-must be provided:
+If CPU times were recorded by the propagator, the total CPU time will also
+be reported. (This example is based on a toy model in which CPU times were
+not recorded.)
+
+To determine the maximum trajectory length and aggregate simulation time,
+the resampling interval (``TAU``) must be specified:
 
 .. code-block:: console
 
@@ -42,5 +46,5 @@ must be provided:
   Iterations: 50
   Total segments: 9985
   Wall-clock time: 0:00:01.452625
-  Simulated physical time ("molecular time"): 5.0 ns
+  Maximum trajectory length: 5.0 ns
   Aggregate simulation time: 998.5 ns

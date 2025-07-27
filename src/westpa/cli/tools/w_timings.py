@@ -63,7 +63,7 @@ class WTimings(WESTTool):
         if not np.isclose(cputime, 0):  # only print CPU time if it was recorded
             print(f'Total CPU time: {timedelta(seconds=cputime)}')
         if self.tau is not None:
-            print(f'Simulated physical time ("molecular time"): {_str(n_iters * self.tau)}')
+            print(f'Maximum trajectory length: {_str(n_iters * self.tau)}')
             print(f'Aggregate simulation time: {_str(n_particles * self.tau)}')
 
     def add_args(self, parser):
