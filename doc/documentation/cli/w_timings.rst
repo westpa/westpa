@@ -33,8 +33,8 @@ The default output includes the wall-clock time:
   Total segments: 9985
   Wall-clock time: 0:00:01.452625
 
-To output the aggregate and "molecular" simulation times, the resampling
-time (``-t`` or ``--tau``) must be specified:
+To determine the simulated time, the resampling time (``-t`` or ``--tau``)
+must be provided:
 
 .. code-block:: console
 
