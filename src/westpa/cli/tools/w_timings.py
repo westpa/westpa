@@ -22,7 +22,8 @@ def _unit(delta):
 
 
 def _str(delta):
-    # Return a compact string representation of a NumPy timedelta.
+    # Return a string representation of a NumPy timedelta.
+    # Example: timedelta64(5380000, 'ps') -> '5.38 us'
     if _unit(delta) is None:
         return str(delta)
     for unit in TIME_UNITS:
@@ -32,7 +33,7 @@ def _str(delta):
                 break
         except OverflowError:
             continue
-    return f'{delta / unit_delta:g} {unit}'
+    return f'{delta / unit_delta} {unit}'
 
 
 class WTimings(WESTTool):
