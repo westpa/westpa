@@ -24,27 +24,26 @@ Tool-specific arguments:
 Examples
 --------
 
-The default output includes the wall-clock time:
+The default output includes the wall-clock time and (if per-segment CPU times
+were recorded by the propagator) the total CPU time:
 
 .. code-block:: console
 
   $ w_timings -W west.h5
-  Iterations: 50
-  Total segments: 9985
-  Wall-clock time: 0:00:01.452625
-
-If CPU times were recorded by the propagator, the total CPU time will also
-be reported. (This example is based on a toy model in which CPU times were
-not recorded.)
+  Iterations: 100
+  Total segments: 7775
+  Wall-clock time: 2 days, 4:35:11.749094
+  Total CPU time: 17 days, 9:09:00.556985
 
 To determine the maximum trajectory length and aggregate simulation time,
 the resampling interval (``TAU``) must be specified:
 
 .. code-block:: console
 
-  $ w_timings -W west.h5 -t 100_ps
-  Iterations: 50
-  Total segments: 9985
-  Wall-clock time: 0:00:01.452625
+  $ w_timings -W west.h5 -t 50_ps
+  Iterations: 100
+  Total segments: 7775
+  Wall-clock time: 2 days, 4:35:11.749094
+  Total CPU time: 17 days, 9:09:00.556985
   Maximum trajectory length: 5.0 ns
-  Aggregate simulation time: 998.5 ns
+  Aggregate simulation time: 388.75 ns
