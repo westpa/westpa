@@ -36,6 +36,18 @@ def _str(delta):
     return f'{delta / unit_delta} {unit}'
 
 
+def _delta(arg):
+    # Construct a NumPy timedelta from an argument string.
+    # Example: '100_ps' -> timedelta64(100, 'ps')
+    try:
+        value, unit = arg.split('_')
+    except ValueError:
+        raise ValueError('must be formatted as <value>_<unit>')
+    if unit not in TIME_UNITS:
+        raise ValueError(f'{unit!r} is not a recognized time unit')
+    return np.timedelta64(int(value), unit)
+
+
 class WTimings(WESTTool):
     prog = 'w_timings'
     description = 'Print timing information for a WESTPA simulation.'
@@ -86,10 +98,10 @@ class WTimings(WESTTool):
             self.iter_range.process_args(args)
 
         if args.tau is not None:
-            value, unit = args.tau.split('_')
-            if unit not in TIME_UNITS:
-                raise ValueError(f'{unit!r} is not a recognized time unit')
-            self.tau = np.timedelta64(int(value), unit)
+            try:
+                self.tau = _delta(args.tau)
+            except (TypeError, ValueError) as e:
+                self.parser.error(f'argument -t/--tau: {e}')
 
 
 def entry_point():
