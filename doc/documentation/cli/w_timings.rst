@@ -8,14 +8,14 @@ Overview
 
 Usage:
 
-.. code-block:: shell
+.. code-block:: text
 
   w_timings [-h] [-r RCFILE] [--quiet | --verbose | --debug] [--version]
             [-W WEST_H5FILE] [--first-iter N_ITER] [--last-iter N_ITER] [-t TAU]
 
 Tool-specific arguments:
 
-.. code-block:: shell
+.. code-block:: text
 
   -t TAU, --tau TAU     WE resampling interval (format: <value>_<unit>, where
                         <value> is a positive integer and <unit> is 'as', 'fs',
