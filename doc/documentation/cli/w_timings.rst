@@ -24,8 +24,8 @@ Tool-specific arguments:
 Examples
 --------
 
-The default output includes the wall-clock time and (if per-segment CPU times
-were recorded by the propagator) the total CPU time:
+The default output includes the wall-clock time and, if per-segment CPU times
+were recorded by the propagator, the total CPU time:
 
 .. code-block:: console
 
