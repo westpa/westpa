@@ -43,7 +43,7 @@ def _delta(arg):
         value, unit = arg.split('_')
     except ValueError:
         raise ValueError('must be formatted as <value>_<unit>')
-    if unit not in TIME_UNITS:
+    if unit not in TIME_UNITS + ('μs',):  # accept either μs or us for microsecond
         raise ValueError(f'{unit!r} is not a recognized time unit')
     return np.timedelta64(int(value), unit)
 
