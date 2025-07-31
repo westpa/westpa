@@ -69,11 +69,12 @@ class WTimings(WESTTool):
         n_particles = iter_summaries['n_particles'].sum()
         n_iters = len(iter_summaries)
 
-        print('Iterations:', n_iters)
-        print('Total segments:', n_particles)
-        print('Wall-clock time:', timedelta(seconds=walltime))
+        width = 26
+        print('Iterations:'.ljust(width), n_iters)
+        print('Total segments:'.ljust(width), n_particles)
+        print('Wall-clock time:'.ljust(width), timedelta(seconds=walltime))
         if not np.isclose(cputime, 0):  # only print CPU time if it was recorded
-            print('Total CPU time:', timedelta(seconds=cputime))
+            print('Total CPU time:'.ljust(width), timedelta(seconds=cputime))
         if self.tau is not None:
             print('Maximum trajectory length:', _str(n_iters * self.tau))
             print('Aggregate simulation time:', _str(n_particles * self.tau))
