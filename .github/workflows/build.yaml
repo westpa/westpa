@@ -39,7 +39,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.0.1
         env:
-          CIBW_SKIP: "pp* *-musllinux*"
+          CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
           CIBW_ARCHS_MACOS: "universal2" # universal2 wheel for macos
           CIBW_ARCHS_LINUX: "auto64" # x86_64 and arm64, depending on the os
