@@ -26,9 +26,9 @@ class Test_W_Timings:
         captured = capsys.readouterr()
         output = captured.out
         expected = """\
-Iterations: 50
-Total segments: 9985
-Wall-clock time: 0:00:01.452625
+Iterations:                50
+Total segments:            9985
+Wall-clock time:           0:00:01.452625
 """
         assert output == expected
 
@@ -41,9 +41,9 @@ Wall-clock time: 0:00:01.452625
         captured = capsys.readouterr()
         output = captured.out
         expected = """\
-Iterations: 50
-Total segments: 9985
-Wall-clock time: 0:00:01.452625
+Iterations:                50
+Total segments:            9985
+Wall-clock time:           0:00:01.452625
 Maximum trajectory length: 5.0 ns
 Aggregate simulation time: 998.5 ns
 """
@@ -82,8 +82,8 @@ Aggregate simulation time: 998.5 ns
         captured = capsys.readouterr()
         output = captured.out
         expected = """\
-Iterations: 30
-Total segments: 6320
-Wall-clock time: 0:00:00.868997
+Iterations:                30
+Total segments:            6320
+Wall-clock time:           0:00:00.868997
 """
         assert output == expected
