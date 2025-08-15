@@ -29,6 +29,7 @@ westpa.cli package
     w_ntop       <cli/w_ntop>
     w_multi_west <cli/w_multi_west>
     w_red        <cli/w_red>
+    w_timings    <cli/w_timings>
     
 .. toctree::
    :maxdepth: 1
