@@ -235,3 +235,27 @@ def ref_executable(request, tmp_path):
     westpa.rc = westpa.core._rc.WESTRC()
 
     request.addfinalizer(clear_state)
+
+
+@pytest.fixture
+def ref_mab(request, tmp_path):
+    """
+    Fixture that prepares an rc/sim_manager/WESTSystem from west_mab.cfg
+    """
+
+    test_dir = str(tmp_path)
+
+    os.chdir(test_dir)
+    copy_ref(test_dir)
+
+    copyfile(os.path.join(REFERENCE_PATH, 'west_mab.cfg'), CFG_FILENAME)
+
+    request.cls.cfg_filepath = CFG_FILENAME
+
+    os.environ['WEST_SIM_ROOT'] = test_dir
+    westpa.rc = westpa.core._rc.WESTRC()
+    westpa.rc.read_config(filename='west.cfg')
+
+    request.cls.tmpdir = test_dir
+
+    request.addfinalizer(clear_state)
