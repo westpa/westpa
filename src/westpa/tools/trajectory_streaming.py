@@ -18,7 +18,7 @@ log.setLevel(logging.INFO)
 if not log.handlers:
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     log.addHandler(handler)
 
@@ -132,7 +132,31 @@ class TrajectoryStreamer:
                 port_open = True
 
         u = mda.Universe(self.topology, f"imd://{self.host}:{port}", timeout=stream_timeout)
+        self.sim_process = proc
         return u
+
+    def end_sim(self):
+        """
+        Return the remaining output from the simulation process and the end the simulation.
+        """
+        log.info("Dumping remaining output from the simulation...")
+        for line in iter(self.sim_process.stdout.readline, ''):
+            log.info(line.strip())
+        if self.sim_process.poll() is None:
+            log.warning(
+                "Simulation is still running. Something likely went wrong. Make sure that the whole simulation was analysed. Sending a termination signal."
+            )
+            self.sim_process.terminate()
+
+            # Wait a bit for the process to terminate gracefully
+            try:
+                self.sim_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                log.warning("Process did not terminate in time. Forcibly killing it.")
+                self.sim_process.kill()
+                self.sim_process.wait()  # Ensure the process is fully gone
+
+        log.info("Segment Complete")
 
     def find_port(interface='localhost'):
         """Generic function to find an open port on the local machine."""
