@@ -14,6 +14,8 @@ IMD_PORT_OUTPUT = {"gromacs": r"IMD connection on port (\d+)"}
 class TrajectoryStreamer:
     """
     A class for streaming trajectory data with user-defined simulation and analysis functions.
+    Utilizes the IMDv3 protocol for communication between the simulation engine and the analysis tools.
+    See https://imdclient.readthedocs.io/en/latest/protocol_v3.html for more details.
 
     The user provides:
     - A simulation function that generates trajectory data
@@ -24,10 +26,14 @@ class TrajectoryStreamer:
         """
         Initialize the trajectory streamer.
 
-        Args:
-            md_engine: Name of the molecular dynamics engine (e.g., 'gromacs')
-            topology: Path to the topology file for the simulation. Any format supported by MDAnalysis.
-            simulation_string: String representing the simulation command to be executed.
+        Parameters
+        ----------
+            md_engine : str
+                Name of the molecular dynamics engine (e.g., 'gromacs')
+            topology : str
+                Path to the topology file for the simulation. Any format supported by MDAnalysis.
+            simulation_string : str
+                String representing the simulation command to be executed.
         """
         self.md_engine = md_engine.lower()
         if self.md_engine not in ACCEPTABLE_MD_ENGINES:
@@ -37,10 +43,7 @@ class TrajectoryStreamer:
 
     def set_simulation_function(self, sim_func: str):
         """
-        Set the simulation function.
-
-        Args:
-            sim_func: String representing the simulation function to be used.
+        Sets the simulation function.
         """
         self.simulation_function = sim_func.split()
         # Check and fix IMD flags
@@ -63,9 +66,11 @@ class TrajectoryStreamer:
         """
         Start the simulation and return the MDAnalysis universe.
 
-        Args:
-            stream_timeout: Timeout for the IMD connection in seconds.
-            Important if the time between messages from the engine is long.
+        Parameters
+        ----------
+            stream_timeout : float, optional
+                Timeout for the IMD connection in seconds.
+                Important if the time between messages from the engine is long. (default=5.0)
         """
         if self.simulation_function is None:
             raise ValueError("No simulation function has been set")
@@ -112,10 +117,10 @@ class TrajectoryStreamer:
         u = mda.Universe(self.topology, f"imd://{host}:{port}", timeout=stream_timeout)
         return u
 
-    def find_port():
+    def find_port(interface='localhost'):
         """Generic function to find an open port on the local machine."""
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(('', 0))  # Bind to an ephemeral port
+        sock.bind((interface, 0))  # Bind to an ephemeral port
         port = sock.getsockname()[1]
         sock.close()
         return port
