@@ -1,14 +1,26 @@
+import logging
 import MDAnalysis as mda
 from imdclient.IMD import IMDReader
 import subprocess
 import time
 import re
 import socket
+import os
+import sys
 
 # TODO: Add options for LAMMPS and NAMD
 ACCEPTABLE_MD_ENGINES = ["gromacs"]
 IMD_FLAGS = {"gromacs": {"-imdwait": None, "-imdport": "0"}}
 IMD_PORT_OUTPUT = {"gromacs": r"IMD connection on port (\d+)"}
+
+log = logging.getLogger("TrajectoryStreamer")
+log.setLevel(logging.INFO)
+if not log.handlers:
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
 
 
 class TrajectoryStreamer:
@@ -22,7 +34,7 @@ class TrajectoryStreamer:
     - Topology file for the simulation
     """
 
-    def __init__(self, md_engine: str, topology: str, simulation_string: str):
+    def __init__(self, md_engine: str, topology: str, simulation_string: str, host: str = "localhost"):
         """
         Initialize the trajectory streamer.
 
@@ -34,12 +46,18 @@ class TrajectoryStreamer:
                 Path to the topology file for the simulation. Any format supported by MDAnalysis.
             simulation_string : str
                 String representing the simulation command to be executed.
+            host : str, optional
+                Hostname or IP address of the machine running the simulation. Currently only localhost is supported. (default=localhost)
         """
         self.md_engine = md_engine.lower()
         if self.md_engine not in ACCEPTABLE_MD_ENGINES:
             raise ValueError(f"Unsupported MD engine: {self.md_engine}. " f"Supported engines: {', '.join(ACCEPTABLE_MD_ENGINES)}")
         self.topology = topology
+        # Check for the existence of the topology files
+        if not os.path.exists(self.topology):
+            raise FileNotFoundError(f"Topology file not found: {self.topology}")
         self.set_simulation_function(simulation_string)
+        self.host = host
 
     def set_simulation_function(self, sim_func: str):
         """
@@ -52,15 +70,15 @@ class TrajectoryStreamer:
             if md_engine_flags[flag] is None:
                 if flag not in self.simulation_function:
                     self.simulation_function.append(flag)
-                    print(f"Adding {flag} to simulation function")
+                    log.warning(f"Adding {flag} to simulation function")
             else:
                 if flag not in self.simulation_function:
                     self.simulation_function.append(f"{flag}")
                     self.simulation_function.append(md_engine_flags[flag])
-                    print(f"Adding {flag} with value {md_engine_flags[flag]} to simulation function")
+                    log.warning(f"Adding {flag} with value {md_engine_flags[flag]} to simulation function")
                 elif self.simulation_function[self.simulation_function.index(flag) + 1] != md_engine_flags[flag]:
                     self.simulation_function[self.simulation_function.index(flag) + 1] = md_engine_flags[flag]
-                    print(f"Updating {flag} with value {md_engine_flags[flag]} in simulation function")
+                    log.warning(f"Updating {flag} with value {md_engine_flags[flag]} in simulation function")
 
     def start_sim_and_get_universe(self, stream_timeout: float = 5.0) -> mda.Universe:
         """
@@ -75,7 +93,7 @@ class TrajectoryStreamer:
         if self.simulation_function is None:
             raise ValueError("No simulation function has been set")
 
-        print(f"Launching simulation with {self.md_engine} engine")
+        log.info(f"Launching simulation with {self.md_engine} engine")
 
         proc = subprocess.Popen(self.simulation_function, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
 
@@ -86,7 +104,7 @@ class TrajectoryStreamer:
 
         start_time = time.time()
         for line in proc.stdout:
-            print(line, end="")
+            log.info(line.strip())
             m = re.search(IMD_PORT_OUTPUT[self.md_engine], line)
             if m:
                 assigned_port = int(m.group(1))
@@ -97,24 +115,23 @@ class TrajectoryStreamer:
             raise RuntimeError(
                 f"{self.md_engine.upper()} output did not contain expected '{IMD_PORT_OUTPUT[self.md_engine]}' pattern. Check the simulation  for details."
             )
-        print(f"Assigned IMD port: {assigned_port}")
+        log.info(f"Assigned IMD port: {assigned_port}")
 
         port = assigned_port
         port_open = False
         timeout = 0.2
-        host = "localhost"
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         while not port_open:
             #     sock.settimeout(timeout)
             try:
-                sock.connect((host, port))
+                sock.connect((self.host, port))
             except ConnectionRefusedError:
                 time.sleep(timeout)
             else:
-                print(f"Port {port} on {host} is now open!")
+                log.info(f"Port {port} on {self.host} is now open!")
                 port_open = True
 
-        u = mda.Universe(self.topology, f"imd://{host}:{port}", timeout=stream_timeout)
+        u = mda.Universe(self.topology, f"imd://{self.host}:{port}", timeout=stream_timeout)
         return u
 
     def find_port(interface='localhost'):
