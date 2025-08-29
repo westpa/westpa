@@ -571,10 +571,12 @@ class TestMABBinMapper:
         [
             ([0], True, [0], [0.0], [1.0], [2], 0, [None], [None]),
             ([0], True, [0], [0.0], [1.0], [2], 2, [np.array([1.0])], [np.array([0.0])]),
+            ([0], False, [0], [0.0], [1.0], [2], 2, [np.array([1.0])], [np.array([0.0])]),
         ],
         ids=[
             'None as bottlenecks',
             'With bottlenecks',
+            'No bottlenecks',
         ],
     )
     def test_log_bin_boundaries(
@@ -614,16 +616,23 @@ class TestMABBinMapper:
                 bottlenecks_reverse=bottlenecks_reverse,
             )
 
-        template_output = f'''Iteration: 24
+        # Correct outputs for comparison.
+        template_output = '''Iteration: 24
 MAB linear bin boundaries: [0.  0.5 1. ]\t
 Lagging pcoord in each dimension: [0.0]
 Leading pcoord in each dimension: [1.0]
-Number of bottleneck bins filled: {n_bottleneck_filled} / 2
+'''
+
+        if bottleneck:
+            template_output += f'''Number of bottleneck bins filled: {n_bottleneck_filled} / 2
 Dimension 0 forward bottleneck walker at: {bottlenecks_forward}
 Dimension 0 backward bottleneck walker at: {bottlenecks_reverse}
 
 '''
+        else:
+            template_output += '\n'
 
+        # Do the actual comparison...
         with open(temp_file_path, 'r') as f:
             assert template_output == f.read()
 
