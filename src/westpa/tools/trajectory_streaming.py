@@ -59,9 +59,13 @@ class TrajectoryStreamer:
                     self.simulation_function[self.simulation_function.index(flag) + 1] = md_engine_flags[flag]
                     print(f"Updating {flag} with value {md_engine_flags[flag]} in simulation function")
 
-    def start_sim_and_get_universe(self):
+    def start_sim_and_get_universe(self, stream_timeout: float = 5.0) -> mda.Universe:
         """
         Start the simulation and return the MDAnalysis universe.
+
+        Args:
+            stream_timeout: Timeout for the IMD connection in seconds.
+            Important if the time between messages from the engine is long.
         """
         if self.simulation_function is None:
             raise ValueError("No simulation function has been set")
@@ -105,7 +109,7 @@ class TrajectoryStreamer:
                 print(f"Port {port} on {host} is now open!")
                 port_open = True
 
-        u = mda.Universe(self.topology, f"imd://{host}:{port}")
+        u = mda.Universe(self.topology, f"imd://{host}:{port}", timeout=stream_timeout)
         return u
 
     def find_port():
