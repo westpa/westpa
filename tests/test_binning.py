@@ -569,9 +569,9 @@ class TestMABBinMapper:
     @pytest.mark.parametrize(
         "skip, bottleneck, direction, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, bottlenecks_forward, bottlenecks_reverse",
         [
-            ([0], True, [0], [0.0], [1.0], [2], 0, [None], [None]),
-            ([0], True, [0], [0.0], [1.0], [2], 2, [np.array([1.0])], [np.array([0.0])]),
-            ([0], False, [0], [0.0], [1.0], [2], 2, [np.array([1.0])], [np.array([0.0])]),
+            ([0, 0], True, [0, -1], [0.0, 0.0], [1.0, 1.0], [2, 2], 0, [None, None], [None, None]),
+            ([0, 0], True, [0, -1], [0.0, 0.0], [1.0, 1.0], [2, 2], 2, [1.0, 1.0], [0.0, 0.0]),
+            ([0, 0], False, [0, -1], [0.0, 0.0], [1.0, 1.0], [2, 2], 2, [], []),
         ],
         ids=[
             'None as bottlenecks',
@@ -597,7 +597,6 @@ class TestMABBinMapper:
 
         temp_file_path = f'{self.tmpdir}/log_output.txt'
 
-        print(os.getcwd())
         with monkeypatch.context() as m:
             m.setattr(westpa, 'rc', westpa.core._rc.WESTRC())
             westpa.rc.read_config(filename='west.cfg')
@@ -618,15 +617,16 @@ class TestMABBinMapper:
 
         # Correct outputs for comparison.
         template_output = '''Iteration: 24
-MAB linear bin boundaries: [0.  0.5 1. ]\t
-Lagging pcoord in each dimension: [0.0]
-Leading pcoord in each dimension: [1.0]
+MAB linear bin boundaries: [0.  0.5 1. ]\t[0.  0.5 1. ]\t
+Lagging pcoord in each dimension: [0.0, 0.0]
+Leading pcoord in each dimension: [1.0, 1.0]
 '''
 
         if bottleneck:
-            template_output += f'''Number of bottleneck bins filled: {n_bottleneck_filled} / 2
-Dimension 0 forward bottleneck walker at: {bottlenecks_forward}
-Dimension 0 backward bottleneck walker at: {bottlenecks_reverse}
+            template_output += f'''Number of bottleneck bins filled: {n_bottleneck_filled} / 3
+Dimension 0 forward bottleneck walker at: [{bottlenecks_forward[0]}]
+Dimension 0 backward bottleneck walker at: [{bottlenecks_reverse[0]}]
+Dimension 1 backward bottleneck walker at: [{bottlenecks_reverse[1]}]
 
 '''
         else:
