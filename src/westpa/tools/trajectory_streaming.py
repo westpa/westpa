@@ -7,6 +7,7 @@ import re
 import socket
 import os
 import sys
+import select
 
 # TODO: Add options for LAMMPS and NAMD
 ACCEPTABLE_MD_ENGINES = ["gromacs"]
@@ -80,15 +81,14 @@ class TrajectoryStreamer:
                     self.simulation_function[self.simulation_function.index(flag) + 1] = md_engine_flags[flag]
                     log.warning(f"Updating {flag} with value {md_engine_flags[flag]} in simulation function")
 
-    def start_sim_and_get_universe(self, stream_timeout: float = 5.0) -> mda.Universe:
+    def start_sim_and_get_universe(self, **kwargs) -> mda.Universe:
         """
         Start the simulation and return the MDAnalysis universe.
 
         Parameters
         ----------
-            stream_timeout : float, optional
-                Timeout for the IMD connection in seconds.
-                Important if the time between messages from the engine is long. (default=5.0)
+            **kwargs (dict(optional)) - Additional keyword arguments to pass to the IMDClient.
+            Important keywords are timeout and buffer_size.
         """
         if self.simulation_function is None:
             raise ValueError("No simulation function has been set")
@@ -131,7 +131,7 @@ class TrajectoryStreamer:
                 log.info(f"Port {port} on {self.host} is now open!")
                 port_open = True
 
-        u = mda.Universe(self.topology, f"imd://{self.host}:{port}", timeout=stream_timeout)
+        u = mda.Universe(self.topology, f"imd://{self.host}:{port}", **kwargs)
         self.sim_process = proc
         return u
 
@@ -140,11 +140,16 @@ class TrajectoryStreamer:
         Return the remaining output from the simulation process and the end the simulation.
         """
         log.info("Dumping remaining output from the simulation...")
-        for line in iter(self.sim_process.stdout.readline, ''):
-            log.info(line.strip())
+
+        # We need to get the remaining data from the stream without stopping if the process is still running
+        ready_readers, _, _ = select.select([self.sim_process.stdout.fileno()], [], [], 0)
+        if self.sim_process.stdout.fileno() in ready_readers:
+            output = os.read(self.sim_process.stdout.fileno(), 4096)
+            for line in output.decode().splitlines():
+                log.info(line.strip())
         if self.sim_process.poll() is None:
             log.warning(
-                "Simulation is still running. Something likely went wrong. Make sure that the whole simulation was analysed. Sending a termination signal."
+                "Simulation was still running when end_sim() was called. Something likely went wrong. Make sure that the whole simulation was analysed and the stream_timeout is long enough. Sending a termination signal."
             )
             self.sim_process.terminate()
 
