@@ -23,7 +23,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -49,7 +49,7 @@ jobs:
           - os: "ubuntu-24.04-arm"
             numpy-version: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: 
           fetch-depth: 2
   
@@ -108,8 +108,8 @@ jobs:
     runs-on: "${{ matrix.os }}"
 
     steps:
-      - uses: "actions/checkout@v4"
-      - uses: "actions/setup-python@v5"
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: "Install HDF5 with brew if macos-arm64"
