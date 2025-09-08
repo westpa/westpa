@@ -5,6 +5,7 @@ import h5py
 import numpy as np
 from scipy.spatial.distance import cdist
 
+import westpa
 from westpa.core.binning.assign import (
     RectilinearBinMapper,
     PiecewiseBinMapper,
@@ -14,7 +15,7 @@ from westpa.core.binning.assign import (
     RecursiveBinMapper,
 )
 from westpa.core.binning.assign import coord_dtype
-from westpa.core.binning.mab import MABBinMapper, map_mab
+from westpa.core.binning.mab import MABBinMapper, map_mab, log_bin_boundaries
 
 
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
@@ -564,6 +565,76 @@ class TestMABBinMapper:
         assert np.all(
             output == self.ref_mab_results['2d_gauss'][ref_index]
         ), f"Unexpected 2D Gaussian MAB bin assignments with direction={direction}, bottleneck={bottleneck}, and skip={skip}"
+
+    @pytest.mark.parametrize(
+        "skip, bottleneck, direction, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, bottlenecks_forward, bottlenecks_reverse",
+        [
+            ([0, 0], True, [0, -1], [0.0, 0.0], [1.0, 1.0], [2, 2], 0, [None, None], [None, None]),
+            ([0, 0], True, [0, -1], [0.0, 0.0], [1.0, 1.0], [2, 2], 2, [1.0, 1.0], [0.0, 0.0]),
+            ([0, 0], False, [0, -1], [0.0, 0.0], [1.0, 1.0], [2, 2], 2, [], []),
+        ],
+        ids=[
+            'None as bottlenecks',
+            'With bottlenecks',
+            'No bottlenecks',
+        ],
+    )
+    def test_log_bin_boundaries(
+        self,
+        ref_mab,
+        monkeypatch,
+        skip,
+        bottleneck,
+        direction,
+        minlist,
+        maxlist,
+        nbins_per_dim,
+        n_bottleneck_filled,
+        bottlenecks_forward,
+        bottlenecks_reverse,
+    ):
+        '''Test MAB logging with various situations'''
+
+        temp_file_path = f'{self.tmpdir}/log_output.txt'
+
+        with monkeypatch.context() as m:
+            m.setattr(westpa, 'rc', westpa.core._rc.WESTRC())
+            westpa.rc.read_config(filename='west.cfg')
+            m.setattr(westpa.rc.sim_manager, 'n_iter', 24)
+
+            log_bin_boundaries(
+                skip=skip,
+                bottleneck=bottleneck,
+                direction=direction,
+                bin_log_path=temp_file_path,
+                minlist=minlist,
+                maxlist=maxlist,
+                nbins_per_dim=nbins_per_dim,
+                n_bottleneck_filled=n_bottleneck_filled,
+                bottlenecks_forward=bottlenecks_forward,
+                bottlenecks_reverse=bottlenecks_reverse,
+            )
+
+        # Correct outputs for comparison.
+        template_output = '''Iteration: 24
+MAB linear bin boundaries: [0.  0.5 1. ]\t[0.  0.5 1. ]\t
+Lagging pcoord in each dimension: [0.0, 0.0]
+Leading pcoord in each dimension: [1.0, 1.0]
+'''
+
+        if bottleneck:
+            template_output += f'''Number of bottleneck bins filled: {n_bottleneck_filled} / 3
+Dimension 0 forward bottleneck walker at: [{bottlenecks_forward[0]}]
+Dimension 0 backward bottleneck walker at: [{bottlenecks_reverse[0]}]
+Dimension 1 backward bottleneck walker at: [{bottlenecks_reverse[1]}]
+
+'''
+        else:
+            template_output += '\n'
+
+        # Do the actual comparison...
+        with open(temp_file_path, 'r') as f:
+            assert template_output == f.read()
 
 
 def output_mab_reference():

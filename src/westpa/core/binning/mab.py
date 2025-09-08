@@ -498,9 +498,9 @@ def log_bin_boundaries(
             bb_file.write(f'Number of bottleneck bins filled: {n_bottleneck_filled} / {max_bottleneck}\n')
             for n in active_dims:
                 if direction[n] in [0, 1, 86]:
-                    bb_file.write(f'Dimension {n} forward bottleneck walker at: {list(bottlenecks_forward[n])}\n')
+                    bb_file.write(f'Dimension {n} forward bottleneck walker at: {[bottlenecks_forward[n]]}\n')
                 if direction[n] in [0, -1, 86]:
-                    bb_file.write(f'Dimension {n} backward bottleneck walker at: {list(bottlenecks_reverse[n])}\n')
+                    bb_file.write(f'Dimension {n} backward bottleneck walker at: {[bottlenecks_reverse[n]]}\n')
             bb_file.write('\n')
         else:
             bb_file.write('\n')

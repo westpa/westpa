@@ -91,8 +91,9 @@ class AverageCommands(WESTKineticsBase):
     def __init__(self, parent):
         # Ideally, this is stuff general to all the calculations we want to perform.
         super().__init__(parent)
-        self.kinetics_filename = None
-        self.kinetics_file = None
+        if not hasattr(self, 'kinetics_filename'):
+            self.kinetics_filename = None
+            self.kinetics_file = None
 
     def add_args(self, parser):
         iogroup = parser.add_argument_group('input/output options')
@@ -174,7 +175,9 @@ class AverageCommands(WESTKineticsBase):
         )
 
     def process_args(self, args):
-        self.kinetics_filename = args.kinetics
+        if self.kinetics_filename is None:
+            # Use default name if not inherited.
+            self.kinetics_filename = args.kinetics
 
         # Disable the bootstrap or the correlation analysis.
         self.mcbs_enable = args.bootstrap if args.bootstrap is not None else True

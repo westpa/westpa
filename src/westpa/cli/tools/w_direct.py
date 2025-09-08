@@ -302,6 +302,9 @@ Command-line options
         self.output_file.replace_dataset('target_flux_evolution', data=rate_evol, shuffle=True, compression=9)
 
     def go(self):
+        # Have class inherit user-provided self.output_filename as self.kinetics_filename
+        self.kinetics_filename = self.output_filename
+
         pi = self.progress.indicator
         with pi:
             self.w_kinavg()
@@ -474,6 +477,9 @@ Command-line options
         self.output_file.replace_dataset(name='state_pop_evolution', data=pop_evol, shuffle=True, compression=9)
 
     def go(self):
+        # Have class inherit user-provided self.output_filename as self.kinetics_filename
+        self.kinetics_filename = self.output_filename
+
         pi = self.progress.indicator
         with pi:
             self.w_stateprobs()
@@ -498,8 +504,9 @@ Command-line options
 '''
 
     def go(self):
-        # One minor issue; as this stands now, since it's inheriting from all the other classes, it needs
-        # a kinetics file to instantiate the other attributes.  We'll need to modify how the loading works, there.
+        # Have class inherit user-provided self.output_filename as self.kinetics_filename
+        self.kinetics_filename = self.output_filename
+
         pi = self.progress.indicator
         with pi:
             self.w_kinetics()
@@ -526,6 +533,9 @@ Command-line options
 '''
 
     def go(self):
+        # Have class inherit user-provided self.output_filename as self.kinetics_filename
+        self.kinetics_filename = self.output_filename
+
         pi = self.progress.indicator
         with pi:
             self.w_kinavg()

@@ -3,7 +3,10 @@ import os
 import glob
 from shutil import copyfile, copy
 
+import numpy as np
+
 import westpa
+
 
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
 
@@ -63,7 +66,11 @@ def ref_cfg(request, tmp_path):
     copy_ref(test_dir)
 
     copyfile(os.path.join(REFERENCE_PATH, 'west_init_ref.cfg'), CFG_FILENAME)
-    copyfile(os.path.join(REFERENCE_PATH, 'west_init_ref.h5'), "west_init_ref.h5")
+
+    if np.__version__ <= '2.0.0':
+        copyfile(os.path.join(REFERENCE_PATH, 'west_init_numpy1.h5'), "west_init_ref.h5")
+    else:
+        copyfile(os.path.join(REFERENCE_PATH, 'west_init_numpy2.h5'), "west_init_ref.h5")
 
     request.cls.cfg_filepath = CFG_FILENAME
     request.cls.h5_filepath = H5_FILENAME
@@ -87,7 +94,7 @@ def ref_initialized(request, tmp_path):
     os.chdir(test_dir)
     copy_ref(test_dir)
 
-    copyfile(os.path.join(REFERENCE_PATH, 'west_init_ref.h5'), H5_FILENAME)
+    copyfile(os.path.join(REFERENCE_PATH, 'west_init_numpy2.h5'), H5_FILENAME)
     copyfile(os.path.join(REFERENCE_PATH, 'west_init_ref.cfg'), CFG_FILENAME)
 
     request.cls.cfg_filepath = CFG_FILENAME
@@ -226,5 +233,29 @@ def ref_executable(request, tmp_path):
 
     os.environ['WEST_SIM_ROOT'] = test_dir
     westpa.rc = westpa.core._rc.WESTRC()
+
+    request.addfinalizer(clear_state)
+
+
+@pytest.fixture
+def ref_mab(request, tmp_path):
+    """
+    Fixture that prepares an rc/sim_manager/WESTSystem from west_mab.cfg
+    """
+
+    test_dir = str(tmp_path)
+
+    os.chdir(test_dir)
+    copy_ref(test_dir)
+
+    copyfile(os.path.join(REFERENCE_PATH, 'west_mab.cfg'), CFG_FILENAME)
+
+    request.cls.cfg_filepath = CFG_FILENAME
+
+    os.environ['WEST_SIM_ROOT'] = test_dir
+    westpa.rc = westpa.core._rc.WESTRC()
+    westpa.rc.read_config(filename='west.cfg')
+
+    request.cls.tmpdir = test_dir
 
     request.addfinalizer(clear_state)
