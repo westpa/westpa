@@ -249,7 +249,7 @@ def west_iteration_file(request, tmp_path):
     # Initialize and close the file
     WESTIterationFile(request.cls.h5_iter_file_path, mode='w').close()
 
-    
+
 @pytest.fixture
 def ref_mab(request, tmp_path):
     """
