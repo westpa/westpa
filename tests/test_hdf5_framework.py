@@ -1,5 +1,7 @@
-from numpy.testing import assert_allclose
+import sys
+
 from mdtraj import Trajectory
+from numpy.testing import assert_allclose
 
 from westpa.core.segment import Segment
 from westpa.core.trajectory import WESTTrajectory, load_mda, load_mdtraj, load_netcdf
@@ -34,11 +36,23 @@ class TestHDF5Framework:
         assert_allclose(test_traj.xyz, self.ref_coords)
         assert_allclose(test_traj.time, self.ref_time)
 
-    def test_mda_trajectory_loader(self, traj_setup):
+    def test_mda_trajectory_loader(self, traj_setup, monkeypatch):
         dummy_segment = Segment()
+
         mda_trajectory_loader('dummy', self.current_path, dummy_segment, False)
 
         assert_allclose(dummy_segment.data['iterh5/trajectory'].xyz / 10, self.ref_coords)
+        assert_allclose(dummy_segment.data['iterh5/trajectory'].time, self.ref_time)
+
+    def test_mda_trajectory_loader_fail_import(self, traj_setup, monkeypatch):
+        '''Test fallback to MDTraj with `mda_trajectory_loader`'''
+        dummy_segment = Segment()
+
+        with monkeypatch.context() as m:
+            m.setitem(sys.modules, 'MDAnalysis', None)
+            mda_trajectory_loader('dummy', self.current_path, dummy_segment, False)
+
+        assert_allclose(dummy_segment.data['iterh5/trajectory'].xyz, self.ref_coords)
         assert_allclose(dummy_segment.data['iterh5/trajectory'].time, self.ref_time)
 
     def test_netcdf_trajectory_loader(self, traj_setup):
