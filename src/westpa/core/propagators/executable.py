@@ -197,8 +197,8 @@ trajectory_loaders = {
     'amber_trajectory_loader': netcdf_trajectory_loader,
     'netcdf_trajectory_loader': netcdf_trajectory_loader,
     'mda_trajectory_loader': mda_trajectory_loader,
-    'MDAnalysis_trajectory_loaderr': mda_trajectory_loader,
-    'mdanalysis_trajectory_loaderr': mda_trajectory_loader,
+    'MDAnalysis_trajectory_loader': mda_trajectory_loader,
+    'mdanalysis_trajectory_loader': mda_trajectory_loader,
 }
 
 
