@@ -72,7 +72,12 @@ jobs:
           auto-activate-base: false
           show-channel-urls: true
           conda-remove-defaults: true
-  
+
+      - name: Install MDAnalysis
+        if: ${{ matrix.python-version != '3.14' }}
+        shell: bash -l {0}
+        run: conda install MDAnalysis
+
       - name: Install package
         # conda setup requires this special shell
         shell: bash -l {0}
