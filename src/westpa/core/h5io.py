@@ -14,7 +14,6 @@ import warnings
 import h5py
 import numpy as np
 from numpy import index_exp
-from tables import NaturalNameWarning
 
 from mdtraj import Trajectory, join as join_traj
 from mdtraj.utils import in_units_of, import_, ensure_type
@@ -28,8 +27,13 @@ try:
 except ImportError:
     psutil = None
 
+try:
+    from tables import NaturalNameWarning
+    warnings.filterwarnings('ignore', category=NaturalNameWarning)
+except ImportError:
+    pass
+
 log = logging.getLogger(__name__)
-warnings.filterwarnings('ignore', category=NaturalNameWarning)
 
 #
 # Constants and globals
