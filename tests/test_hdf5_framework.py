@@ -6,7 +6,7 @@ import pytest
 
 from westpa.core.segment import Segment
 from westpa.core.trajectory import WESTTrajectory, load_mda, load_mdtraj, load_netcdf
-from westpa.core.propagators.executable import mdtraj_trajectory_loader, mda_trajectory_loader, netcdf_trajectory_loader
+from westpa.core.propagators.loaders import mdtraj_trajectory_loader, mda_trajectory_loader, netcdf_trajectory_loader
 
 
 class TestHDF5Framework:

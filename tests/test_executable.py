@@ -2,7 +2,8 @@ import numpy as np
 import pickle
 import westpa
 
-from westpa.core.propagators.executable import npy_data_loader, pickle_data_loader, aux_data_loader, ExecutablePropagator
+from westpa.core.propagators.executable import ExecutablePropagator
+from westpa.core.propagators.loaders import npy_data_loader, pickle_data_loader, aux_data_loader
 from westpa.core.segment import Segment
 
 
