@@ -721,10 +721,10 @@ class WESTIterationFile(HDF5TrajectoryFile):
                 elif needed_extra < 0:
                     # Extra frames found, turning pointer for those rows to sentinel
                     log.warning(
-                        f'Extra frames for segment {n_iter}_{segment.seg_id} found in WESTIterationFile. Overwriting extra frame pointers with sentinal [-n_iter, -seg_id].'
+                        f'Extra frames for segment {n_iter}_{segment.seg_id} found in WESTIterationFile. Overwriting extra frame pointers with sentinal [-n_iter, seg_id].'
                     )
                     for row_idx in range(needed_extra, 0):
-                        self.root['pointer'][existing_labels[row_idx]] = [-n_iter, -segment.seg_id]
+                        self.root['pointer'][existing_labels[row_idx]] = [-n_iter, segment.seg_id]
                     needed_extra = len(pointers)
                 else:
                     # Number of Frames match. None will return all frames and traj.
