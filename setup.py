@@ -124,9 +124,9 @@ INSTALL_REQUIRES = [
 ]
 
 EXTRAS_REQUIRE = {
-        "optional": ["tables"],
-        "tests": ["pytest", "pytest-cov", "pytest-rerunfailures", "pytest-timeout"],
-        "mpi": ["mpi4py"],
+    "optional": ["tables"],
+    "tests": ["pytest", "pytest-cov", "pytest-rerunfailures", "pytest-timeout"],
+    "mpi": ["mpi4py"],
 }
 
 EXTRAS_REQUIRE["dev"] = EXTRAS_REQUIRE["optional"] + EXTRAS_REQUIRE["tests"] + ["pre-commit"]

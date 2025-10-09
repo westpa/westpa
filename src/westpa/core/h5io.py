@@ -29,6 +29,7 @@ except ImportError:
 
 try:
     from tables import NaturalNameWarning
+
     warnings.filterwarnings('ignore', category=NaturalNameWarning)
 except ImportError:
     pass
