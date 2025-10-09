@@ -405,10 +405,10 @@ def find_top_traj_file(folder, eligible_top, eligible_traj):
         A string or Pathlike to the folder to search.
 
     eligible_top : list of strings
-        A list of accepted topology extensions.
+        A list of accepted topology file extensions.
 
     eligible_traj : list of strings
-        A list of accepted topology extensions.
+        A list of accepted trajectory file extensions.
 
 
     Returns
