@@ -2,6 +2,7 @@ import sys
 
 from mdtraj import Trajectory
 from numpy.testing import assert_allclose
+import pytest
 
 from westpa.core.segment import Segment
 from westpa.core.trajectory import WESTTrajectory, load_mda, load_mdtraj, load_netcdf
@@ -12,6 +13,8 @@ class TestHDF5Framework:
     '''Class to test HDF5 Framework'''
 
     def test_load_mda(self, traj_setup):
+        pytest.importorskip('MDAnalysis')
+
         test_traj = load_mda(self.current_path)
 
         assert isinstance(test_traj, WESTTrajectory)
@@ -37,6 +40,8 @@ class TestHDF5Framework:
         assert_allclose(test_traj.time, self.ref_time)
 
     def test_mda_trajectory_loader(self, traj_setup, monkeypatch):
+        pytest.importorskip('MDAnalysis')
+
         dummy_segment = Segment()
 
         mda_trajectory_loader('dummy', self.current_path, dummy_segment, False)
