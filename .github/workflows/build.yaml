@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest"]  # macos-latest is arm64
-        python-version: [10, 11, 12, 13] # sub-versions of Python
+        python-version: [10, 11, 12, 13, 14] # sub-versions of Python
     steps:
       - uses: actions/checkout@v5
 
@@ -37,7 +37,7 @@ jobs:
         run: "brew install hdf5"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.1.4
+        uses: pypa/cibuildwheel@v3.2.0
         env:
           CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
@@ -74,7 +74,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 

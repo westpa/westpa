@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: 3.12
       - name: Linting
@@ -40,20 +40,16 @@ jobs:
     runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
-        os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-15-intel", "macos-latest"]  # macos-15-intel is x86-64, macos-latest is arm64
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
         numpy-version: ["1", "2"]
         exclude:
           - python-version: "3.13"
             numpy-version: "1"
-          - os: "ubuntu-24.04-arm"
+          - python-version: "3.14"
             numpy-version: "1"
           - os: "ubuntu-24.04-arm"
-            python-version: "3.10"
-          - os: "macos-13"
-            python-version: "3.10"
-          - os: 'macos-latest'
-            python-version: "3.10"
+            numpy-version: "1"
     steps:
       - uses: actions/checkout@v5
         with: 
@@ -108,14 +104,14 @@ jobs:
   install-dev:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
+        os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-15-intel", "macos-latest"]  # macos-15-intel is x86-64, macos-latest is arm64
 
     name: "Verify dev env"
     runs-on: "${{ matrix.os }}"
 
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: "Install HDF5 with brew if macos-arm64"

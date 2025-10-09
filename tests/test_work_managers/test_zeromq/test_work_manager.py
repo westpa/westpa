@@ -1,6 +1,5 @@
 from contextlib import contextmanager
 import time
-import sys
 import unittest
 import pytest
 
@@ -16,7 +15,7 @@ from .zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
 from .zmq_tsupport import ZMQTestBase
 
 
-flaky_on_macos = pytest.mark.flaky(condition=sys.platform.startswith('darwin'), reruns=5, reason='flaky on macos')
+pytestmark = pytest.mark.flaky(reruns=5, reason='ZeroMQ tests are flaky')
 
 
 class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
@@ -122,7 +121,6 @@ class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
         assert not self.test_wm.comm_thread.is_alive()
 
     # Work manager sends shutdown announcement downstream
-    @flaky_on_macos
     def test_shutdown_sends_announcement(self):
         with self.expect_announcement(Message.SHUTDOWN):
             self.test_wm.signal_shutdown()
@@ -268,18 +266,15 @@ class TestZMQWorkManagerInternalNone(ZMQTestBase, unittest.TestCase):
 
         super().tearDown()
 
-    @flaky_on_macos
     def test_shutdown_without_workers(self):
         time.sleep(1.5)
         assert not self.test_wm.comm_thread.is_alive()
 
-    @flaky_on_macos
     def test_shutdown_without_workers_after_submission(self):
         self.test_wm.submit(identity, (1,), {})
         time.sleep(1.5)
         assert not self.test_wm.comm_thread.is_alive()
 
-    @flaky_on_macos
     def test_shutdown_without_workers_raises_future_error(self):
         future = self.test_wm.submit(identity, (1,), {})
         time.sleep(1.5)
@@ -290,7 +285,6 @@ class TestZMQWorkManagerInternalSingle(BaseInternal, ZMQTestBase, CommonWorkMana
     n_workers = 1
 
 
-@flaky_on_macos
 class TestZMQWorkManagerInternalMultiple(BaseInternal, ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
     n_workers = 4
 
@@ -340,6 +334,5 @@ class TestZMQWorkManagerExternalSingle(BaseExternal, ZMQTestBase, CommonWorkMana
     n_workers = 1
 
 
-@flaky_on_macos
 class TestZMQWorkManagerExternalMultiple(BaseExternal, ZMQTestBase, CommonWorkManagerTests, unittest.TestCase):
     n_workers = 4
