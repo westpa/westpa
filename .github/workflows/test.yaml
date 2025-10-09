@@ -39,7 +39,7 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-15-intel", "macos-latest"]  # macos-15-intel is x86-64, macos-latest is arm64
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
         numpy-version: ["1", "2"]
         exclude:
           - python-version: "3.13"
