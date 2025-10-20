@@ -34,7 +34,15 @@ jobs:
 
       - name: "Install HDF5 with brew"
         if: ${{ matrix.os == 'macos-latest' }}
-        run: "brew install hdf5"
+        run: |
+          brew update
+          brew install hdf5
+
+      - name: "Install HDF5 with apt"
+        if: ${{ matrix.os != 'macos-latest' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install hdf5
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.2.0
