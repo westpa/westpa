@@ -98,36 +98,12 @@ console_scripts_tools = [
 
 console_scripts = console_scripts_core + console_scripts_tools
 
-INSTALL_REQUIRES = [
-    "numpy >= 1.25.0, <3",
-    "scipy >= 0.19.1",
-    "h5py >= 2.10",
-    "mdtraj >= 1.9.5",
-    "pyyaml",
-    "pyzmq",
-    "matplotlib",
-    "blessings",
-    "ipykernel",
-    "tqdm",
-    "pandas",
-    "tables",
-]
-
-EXTRAS_REQUIRE = {
-    "tests": ["pytest", "pytest-cov", "pytest-rerunfailures", "pytest-timeout"],
-    "mpi": ["mpi4py"],
-}
-
-EXTRAS_REQUIRE["dev"] = EXTRAS_REQUIRE["tests"] + ["pre-commit"]
-
 
 metadata = dict(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     zip_safe=False,
     entry_points={'console_scripts': console_scripts},
-    install_requires=INSTALL_REQUIRES,
-    extras_require=EXTRAS_REQUIRE,
 )
 
 
