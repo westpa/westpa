@@ -302,7 +302,7 @@ class AverageCommands(WESTKineticsBase):
                     name=name,
                     mcbs_enable=self.mcbs_enable,
                     data_input={},
-                    **extra
+                    **extra,
                 )
 
                 # Slice up the datasets for this iteration slice.
