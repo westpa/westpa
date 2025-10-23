@@ -82,7 +82,7 @@ class Run:
     def num_iterations(self):
         """int: Number of completed iterations."""
         if not hasattr(self, '_num_iterations'):
-            current = self.h5file.attrs['west_current_iteration']
+            current = int(self.h5file.attrs['west_current_iteration'])
             grp = self.h5file.get_iter_group(current)
             if (grp['seg_index']['status'] == Segment.SEG_STATUS_COMPLETE).all():
                 self._num_iterations = current
