@@ -1,7 +1,6 @@
 import itertools
 import sys
 
-import networkx as nx
 import numpy as np
 import pandas as pd
 
@@ -139,26 +138,6 @@ class Run:
         if number not in valid_range:
             raise ValueError(f'iteration number must be in {valid_range}')
         return Iteration(number, self)
-
-    def history_graph(self) -> nx.DiGraph:
-        """Return the history graph of the run.
-
-        The history graph is the directed graph whose edges (arcs) point from each
-        walker to its parent. The root nodes are initial walkers.
-
-        Returns
-        -------
-        nx.DiGraph
-            The history graph of the run.
-
-        """
-        graph = nx.DiGraph()
-        for iteration in self:
-            parent_ids = iteration.h5group['seg_index']['parent_id']
-            for index, parent_id in enumerate(parent_ids):
-                if parent_id >= 0:
-                    graph.add_edge(iteration.walker(index), iteration.prev.walker(parent_id))
-        return graph
 
     def __len__(self):
         return self.num_iterations
