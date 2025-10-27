@@ -45,7 +45,6 @@ dependencies = [
   "blessings",
   "ipykernel",
   "tqdm",
-  "pandas",
   "tables",
 ]
 
