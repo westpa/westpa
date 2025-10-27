@@ -120,9 +120,7 @@ INSTALL_REQUIRES = [
     "blessings",
     "ipykernel",
     "tqdm",
-    "pandas",
     "tables",
-    "importlib-resources;python_version<'3.10'",
 ]
 
 EXTRAS_REQUIRE = {
