@@ -368,24 +368,23 @@ class RecursiveBinMapper(BinMapper):
     @start_index.setter
     def start_index(self, new_index):
         self._start_index = new_index
-        not_recursed = ~self._recursion_map
-        n_not_recursed = not_recursed.sum()
-        if n_not_recursed == self.nbins:
-            self._output_map = np.arange(self._start_index, self._start_index + self.nbins, dtype=index_dtype)
-        elif n_not_recursed > 0:
-            # This looks like uninitialized access, but self._output_map is always set during __init__
-            # (by self.start_index = 0, or whatever value was passed in), so this modifies the existing
-            # set chosen above
-            self._output_map[not_recursed] = np.arange(self._start_index, self._start_index + n_not_recursed, dtype=index_dtype)
-        else:
-            # No un-replaced bins
-            self._output_map = None
 
-        n_own_bins = self.base_mapper.nbins - self._recursion_map.sum()
-        startindex = self.start_index + n_own_bins
-        for mapper in self._recursion_targets.values():
-            mapper.start_index = startindex
-            startindex += mapper.nbins
+        output_map = np.array([UNKNOWN_INDEX] * self.base_mapper.nbins, dtype=index_dtype)
+
+        index = self._start_index
+        for ibin in range(self.base_mapper.nbins):
+            if ibin in self._recursion_targets:
+                mapper = self._recursion_targets[ibin]
+                mapper.start_index = index
+                index += mapper.nbins
+            else:
+                output_map[ibin] = index
+                index += 1
+
+        if (output_map == UNKNOWN_INDEX).all():  # no recursive bins
+            self._output_map = None
+        else:
+            self._output_map = output_map
 
     def add_mapper(self, mapper, replaces_bin_at):
         '''Replace the bin containing the coordinate tuple ``replaces_bin_at`` with the
