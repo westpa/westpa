@@ -62,7 +62,7 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: artifact-wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: ./wheelhouse/*.whl
@@ -96,7 +96,7 @@ jobs:
           echo "All done with the import tests!"
           # Currently blocked by https://github.com/westpa/westpa/issues/70
           # python -c "import westpa.trajtree"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: artifact-sdist
           path: dist/*.tar.gz
