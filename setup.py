@@ -121,7 +121,7 @@ INSTALL_REQUIRES = [
     "ipykernel",
     "tqdm",
     "pandas",
-    "tables==3.10.1",
+    "tables",
 ]
 
 EXTRAS_REQUIRE = {
