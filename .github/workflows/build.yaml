@@ -37,7 +37,7 @@ jobs:
         run: "brew install hdf5"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.0
+        uses: pypa/cibuildwheel@v3.2.1
         env:
           CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
@@ -62,7 +62,7 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: artifact-wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: ./wheelhouse/*.whl
@@ -96,7 +96,7 @@ jobs:
           echo "All done with the import tests!"
           # Currently blocked by https://github.com/westpa/westpa/issues/70
           # python -c "import westpa.trajtree"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: artifact-sdist
           path: dist/*.tar.gz
@@ -118,7 +118,7 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
@@ -146,7 +146,7 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
