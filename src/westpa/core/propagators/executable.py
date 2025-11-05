@@ -450,48 +450,49 @@ class ExecutablePropagator(WESTPropagator):
 
         environ[self.ENV_CURRENT_SEG_INITPOINT] = Segment.initpoint_type_names[segment.initpoint_type]
 
-        if segment.initpoint_type == Segment.SEG_INITPOINT_CONTINUES:
-            # Could use actual parent object here if the work manager cared to pass that much data
-            # to us (we'd need at least the subset of parents for all segments sent in the call to propagate)
-            # that may make a good west.cfg option for future crazy extensibility, but for now,
-            # just populate the bare minimum
-            parent = Segment(n_iter=segment.n_iter - 1, seg_id=segment.parent_id)
-            parent_template_args = dict(template_args)
-            parent_template_args['segment'] = parent
+        match segment.initpoint_type:
+            case Segment.SEG_INITPOINT_CONTINUES:
+                # Could use actual parent object here if the work manager cared to pass that much data
+                # to us (we'd need at least the subset of parents for all segments sent in the call to propagate)
+                # that may make a good west.cfg option for future crazy extensibility, but for now,
+                # just populate the bare minimum
+                parent = Segment(n_iter=segment.n_iter - 1, seg_id=segment.parent_id)
+                parent_template_args = dict(template_args)
+                parent_template_args['segment'] = parent
 
-            environ[self.ENV_PARENT_SEG_ID] = str(segment.parent_id if segment.parent_id is not None else -1)
-            environ[self.ENV_PARENT_DATA_REF] = self.makepath(self.segment_ref_template, parent_template_args)
-        elif segment.initpoint_type == Segment.SEG_INITPOINT_NEWTRAJ:
-            # This segment is initiated from a basis state; WEST_PARENT_SEG_ID and WEST_PARENT_DATA_REF are
-            # set to the basis state ID and data ref
-            initial_state = self.initial_states[segment.initial_state_id]
+                environ[self.ENV_PARENT_SEG_ID] = str(segment.parent_id if segment.parent_id is not None else -1)
+                environ[self.ENV_PARENT_DATA_REF] = self.makepath(self.segment_ref_template, parent_template_args)
+            case Segment.SEG_INITPOINT_NEWTRAJ:
+                # This segment is initiated from a basis state; WEST_PARENT_SEG_ID and WEST_PARENT_DATA_REF are
+                # set to the basis state ID and data ref
+                initial_state = self.initial_states[segment.initial_state_id]
 
-            if initial_state.istate_type == InitialState.ISTATE_TYPE_START:
-                basis_state = BasisState(
-                    label=f"sstate_{initial_state.state_id}", pcoord=initial_state.pcoord, probability=0.0, auxref=""
+                match initial_state.istate_type:
+                    case InitialState.ISTATE_TYPE_START:
+                        basis_state = BasisState(
+                            label=f"sstate_{initial_state.state_id}", pcoord=initial_state.pcoord, probability=0.0, auxref=""
+                        )
+                    case _:
+                        basis_state = self.basis_states[initial_state.basis_state_id]
+
+                if self.ENV_BSTATE_ID not in environ:
+                    self.update_args_env_basis_state(template_args, environ, basis_state)
+                if self.ENV_ISTATE_ID not in environ:
+                    self.update_args_env_initial_state(template_args, environ, initial_state)
+
+                assert initial_state.istate_type in (
+                    InitialState.ISTATE_TYPE_BASIS,
+                    InitialState.ISTATE_TYPE_GENERATED,
+                    InitialState.ISTATE_TYPE_START,
                 )
 
-            else:
-                basis_state = self.basis_states[initial_state.basis_state_id]
-
-            if self.ENV_BSTATE_ID not in environ:
-                self.update_args_env_basis_state(template_args, environ, basis_state)
-            if self.ENV_ISTATE_ID not in environ:
-                self.update_args_env_initial_state(template_args, environ, initial_state)
-
-            assert initial_state.istate_type in (
-                InitialState.ISTATE_TYPE_BASIS,
-                InitialState.ISTATE_TYPE_GENERATED,
-                InitialState.ISTATE_TYPE_START,
-            )
-            if initial_state.istate_type == InitialState.ISTATE_TYPE_BASIS:
-                environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
-
-            elif initial_state.istate_type == InitialState.ISTATE_TYPE_START:
-                # This points to the start-state ref (as defined in west.cfg)
-                environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF] + '/' + initial_state.basis_auxref
-            else:  # initial_state.type == InitialState.ISTATE_TYPE_GENERATED
-                environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
+                match initial_state.istate_type:
+                    case InitialState.ISTATE_TYPE_BASIS:
+                        environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
+                    case InitialState.ISTATE_TYPE_START:  # This points to the start-state ref (as defined in west.cfg)
+                        environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF] + '/' + initial_state.basis_auxref
+                    case _:  # initial_state.type == InitialState.ISTATE_TYPE_GENERATED
+                        environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
 
         environ[self.ENV_CURRENT_SEG_ID] = str(segment.seg_id if segment.seg_id is not None else -1)
         environ[self.ENV_CURRENT_SEG_DATA_REF] = self.makepath(self.segment_ref_template, template_args)
@@ -522,14 +523,13 @@ class ExecutablePropagator(WESTPropagator):
             InitialState.ISTATE_TYPE_GENERATED,
             InitialState.ISTATE_TYPE_START,
         )
-        if initial_state.istate_type == InitialState.ISTATE_TYPE_BASIS:
-            environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
-
-        elif initial_state.istate_type == InitialState.ISTATE_TYPE_START:
-            # This points to the start-state ref (as defined in west.cfg)
-            environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF] + '/' + initial_state.basis_auxref
-        else:  # initial_state.type == InitialState.ISTATE_TYPE_GENERATED
-            environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
+        match initial_state.istate_type:
+            case InitialState.ISTATE_TYPE_BASIS:
+                environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF]
+            case InitialState.ISTATE_TYPE_START:  # This points to the start-state PDB
+                environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_BSTATE_DATA_REF] + '/' + initial_state.basis_auxref
+            case _:  # initial_state.type == InitialState.ISTATE_TYPE_GENERATED
+                environ[self.ENV_PARENT_DATA_REF] = environ[self.ENV_ISTATE_DATA_REF]
 
         return template_args, environ
 
@@ -631,14 +631,15 @@ class ExecutablePropagator(WESTPropagator):
 
             return_template = self.data_info[dataset].get('filename')
             if return_template:
-                if state is None:
-                    raise ValueError('{} needs to be provided for dataset return'.format(return_state_type(state)[0]))
-                elif isinstance(state, Segment):
-                    return_files[dataset] = self.makepath(return_template, self.template_args_for_segment(state))
-                elif isinstance(state, BasisState):  # case when bstate
-                    return_files[dataset] = self.makepath(return_template, self.template_args_for_bstates(state))
-                elif isinstance(state, InitialState):  # case for istate
-                    return_files[dataset] = self.makepath(return_template, self.template_args_for_istates(state))
+                match state:
+                    case None:
+                        raise ValueError('{} needs to be provided for dataset return'.format(return_state_type(state)[0]))
+                    case Segment():
+                        return_files[dataset] = self.makepath(return_template, self.template_args_for_segment(state))
+                    case BasisState():  # case when bstate
+                        return_files[dataset] = self.makepath(return_template, self.template_args_for_bstates(state))
+                    case InitialState():  # case for istate
+                        return_files[dataset] = self.makepath(return_template, self.template_args_for_istates(state))
 
                 del_return_files[dataset] = False
             else:
@@ -703,16 +704,17 @@ class ExecutablePropagator(WESTPropagator):
 
         template_args, environ = {}, {}
 
-        if isinstance(state, BasisState):
-            execfn = self.exec_for_basis_state
-            self.update_args_env_basis_state(template_args, environ, state)
-            struct_ref = environ[self.ENV_BSTATE_DATA_REF]
-        elif isinstance(state, InitialState):
-            execfn = self.exec_for_initial_state
-            self.update_args_env_initial_state(template_args, environ, state)
-            struct_ref = environ[self.ENV_ISTATE_DATA_REF]
-        else:
-            raise TypeError('state must be a BasisState or InitialState')
+        match state:
+            case BasisState():
+                execfn = self.exec_for_basis_state
+                self.update_args_env_basis_state(template_args, environ, state)
+                struct_ref = environ[self.ENV_BSTATE_DATA_REF]
+            case InitialState():
+                execfn = self.exec_for_initial_state
+                self.update_args_env_initial_state(template_args, environ, state)
+                struct_ref = environ[self.ENV_ISTATE_DATA_REF]
+            case _:
+                raise TypeError('state must be a BasisState or InitialState')
 
         child_info = self.exe_info.get('get_pcoord')
         addtl_env, return_files, del_return_files = self.setup_dataset_return(subset_keys=self.ibsubset_keys)
