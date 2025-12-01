@@ -58,15 +58,50 @@ def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds, ign
     npts = dset.shape[1]
     weights = wt_dsspec.get_iter_data(n_iter)
 
+    # Skip initial timepoint(s) if requested
     dset = dset[:, initpoint:, :]
+
     for ipt in range(npts - initpoint):
-        histnd(dset[:, ipt, :], binbounds, weights, out=iter_hist, binbound_check=False, ignore_out_of_range=ignore_out_of_range)
+        # Slice for this timepoint: shape (n_segments, n_dims)
+        slice_ = dset[:, ipt, :]
+
+        # 🔍 NEW: check for NaN / inf values before calling histnd
+        if not np.all(np.isfinite(slice_)):
+            # Find which segments are bad (optional, but helpful)
+            bad_mask = ~np.isfinite(slice_)
+            bad_seg_indices = np.where(bad_mask.any(axis=1))[0]
+
+            log.error(
+                "Detected non-finite (NaN/inf) progress coordinate values in iteration %d "
+                "for segment indices %s at time index %d. "
+                "This usually indicates that one or more walkers have blown up.",
+                n_iter,
+                bad_seg_indices.tolist(),
+                ipt + initpoint,
+            )
+
+            raise ValueError(
+                f"Non-finite (NaN/inf) progress coordinate values detected in iteration {n_iter} "
+                f"at time index {ipt + initpoint} for one or more walkers. "
+                "This likely indicates a blown-up walker; please inspect your simulation."
+            )
+
+        # Original histogram update
+        histnd(
+            slice_,
+            binbounds,
+            weights,
+            out=iter_hist,
+            binbound_check=False,
+            ignore_out_of_range=ignore_out_of_range,
+        )
 
     del weights, dset
 
     # normalize histogram
     normhistnd(iter_hist, binbounds)
     return iiter, n_iter, iter_hist
+
 
 
 class WPDist(WESTParallelTool):
