@@ -150,16 +150,12 @@ class ProcessWorkManager(WorkManager):
                 self.task_queue.get_nowait()
         except (Empty, ValueError) as e:
             log.debug(f'Emptied task queue, exiting: {e}')
-        except (AttributeError, LookupError) as e:
-            log.debug(f'Read/write errors with Pytables while clearing task queue: {e}')
 
         try:
             while True:
                 self.result_queue.get_nowait()
         except (Empty, ValueError) as e:
             log.debug(f'Emptied result queue, exiting: {e}')
-        except (AttributeError, LookupError) as e:
-            log.debug(f'Read/write errors with Pytables while clearing result queue: {e}')
 
     def shutdown(self):
         while self.running:
