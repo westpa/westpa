@@ -162,7 +162,7 @@ class ProcessWorkManager(WorkManager):
         while self.running:
             log.debug('shutting down {!r}'.format(self))
 
-            # Empty queues and sending clean shutdown signal to task queue
+            # Empty queues and sending clean shutdown signals to task_queue
             self._empty_queues()
             for _i in range(self.n_workers):
                 self.task_queue.put_nowait(task_shutdown_sentinel)
@@ -192,7 +192,7 @@ class ProcessWorkManager(WorkManager):
                     except ValueError:
                         pass  # Already closed.
 
-            # Empty Queues again and put result queue to rest
+            # Empty queues again and finally shutdown result_queue
             self._empty_queues()
             self.result_queue.put(result_shutdown_sentinel, self.shutdown_timeout)
 
