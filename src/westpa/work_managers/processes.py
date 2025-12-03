@@ -166,7 +166,7 @@ class ProcessWorkManager(WorkManager):
             self._empty_queues()
 
             for _i in range(self.n_workers):
-                self.task_queue.put(task_shutdown_sentinel, self.shutdown_timeout)
+                self.task_queue.put_nowait(task_shutdown_sentinel)
 
             self.result_queue.put(result_shutdown_sentinel, self.shutdown_timeout)
 
