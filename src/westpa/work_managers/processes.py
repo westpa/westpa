@@ -162,6 +162,9 @@ class ProcessWorkManager(WorkManager):
         while self.running:
             log.debug('shutting down {!r}'.format(self))
 
+            # Send shutdown signal
+            self.shutdown_received.set()
+
             # Empty queues and sending clean shutdown signals to task_queue
             self._empty_queues()
             for _i in range(self.n_workers):
@@ -195,8 +198,5 @@ class ProcessWorkManager(WorkManager):
             # Empty queues again and finally shutdown result_queue
             self._empty_queues()
             self.result_queue.put(result_shutdown_sentinel, self.shutdown_timeout)
-
-            # Send final shutdown
-            self.shutdown_received.set()
 
             self.running = False
