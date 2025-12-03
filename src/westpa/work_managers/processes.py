@@ -109,6 +109,7 @@ class ProcessWorkManager(WorkManager):
                     raise AssertionError('unknown message {!r}'.format((message, task_id, payload)))
 
         log.debug('exiting results_loop')
+        return
 
     def submit(self, fn, args=None, kwargs=None):
         ft = WMFuture()
@@ -160,13 +161,16 @@ class ProcessWorkManager(WorkManager):
     def shutdown(self):
         while self.running:
             log.debug('shutting down {!r}'.format(self))
-            self.shutdown_received.set()
+
+            # Empty queues and sending clean shutdown signal
             self._empty_queues()
 
-            # Send shutdown signal
             for _i in range(self.n_workers):
-                self.task_queue.put_nowait(task_shutdown_sentinel)
+                self.task_queue.put(task_shutdown_sentinel, self.shutdown_timeout)
 
+            self.result_queue.put(result_shutdown_sentinel, self.shutdown_timeout)
+
+            # Terminating all workers
             for worker in self.workers:
                 worker.join(self.shutdown_timeout)
                 if worker.is_alive():
@@ -191,7 +195,7 @@ class ProcessWorkManager(WorkManager):
                     except ValueError:
                         pass  # Already closed.
 
-            self._empty_queues()
-            self.result_queue.put(result_shutdown_sentinel)
+            # Send final shutdown
+            self.shutdown_received.set()
 
             self.running = False
