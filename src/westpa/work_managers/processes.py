@@ -150,13 +150,13 @@ class ProcessWorkManager(WorkManager):
             while True:
                 self.task_queue.get_nowait()
         except (Empty, ValueError):
-            log.debug('Emptied task queue.')
+            log.debug('Emptied task_queue')
 
         try:
             while True:
                 self.result_queue.get_nowait()
         except (Empty, ValueError):
-            log.debug('Emptied result queue.')
+            log.debug('Emptied result_queue')
 
     def shutdown(self):
         while self.running:
