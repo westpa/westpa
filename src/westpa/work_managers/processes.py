@@ -166,7 +166,7 @@ class ProcessWorkManager(WorkManager):
             self._empty_queues()
             for _i in range(self.n_workers):
                 self.task_queue.put_nowait(task_shutdown_sentinel)
-            self.result_queue.put(result_shutdown_sentinel, timeout=self.shutdown_timeout)
+            self.result_queue.put_nowait(result_shutdown_sentinel)
 
             # Signal shutdown Event to stop queue loops
             self.shutdown_received.set()
