@@ -164,12 +164,13 @@ class ProcessWorkManager(WorkManager):
 
             # Empty queues
             self._empty_queues()
-            for _i in range(len(self.workers)):
+            for _i in range(self.n_workers):
                 self.task_queue.put_nowait(task_shutdown_sentinel)
             self.result_queue.put(result_shutdown_sentinel, timeout=self.shutdown_timeout)
 
             # Signal shutdown Event to stop queue loops
             self.shutdown_received.set()
+            self._empty_queues()
 
             # Terminating all workers
             for worker in self.workers:
@@ -196,11 +197,5 @@ class ProcessWorkManager(WorkManager):
                     except ValueError:
                         pass  # Already closed.
 
-            # Completely closing the queues
-            self.task_queue.close()
-            self.result_queue.close()
-
-            self.task_queue.join_thread()
-            self.result_queue.join_thread()
-
             self.running = False
+            log.debug('Done shutting down the processes work manager')
