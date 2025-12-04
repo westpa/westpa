@@ -150,25 +150,26 @@ class ProcessWorkManager(WorkManager):
             while True:
                 self.task_queue.get_nowait()
         except (Empty, ValueError):
-            log.debug('Emptied task_queue')
+            log.debug('Empty task_queue')
 
         try:
             while True:
                 self.result_queue.get_nowait()
         except (Empty, ValueError):
-            log.debug('Emptied result_queue')
+            log.debug('Empty result_queue')
 
     def shutdown(self):
         while self.running:
             log.debug('shutting down {!r}'.format(self))
 
-            # Signal shutdown Event
-            self.shutdown_received.set()
-
-            # Empty queues and sending clean shutdown signals to task_queue
+            # Empty queues
             self._empty_queues()
-            for _i in range(self.n_workers):
+            for _i in range(len(self.workers)):
                 self.task_queue.put_nowait(task_shutdown_sentinel)
+            self.result_queue.put(result_shutdown_sentinel, timeout=self.shutdown_timeout)
+
+            # Signal shutdown Event to stop queue loops
+            self.shutdown_received.set()
 
             # Terminating all workers
             for worker in self.workers:
@@ -195,8 +196,11 @@ class ProcessWorkManager(WorkManager):
                     except ValueError:
                         pass  # Already closed.
 
-            # Empty queues again and finally shutdown result_queue
-            self._empty_queues()
-            self.result_queue.put(result_shutdown_sentinel, timeout=self.shutdown_timeout)
+            # Completely closing the queues
+            self.task_queue.close()
+            self.result_queue.close()
+
+            self.task_queue.join_thread()
+            self.result_queue.join_thread()
 
             self.running = False
