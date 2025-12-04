@@ -68,6 +68,8 @@ def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds, ign
     # normalize histogram
     normhistnd(iter_hist, binbounds)
     return iiter, n_iter, iter_hist
+
+
 class WPDist(WESTParallelTool):
     prog = 'w_pdist'
     description = '''\
