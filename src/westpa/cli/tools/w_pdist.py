@@ -28,28 +28,6 @@ def isiterable(x):
         return True
 
 
-def _remote_min_max(ndim, dset_dtype, n_iter, dsspec):
-    try:
-        minval = np.finfo(dset_dtype).min
-        maxval = np.finfo(dset_dtype).max
-    except ValueError:
-        minval = np.iinfo(dset_dtype).min
-        maxval = np.iinfo(dset_dtype).max
-
-    data_range = [(maxval, minval) for _i in range(ndim)]
-
-    dset = dsspec.get_iter_data(n_iter)
-    for idim in range(ndim):
-        dimdata = dset[:, :, idim]
-        current_min, current_max = data_range[idim]
-        current_min = min(current_min, dimdata.min())
-        current_max = max(current_max, dimdata.max())
-        data_range[idim] = (current_min, current_max)
-        del dimdata
-    del dset
-    return data_range
-
-
 def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds, ignore_out_of_range):
     iter_hist_shape = tuple(len(bounds) - 1 for bounds in binbounds)
     iter_hist = np.zeros(iter_hist_shape, dtype=np.float64)
@@ -62,47 +40,34 @@ def _remote_bin_iter(iiter, n_iter, dsspec, wt_dsspec, initpoint, binbounds, ign
     dset = dset[:, initpoint:, :]
 
     for ipt in range(npts - initpoint):
-        # Slice for this timepoint: shape (n_segments, n_dims)
+        # Data for this timepoint: shape (n_segments, n_dims)
         slice_ = dset[:, ipt, :]
 
-        # 🔍 NEW: check for NaN / inf values before calling histnd
-        if not np.all(np.isfinite(slice_)):
-            # Find which segments are bad (optional, but helpful)
-            bad_mask = ~np.isfinite(slice_)
-            bad_seg_indices = np.where(bad_mask.any(axis=1))[0]
-
-            log.error(
-                "Detected non-finite (NaN/inf) progress coordinate values in iteration %d "
-                "for segment indices %s at time index %d. "
-                "This usually indicates that one or more walkers have blown up.",
-                n_iter,
-                bad_seg_indices.tolist(),
-                ipt + initpoint,
+        try:
+            # Original histogram update
+            histnd(
+                slice_,
+                binbounds,
+                weights,
+                out=iter_hist,
+                binbound_check=False,
+                ignore_out_of_range=ignore_out_of_range,
             )
-
+        except ValueError as exc:
+            # Re-raise with extra context, without adding logging or
+            # changing core behaviour.
             raise ValueError(
-                f"Non-finite (NaN/inf) progress coordinate values detected in iteration {n_iter} "
-                f"at time index {ipt + initpoint} for one or more walkers. "
-                "This likely indicates a blown-up walker; please inspect your simulation."
-            )
-
-        # Original histogram update
-        histnd(
-            slice_,
-            binbounds,
-            weights,
-            out=iter_hist,
-            binbound_check=False,
-            ignore_out_of_range=ignore_out_of_range,
-        )
+                f"{exc} (while processing iteration {n_iter}, "
+                f"time index {ipt + initpoint}). "
+                "This may be caused by non-finite (NaN/inf) values "
+                "in the progress coordinate from a blown-up walker."
+            ) from exc
 
     del weights, dset
 
     # normalize histogram
     normhistnd(iter_hist, binbounds)
     return iiter, n_iter, iter_hist
-
-
 class WPDist(WESTParallelTool):
     prog = 'w_pdist'
     description = '''\
