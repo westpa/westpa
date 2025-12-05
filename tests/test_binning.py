@@ -286,8 +286,6 @@ class TestNestingBinMapper:
         output = rmapper.assign(coords)
         assert list(output) == [1, 1, 2, 2, 0, 3, 4]
 
-    # TODO: Fix this test
-    @pytest.mark.xfail(reason="known error in assign")
     def test2dRectilinearRecursion(self):
         '''
          0                            1                      2
@@ -324,9 +322,72 @@ class TestNestingBinMapper:
 
         assert rmapper.nbins == 6
         assignments = rmapper.assign(pairs)
-        expected = [0, 3, 4, 1, 2, 5]
+        expected = [0, 4, 5, 2, 3, 1]
         print('PAIRS', pairs)
         print('LABELS', list(rmapper.labels))
+        print('EXPECTED', expected)
+        print('OUTPUT  ', assignments)
+        assert (assignments == expected).all()
+
+    def test2dRectilinearDoubleRecursion(self):
+        '''
+           0              5              10                   inf
+           +--------------+--------------+----------------------+
+           | +----------+ |              | +---------0--------+ |
+           | | +------+ | |              | | +--------------+ | |
+           | | |      | | |              | | |     <7>      | | |
+           | | |      | | |              | | +-----0.5------+ | |
+           | | |      | | |              | | |     <8>      | | |
+           | | | <2>  | | |              | | +-----0.75-----+ | |
+           | | |      | | |              | | |     <9>      | | |
+           | | |      | | |              | | +--------------+ | |
+          1+ | |      | | |              | +---------1--------+ |
+           | | |      | | |              | |        <4>       | |
+           | | |      | | |              | |                  | |
+          3+ | |      | | |              | +---------3--------+ |
+           | | |      | | |              | |        <5>       | |
+           | | |      | | |              | |                  | |
+          5+ | +------+ | |              | +---------5--------+ |
+           | | | <3>  | | |              | | +--------------+ | |
+           | | |      | | |              | | |     <10>     | | |
+           | | |      | | |              | | |              | | |
+         10+ | |      | | |      <0>     | | +------10------+ | |
+           | | |      | | |              | | |     <11>     | | |
+           | | |      | | |              | | |              | | |
+           | | +------+ | |              | | +------------- + | |
+         15+ +----------+ |              | +--------15--------+ |
+           | |    <1>   | |              | |        <6>       | |
+           | |          | |              | |                  | |
+           | +----------+ |              | +--------inf-------+ |
+        inf+--------------+--------------+----------------------+
+
+        '''
+
+        mapper_outer = RectilinearBinMapper([[0, 5, 10, float('inf')], [0, float('inf')]])
+        first_bin = RectilinearBinMapper([[0, 5], [0, 15.0, float('inf')]])
+        second_bin = RectilinearBinMapper([[10, float('inf')], [0, 1, 3, 5, 15, float('inf')]])
+        third_bin = RectilinearBinMapper([[10, float('inf')], [0, 0.5, 0.75, 1.0]])
+        fourth_bin = RectilinearBinMapper([[10, float('inf')], [5, 10, 15]])
+        fifth_bin = RectilinearBinMapper([[0, 5], [0, 5, 15]])
+
+        rmapper = RecursiveBinMapper(mapper_outer)
+        rmapper.add_mapper(first_bin, [1, 2])
+        rmapper.add_mapper(second_bin, [11, 2])
+        rmapper.add_mapper(fourth_bin, [11, 6])
+        rmapper.add_mapper(third_bin, [11, 0.5])
+        rmapper.add_mapper(fifth_bin, [2, 2])
+
+        pairs = [[6, 6], [1, 16], [1, 2], [1, 10], [12, 2], [12, 4], [12, 20], [12, 0.2], [12, 0.6], [12, 0.8], [12, 9], [12, 12]]
+        ex_labels = "['[(5.0, 10.0), (0.0, inf)]', '[(0.0, 5.0), (15.0, inf)]', '[(0.0, 5.0), (0.0, 5.0)]', '[(0.0, 5.0), (5.0, 15.0)]', '[(10.0, inf), (1.0, 3.0)]', '[(10.0, inf), (3.0, 5.0)]', '[(10.0, inf), (15.0, inf)]', '[(10.0, inf), (0.0, 0.5)]', '[(10.0, inf), (0.5, 0.75)]', '[(10.0, inf), (0.75, 1.0)]', '[(10.0, inf), (5.0, 10.0)]', '[(10.0, inf), (10.0, 15.0)]']"
+
+        assert rmapper.nbins == 12
+
+        assignments = rmapper.assign(pairs)
+        expected = list(range(12))
+        print('PAIRS', pairs)
+        print('LABELS', list(rmapper.labels))
+        assert ex_labels == str(list(rmapper.labels))
+
         print('EXPECTED', expected)
         print('OUTPUT  ', assignments)
         assert (assignments == expected).all()
