@@ -249,6 +249,8 @@ def west_iteration_file(request, tmp_path):
     # Initialize and close the file
     WESTIterationFile(request.cls.h5_iter_file_path, mode='w').close()
 
+    request.addfinalizer(clear_state)
+
 
 @pytest.fixture
 def ref_mab(request, tmp_path):
@@ -271,4 +273,18 @@ def ref_mab(request, tmp_path):
 
     request.cls.tmpdir = test_dir
 
-    request.addfinalizer(clear_state)
+
+@pytest.fixture
+def nacl_restart_files(request, tmp_path):
+    request.cls.test_dir = tmp_path
+    request.cls.return_dir = tmp_path / 'restart_return'
+    request.cls.write_dir = tmp_path / 'restart_write'
+
+    request.cls.nacl_restart_files = ['nacl.prmtop', 'nacl.ncrst']
+
+    os.chdir(tmp_path)
+    os.mkdir(request.cls.return_dir)
+    os.mkdir(request.cls.write_dir)
+
+    for file in request.cls.nacl_restart_files:
+        copyfile(os.path.join(REFERENCE_PATH, file), request.cls.return_dir / file)

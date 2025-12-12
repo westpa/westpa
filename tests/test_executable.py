@@ -1,8 +1,16 @@
+from filecmp import cmpfiles
 import numpy as np
 import pickle
 import westpa
 
-from westpa.core.propagators.executable import npy_data_loader, pickle_data_loader, aux_data_loader, ExecutablePropagator
+from westpa.core.propagators.executable import (
+    npy_data_loader,
+    pickle_data_loader,
+    aux_data_loader,
+    restart_loader,
+    restart_writer,
+    ExecutablePropagator,
+)
 from westpa.core.segment import Segment
 
 
@@ -60,3 +68,15 @@ class Test_Loaders:
         test_array = test_segment.data['test'][:]
 
         assert np.array_equal(test_array, ref_array)
+
+    def test_restart_loader_writer(self, nacl_restart_files):
+        '''Test if the restart file can be read, saved and reloaded correctly.'''
+
+        # Make a dummy segment and read/write the restart files
+        test_segment = Segment()
+        restart_loader('restart', self.return_dir, test_segment, False)
+        restart_writer(self.write_dir, test_segment)
+
+        # Do a shallow file comparison and make sure files tarred up and written out matches
+        (matches, mismatches, errors) = cmpfiles(self.return_dir, self.write_dir, ['nacl.prmtop', 'nacl.ncrst'])
+        assert sum([True if file in self.nacl_restart_files else False for file in matches]) == 2
