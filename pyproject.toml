@@ -8,12 +8,58 @@ requires = [
     "Cython >=0.29.16",  # Note: sync with setup.py
     "numpy >=2.0.0, <3",  # Force numpy>=2 during build time so it works on both 1.XX and 2.XX
     "scipy >=0.19.1",
-    "versioneer-518"
+    "versioneer-518",
 ]
 # Uncommenting this requires adding the top level of the repo to sys.path in the setup.py
 # so that it can find the vendorized copy of versioneer. I see that other projects don't
 # always include this (pandas, numpy, etc), so leaving this off for now
 # build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "westpa"
+dynamic = ["version", "scripts"]
+license = "MIT"
+license-files = ["LICEN[CS]E.*"]
+readme = {file = "README.rst", content-type = "text/x-rst"}
+keywords = []
+description = 'WESTPA is a package for constructing and running stochastic simulations using the "weighted ensemble" approach of Huber and Kim (1996).'
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: POSIX",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Cython",
+]
+requires-python = ">=3.10"
+dependencies = [
+  "numpy >= 1.25.0,<3",
+  "scipy >= 0.19.1",
+  "h5py >= 2.10",
+  "mdtraj >= 1.9.5",
+  "pyyaml",
+  "pyzmq",
+  "matplotlib",
+  "blessings",
+  "ipykernel",
+  "tqdm",
+  "pandas",
+  "tables",
+]
+
+[project.optional-dependencies]
+tests = ["pytest", "pytest-cov", "pytest-rerunfailures", "pytest-timeout"]
+mpi = ["mpi4py"]
+dev = ["westpa[tests]", "pre-commit"]
+
+[project.urls]
+Homepage = "https://westpa.github.io"
+Repository = "https://github.com/westpa/westpa"
+Documentation = "https://github.readthedocs.io"
+Issues = "https://github.com/westpa/westpa/issues"
+
 
 [tool.black]
 line-length = 132
@@ -43,6 +89,9 @@ exclude = '''
      )
 )
 '''
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 # See the docstring in versioneer.py for instructions. Note that you must
 # re-run 'versioneer.py setup' after changing this section, and commit the

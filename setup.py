@@ -1,6 +1,6 @@
 import sys
 
-from setuptools import setup, Extension, find_packages
+from setuptools import setup, Extension
 
 import versioneer
 
@@ -98,58 +98,12 @@ console_scripts_tools = [
 
 console_scripts = console_scripts_core + console_scripts_tools
 
-CLASSIFIERS = [
-    "Development Status :: 5 - Production/Stable",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Cython",
-]
-
-INSTALL_REQUIRES = [
-    "numpy >= 1.25.0, <3",
-    "scipy >= 0.19.1",
-    "h5py >= 2.10",
-    "mdtraj >= 1.9.5",
-    "pyyaml",
-    "pyzmq",
-    "matplotlib",
-    "blessings",
-    "ipykernel",
-    "tqdm",
-    "pandas",
-    "tables",
-]
-
-EXTRAS_REQUIRE = {
-    "tests": ["pytest", "pytest-cov", "pytest-rerunfailures", "pytest-timeout"],
-    "mpi": ["mpi4py"],
-}
-
-EXTRAS_REQUIRE["dev"] = EXTRAS_REQUIRE["tests"] + ["pre-commit"]
-
 
 metadata = dict(
-    name='westpa',
-    url='http://github.com/westpa/westpa',
-    license='MIT',
-    long_description=open('README.rst', encoding='utf8').read(),
     version=versioneer.get_version(),
-    keywords='',
     cmdclass=versioneer.get_cmdclass(),
-    python_requires=">=3.10",
     zip_safe=False,
-    classifiers=CLASSIFIERS,
     entry_points={'console_scripts': console_scripts},
-    install_requires=INSTALL_REQUIRES,
-    extras_require=EXTRAS_REQUIRE,
-    package_data={},
-    packages=find_packages(where='src'),
-    package_dir={"": "src"},
-    description='WESTPA is a package for constructing and running stochastic simulations using the "weighted ensemble" approach of Huber and Kim (1996).',
 )
 
 

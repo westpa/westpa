@@ -87,7 +87,7 @@ class DefaultStringMethod(WESTStringMethod):
         fourier_P=2,
         fourier_maxiters=100,
         fourier_tol=1.0e-6,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(centers, **kwargs)
 

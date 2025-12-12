@@ -4,7 +4,7 @@ WESTPA 2.0
 
 |ghactions| |anaconda| |tutorial| 
 
-|docs| |usersgroup| |develgroup| 
+|docs| |usersgroup|
 
 .. |ghactions| image:: https://github.com/westpa/westpa/actions/workflows/test.yaml/badge.svg?branch=westpa2
               :target: https://github.com/westpa/westpa/actions/workflows/test.yaml
@@ -21,10 +21,6 @@ WESTPA 2.0
 .. |usersgroup| image:: https://img.shields.io/badge/Google%20Group-Users-lightgrey.svg
         :target: http://groups.google.com/group/westpa-users 
         :alt: Users Google Group
-
-.. |develgroup| image:: https://img.shields.io/badge/Google%20Group-Developers-lightgrey.svg
-        :target: https://groups.google.com/g/westpa-devel 
-        :alt: Developers Google Group
 
 .. |anaconda| image:: https://anaconda.org/conda-forge/westpa/badges/version.svg
    :alt: Anaconda
