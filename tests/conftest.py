@@ -28,10 +28,8 @@ def copy_ref(dest_dir):
 
 def clear_state():
     os.chdir(STARTING_PATH)
-    try:
+    if 'WEST_SIM_ROOT' in os.environ:
         del os.environ['WEST_SIM_ROOT']
-    except KeyError:
-        pass
     westpa.rc = westpa.core._rc.WESTRC()
 
 
