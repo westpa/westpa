@@ -20,6 +20,7 @@ from westpa.core.propagators.loaders import (
     restart_loader,
     seglog_loader,
     restart_writer,
+    aux_data_loader,
 )
 from westpa.core.propagators.loaders import *  # noqa
 from westpa.core.states import BasisState, InitialState, return_state_type
@@ -181,21 +182,31 @@ class ExecutablePropagator(WESTPropagator):
             else:
                 dspath = None
 
-            if callable(loader_directive):  # If directly callable, then use it
-                loader = loader_directive
-            elif dsname in ['trajectory']:  # Special dataset for saving trajectory coordinates in HDF5 Framework
-                if loader_directive in trajectory_loaders:
-                    loader = trajectory_loaders[loader_directive]
-                else:
-                    loader = get_object(loader_directive, path=dspath)
-            elif dsname not in ['pcoord', 'seglog', 'restart']:  # If not a "protected" dataset names
-                if loader_directive in data_loaders:
-                    loader = data_loaders[loader_directive]
-                else:
-                    loader = get_object(loader_directive, path=dspath)
-            else:
-                # YOLO. Or maybe it wasn't specified.
-                loader = loader_directive
+            match loader_directive:
+                case loader_directive if callable(loader_directive):
+                    # If directly callable, then use it
+                    loader = loader_directive
+                case 'pcoord' | 'seglog' | 'restart':
+                    # These are "protected" dataset names
+                    if loader_directive in data_loaders:
+                        loader = data_loaders[loader_directive]
+                    else:
+                        loader = get_object(loader_directive)
+                case 'trajectory':
+                    # Special dataset for saving trajectory coordinates in HDF5 Framework
+                    if loader_directive in trajectory_loaders:
+                        loader = trajectory_loaders[loader_directive]
+                    else:
+                        loader = get_object(loader_directive, path=dspath)
+                case _:
+                    # All other dataset names
+                    if loader_directive in data_loaders:
+                        loader = data_loaders[loader_directive]
+                    elif isinstance(loader_directive, str):
+                        loader = get_object(loader_directive, path=dspath)
+                    else:
+                        # Assumed aux dataset, defaulting to aux_data_loader
+                        loader = aux_data_loader
 
             if loader:
                 dsinfo['loader'] = loader
