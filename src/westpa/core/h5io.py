@@ -594,6 +594,9 @@ class WESTIterationFile(HDF5TrajectoryFile):
     def has_restart(self, segment):
         return self._has_node('/restart', '%d_%d' % (segment.n_iter, segment.seg_id))
 
+    def has_seglog(self, segment):
+        return self._has_node('/log', '%d_%d' % (segment.n_iter, segment.seg_id))
+
     def write_data(self, where, name, data):
         node = self._get_node(where=where, name=name)
         node.append(data)
@@ -652,6 +655,13 @@ class WESTIterationFile(HDF5TrajectoryFile):
             segment.data['iterh5/restart'] = data
         else:
             raise ValueError('no restart data available for {}'.format(str(segment)))
+
+    def read_seglog(self, segment):
+        if self.has_seglog(segment):
+            data = self.read_data('/log/%d_%d' % (segment.niter, segment.seg_id), 'data')
+            segment.data['iterh5/log'] = data
+        else:
+            raise ValueError('no log data available for {}'.format(str(segment)))
 
     def write_segment(self, segment, pop=False):
         n_iter = segment.n_iter

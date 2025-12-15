@@ -9,6 +9,8 @@ from westpa.core.propagators.executable import (
     aux_data_loader,
     restart_loader,
     restart_writer,
+    seglog_loader,
+    seglog_writer,
     ExecutablePropagator,
 )
 from westpa.core.segment import Segment
@@ -80,3 +82,25 @@ class Test_Loaders:
         # Do a shallow file comparison and make sure files tarred up and written out matches
         (matches, mismatches, errors) = cmpfiles(self.return_dir, self.write_dir, ['nacl.prmtop', 'nacl.ncrst'])
         assert sum([True if file in self.nacl_restart_files else False for file in matches]) == 2
+
+    def test_seglog_loader_writer(self, nacl_restart_files):
+        '''Test if the log file can be saved and reloaded correctly.'''
+
+        # Make a dummy segment and read/write the seglog file
+        test_segment = Segment()
+
+        # Generate dummy log file
+        dummy_text = 'abc\nlog\nend'
+        self.test_file_path = self.test_dir / 'test.log'
+        with open(self.test_file_path, 'w') as text_file:
+            text_file.write(dummy_text)
+
+        # Save the file into
+        seglog_loader('log', self.test_file_path, test_segment, False)
+
+        # Write the current file into self.write_dir
+        seglog_writer(self.write_dir, test_segment)
+
+        # Check to ensure contents are preserved
+        with open(self.write_dir / 'seg.log', 'r') as text_file:
+            assert text_file.read() == dummy_text
