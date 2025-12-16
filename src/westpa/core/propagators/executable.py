@@ -22,6 +22,7 @@ from westpa.core.yamlcfg import check_bool
 
 from westpa.core.trajectory import load_trajectory
 from westpa.core.h5io import safe_extract
+from westpa.westext.trajectorystreaming.assign_port import assign_port
 
 log = logging.getLogger(__name__)
 
@@ -191,6 +192,9 @@ class ExecutablePropagator(WESTPropagator):
     ENV_RAND128 = 'WEST_RAND128'
     ENV_RANDFLOAT = 'WEST_RANDFLOAT'
 
+    # Environment variable for port assignment for trajectory streaming
+    ENV_PORT = 'WEST_SEG_PORT'
+
     def __init__(self, rc=None):
         super().__init__(rc)
 
@@ -206,6 +210,7 @@ class ExecutablePropagator(WESTPropagator):
         self.exe_info['post_iteration'] = {}
         self.exe_info['get_pcoord'] = {}
         self.exe_info['gen_istate'] = {}
+        self.exe_info['stream_trajectory'] = {}
 
         # A mapping of data set name ('pcoord', 'coord', 'com', etc) to a dictionary of
         # attributes like 'loader', 'dtype', etc
@@ -235,7 +240,15 @@ class ExecutablePropagator(WESTPropagator):
         self.addtl_child_environ.update({k: str(v) for k, v in (config['west', 'executable', 'environ'] or {}).items()})
 
         # Load configuration items relating to child processes
-        for child_type in ('propagator', 'pre_iteration', 'post_iteration', 'get_pcoord', 'gen_istate', 'subgroup_walkers'):
+        for child_type in (
+            'propagator',
+            'pre_iteration',
+            'post_iteration',
+            'get_pcoord',
+            'gen_istate',
+            'subgroup_walkers',
+            'stream_trajectory',
+        ):
             child_info = config.get(['west', 'executable', child_type])
             if not child_info:
                 continue
@@ -341,6 +354,9 @@ class ExecutablePropagator(WESTPropagator):
             self.ENV_RAND128: str(int(self.rng.integers(2**64, dtype=np.uint64)) + int(self.rng.integers(2**64, dtype=np.uint64))),
             self.ENV_RANDFLOAT: str(self.rng.random()),
         }
+
+    def port_env_vars(self, seg_id):
+        return {self.ENV_PORT: str(assign_port(seg_id))}
 
     def exec_child(self, executable, environ=None, stdin=None, stdout=None, stderr=None, cwd=None):
         '''Execute a child process with the environment set from the current environment, the
@@ -524,6 +540,24 @@ class ExecutablePropagator(WESTPropagator):
         environ.update(addtl_env or {})
         return self.exec_child_from_child_info(child_info, template_args, environ)
 
+    def exec_for_trajectory_streaming(self, child_info, segment, addtl_env=None):
+        '''Execute a child process for trajectory streaming.
+        This is used to stream trajectory data for on-the-fly analysis.'''
+        # log.debug('Executing trajectory streaming child with child info: {!r}'.format( child_info))
+        # log.debug('Segment for trajectory streaming child: {!r}'.format(segment))
+
+        template_args, environ = {}, {}
+        self.update_args_env_iter(template_args, environ, segment.n_iter)
+        # self.update_args_env_segment(template_args, environ, segment)
+        # Add the segment info to template_args
+        # this is typically done in the update_args_env_segment method
+        # but this requires istate and bstate info
+        template_args['segment'] = segment
+        environ.update(addtl_env or {})
+        log.debug('Environment for trajectory streaming child: {!r}'.format(environ))
+        log.debug('Template args for trajectory streaming child: {!r}'.format(template_args))
+        return self.exec_child_from_child_info(child_info, template_args, environ)
+
     def prepare_file_system(self, segment, environ):
         try:
             # If the filesystem is properly clean.
@@ -685,6 +719,32 @@ class ExecutablePropagator(WESTPropagator):
                 if rc != 0:
                     log.warning('post-iteration executable {!r} returned {}'.format(child_info['executable'], rc))
 
+    def stream_trajectory(self, segments):
+        child_info = self.exe_info['stream_trajectory']
+        log.debug('trajectory streaming executable: %s' % child_info['executable'])
+        for segment in segments:
+            # NEED TO CHECK
+            # Can we just call this function again to get the correct variables for the dataset?
+            # addtl_env, return_files, del_return_files = self.setup_dataset_return(segment)
+            # Assign a port for trajectory streaming
+            # TODO - need to find a way to return the data to the correct place
+            addtl_env = {}
+            addtl_env.update(self.port_env_vars(segment.seg_id))
+            # If trajectory streaming is enabled, a trajectory streaming executable is spawned for each segment
+            log.debug('spawning trajectory streaming executable for segment %d' % segment.seg_id)
+            log.debug('trajectory streaming executable environment: %s' % addtl_env)
+            # Pass the additional environment variables to the trajectory streaming executable
+            rc_stream, rusage_stream = self.exec_for_trajectory_streaming(child_info, segment, addtl_env)
+            if rc_stream == 0:
+                log.debug('trajectory streaming child process for segment %d completed successfully' % segment.seg_id)
+            elif rc_stream < 0:
+                log.error(
+                    'trajectory streaming child process for segment %d exited on signal %d (%s)'
+                    % (segment.seg_id, -rc_stream, SIGNAL_NAMES[-rc_stream])
+                )
+            else:
+                log.error('trajectory streaming child process for segment %d exited with code %d' % (segment.seg_id, rc_stream))
+
     def propagate(self, segments):
         child_info = self.exe_info['propagator']
 
@@ -692,6 +752,12 @@ class ExecutablePropagator(WESTPropagator):
             starttime = time.time()
 
             addtl_env, return_files, del_return_files = self.setup_dataset_return(segment)
+
+            # Check if trajectory streaming is enabled
+            traj_stream_child_info = self.exe_info.get('stream_trajectory')
+            if traj_stream_child_info and traj_stream_child_info['enabled']:
+                # Assign a port for trajectory streaming
+                addtl_env.update(self.port_env_vars(segment.seg_id))
 
             # Spawn propagator and wait for its completion
             rc, rusage = self.exec_for_segment(child_info, segment, addtl_env)

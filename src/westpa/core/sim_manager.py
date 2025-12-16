@@ -45,6 +45,7 @@ class WESimManager:
         self.save_transition_matrices = config.get(['west', 'propagation', 'save_transition_matrices'], False)
         self.max_run_walltime = config.get(['west', 'propagation', 'max_run_wallclock'], default=None)
         self.max_total_iterations = config.get(['west', 'propagation', 'max_total_iterations'], default=None)
+        self.do_trajectory_streaming = config.get(['west', 'executable', 'stream_trajectory', 'enabled'], default=False)
 
     def __init__(self, rc=None):
         self.rc = rc or westpa.rc
@@ -77,6 +78,7 @@ class WESimManager:
         self.save_transition_matrices = False
         self.max_run_walltime = None
         self.max_total_iterations = None
+        self.do_trajectory_streaming = False
         self.process_config()
 
         # Per-iteration variables
@@ -594,6 +596,7 @@ class WESimManager:
         # all futures dispatched for this iteration
         futures = set()
         segment_futures = set()
+        stream_futures = set()
 
         # Immediately dispatch any necessary initial state generation
         istate_gen_futures = self.get_istate_futures()
@@ -605,6 +608,13 @@ class WESimManager:
             pbstates, pistates = westpa.core.states.pare_basis_initial_states(
                 self.current_iter_bstates, list(self.current_iter_istates.values()), segment_block
             )
+            # If trajectory streaming is enabled submit a streaming process
+            if self.do_trajectory_streaming:
+                log.debug('streaming trajectory for segment block of length: {:d}'.format(len(segment_block)))
+                future = self.work_manager.submit(wm_ops.stream_trajectory, args=(segment_block,))
+                futures.add(future)
+                stream_futures.add(future)
+
             future = self.work_manager.submit(wm_ops.propagate, args=(pbstates, pistates, segment_block))
             futures.add(future)
             segment_futures.add(future)
@@ -638,6 +648,9 @@ class WESimManager:
                 with self.data_manager.expiring_flushing_lock():
                     self.data_manager.update_initial_states([initial_state], n_iter=self.n_iter + 1)
                 self.we_driver.avail_initial_states[initial_state.state_id] = initial_state
+            elif future in stream_futures:
+                stream_futures.remove(future)
+                log.debug('streaming future completed')
             else:
                 log.error('unknown future {!r} received from work manager'.format(future))
                 raise AssertionError('untracked future {!r}'.format(future))
