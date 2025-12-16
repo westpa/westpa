@@ -47,6 +47,8 @@ dependencies = [
   "tqdm",
   "pandas",
   "tables",
+  "dask",
+  "distributed",
 ]
 
 [project.optional-dependencies]
