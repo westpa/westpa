@@ -16,10 +16,16 @@ from . import serial, threads, processes  # noqa
 from .serial import SerialWorkManager
 from .threads import ThreadsWorkManager
 from .processes import ProcessWorkManager
+from .dask import DaskWorkManager
 
 log = logging.getLogger(__name__)
 
-_available_work_managers = {'serial': SerialWorkManager, 'threads': ThreadsWorkManager, 'processes': ProcessWorkManager}
+_available_work_managers = {
+    'serial': SerialWorkManager,
+    'threads': ThreadsWorkManager,
+    'processes': ProcessWorkManager,
+    'dask': DaskWorkManager,
+}
 
 # Import ZeroMQ work manager if available
 try:

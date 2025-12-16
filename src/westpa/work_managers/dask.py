@@ -1,5 +1,6 @@
 from dask import distributed
 
+import westpa.work_managers as work_managers
 from .core import WorkManager, WMFuture
 
 
@@ -58,3 +59,20 @@ class DaskWorkManager(WorkManager):
         kwargs = kwargs or {}
         future = self.client.submit(fn, *args, **kwargs)
         return _FutureWrapper(future)
+
+    @classmethod
+    def add_wm_args(cls, parser, wmenv=None):
+        wmenv = wmenv or work_managers.environment.default_env
+        group = parser.add_argument_group('options for Dask work manager')
+        group.add_argument(
+            wmenv.arg_flag('dask_scheduler_address'),
+            metavar='SCHEDULER_ADDRESS',
+            help="Address of the task scheduler (e.g., '127.0.0.1:8786').",
+        )
+
+    @classmethod
+    def from_environ(cls, wmenv=None):
+        wmenv = wmenv or work_managers.environment.default_env
+        address = wmenv.get_val('dask_scheduler_address')
+        client = distributed.Client(address)
+        return cls(client)
