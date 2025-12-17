@@ -1,3 +1,5 @@
+from itertools import islice
+
 from dask import distributed
 
 import westpa.work_managers as work_managers
@@ -40,6 +42,9 @@ class _FutureWrapper(WMFuture):
     def done(self):
         return self.is_done()
 
+    def to_dask(self):
+        return self.future
+
 
 class DaskWorkManager(WorkManager):
     """Submits computations to a Dask cluster.
@@ -60,6 +65,21 @@ class DaskWorkManager(WorkManager):
         kwargs = kwargs or {}
         future = self.client.submit(fn, *args, **kwargs)
         return _FutureWrapper(future)
+
+    def as_completed(self, futures):
+        fmap = {future.to_dask(): future for future in futures}
+        for future in distributed.as_completed(fmap.keys()):
+            yield fmap[future]
+
+    def submit_as_completed(self, task_generator, queue_size=None):
+        futures = [self.submit(fn, args, kwargs) for (fn, args, kwargs) in islice(task_generator, queue_size)]
+        pending = set(futures)
+        while pending:
+            completed, pending = distributed.wait(pending, return_when='FIRST_COMPLETED')
+            futures = [self.submit(fn, args, kwargs) for (fn, args, kwargs) in islice(task_generator, len(completed))]
+            pending.update(futures)
+            for future in completed:
+                yield future
 
     @classmethod
     def add_wm_args(cls, parser, wmenv=None):

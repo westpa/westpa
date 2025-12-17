@@ -58,6 +58,7 @@ __all__ = [
     'SerialWorkManager',
     'ThreadsWorkManager',
     'ProcessWorkManager',
+    'DaskWorkManager',
     'environment',
     'make_work_manager',
 ]
