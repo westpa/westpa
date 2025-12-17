@@ -73,13 +73,13 @@ class DaskWorkManager(WorkManager):
 
     def submit_as_completed(self, task_generator, queue_size=None):
         futures = [self.submit(fn, args, kwargs) for (fn, args, kwargs) in islice(task_generator, queue_size)]
-        pending = set(futures)
+        pending = {future.to_dask() for future in futures}
         while pending:
             completed, pending = distributed.wait(pending, return_when='FIRST_COMPLETED')
             futures = [self.submit(fn, args, kwargs) for (fn, args, kwargs) in islice(task_generator, len(completed))]
-            pending.update(futures)
+            pending |= {future.to_dask() for future in futures}
             for future in completed:
-                yield future
+                yield _FutureWrapper(future)
 
     @classmethod
     def add_wm_args(cls, parser, wmenv=None):
