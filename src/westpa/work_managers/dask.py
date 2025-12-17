@@ -47,6 +47,7 @@ class DaskWorkManager(WorkManager):
     Parameters
     ----------
     client : dask.distributed.Client, optional
+        Connection to a Dask cluster. Defaults to ``Client()``.
 
     """
 
