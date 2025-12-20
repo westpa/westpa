@@ -1,7 +1,8 @@
 from itertools import islice
 
-from dask import distributed
+import dask.distributed as distributed
 
+import westpa
 import westpa.work_managers as work_managers
 from .core import WorkManager
 
@@ -58,6 +59,16 @@ class _DaskFutureWrapper:
         return self.future
 
 
+class _RCSetter(distributed.WorkerPlugin):
+    # Distributes the client's westpa.rc instance to workers.
+
+    def __init__(self):
+        self.rc = westpa.rc
+
+    def setup(self, worker):
+        westpa.rc = self.rc
+
+
 class DaskWorkManager(WorkManager):
     """Submits computations to a Dask cluster.
 
@@ -71,6 +82,11 @@ class DaskWorkManager(WorkManager):
     def __init__(self, client=None):
         super().__init__()
         self.client = client or distributed.Client()
+        self.client.register_plugin(_RCSetter())
+
+    def shutdown(self):
+        self.client.shutdown()
+        super().shutdown()
 
     def submit(self, fn, args=None, kwargs=None):
         args = args or ()
