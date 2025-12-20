@@ -1,3 +1,4 @@
+import os
 from itertools import islice
 
 import dask.distributed as distributed
@@ -60,12 +61,15 @@ class _DaskFutureWrapper:
 
 
 class _RCSetter(distributed.WorkerPlugin):
-    # Distributes the client's westpa.rc instance to workers.
+    # Distributes the client's WEST_SIM_ROOT environment variable and
+    # global westpa.rc instance to workers.
 
     def __init__(self):
+        self.sim_root = os.environ.get('WEST_SIM_ROOT')
         self.rc = westpa.rc
 
     def setup(self, worker):
+        os.environ['WEST_SIM_ROOT'] = self.sim_root
         westpa.rc = self.rc
 
 
