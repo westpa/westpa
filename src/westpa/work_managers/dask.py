@@ -3,14 +3,22 @@ from itertools import islice
 from dask import distributed
 
 import westpa.work_managers as work_managers
-from .core import WorkManager, WMFuture
+from .core import WorkManager
 
 
-class _FutureWrapper(WMFuture):
+class _DaskFutureWrapper:
+    # WMFuture-like interface to a dask.distributed.Future object.
 
-    def __init__(self, future: distributed.Future):
+    def __init__(self, future):
         super().__init__()
         self.future = future
+        self._result = None
+
+    def __repr__(self):
+        return type(self).__name__ + '(' + repr(self.future) + ')'
+
+    def __hash__(self):
+        return hash(self.future)
 
     def get_result(self, discard=True):
         result = self.future.result()
@@ -29,6 +37,10 @@ class _FutureWrapper(WMFuture):
 
     def wait(self):
         distributed.wait([self.future])
+
+    @property
+    def result(self):
+        return self.get_result(discard=False)
 
     @property
     def exception(self):
@@ -64,11 +76,11 @@ class DaskWorkManager(WorkManager):
         args = args or ()
         kwargs = kwargs or {}
         future = self.client.submit(fn, *args, **kwargs)
-        return _FutureWrapper(future)
+        return _DaskFutureWrapper(future)
 
     def as_completed(self, futures):
         fmap = {future.to_dask(): future for future in futures}
-        for future in distributed.as_completed(fmap.keys()):
+        for future in distributed.as_completed(fmap):
             yield fmap[future]
 
     def submit_as_completed(self, task_generator, queue_size=None):
@@ -79,7 +91,12 @@ class DaskWorkManager(WorkManager):
             futures = [self.submit(fn, args, kwargs) for (fn, args, kwargs) in islice(task_generator, len(completed))]
             pending |= {future.to_dask() for future in futures}
             for future in completed:
-                yield _FutureWrapper(future)
+                yield _DaskFutureWrapper(future)
+
+    def wait_any(self, futures):
+        fmap = {future.to_dask(): future for future in futures}
+        completed, pending = distributed.wait(list(fmap), return_when='FIRST_COMPLETED')
+        return fmap[completed.pop()]
 
     @classmethod
     def add_wm_args(cls, parser, wmenv=None):
