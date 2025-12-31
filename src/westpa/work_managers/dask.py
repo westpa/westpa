@@ -60,17 +60,17 @@ class _DaskFutureWrapper:
         return self.future
 
 
-class _RCSetter(distributed.WorkerPlugin):
-    # Distributes the client's WEST_SIM_ROOT environment variable and
-    # global westpa.rc instance to workers.
+class _ConfigSetter(distributed.WorkerPlugin):
+    # Distributes the client's WEST_SIM_ROOT environment variable and global
+    # westpa.rc.config instance to workers.
 
     def __init__(self):
-        self.sim_root = os.environ.get('WEST_SIM_ROOT')
-        self.rc = westpa.rc
+        self.sim_root = os.environ.get('WEST_SIM_ROOT') or os.getcwd()
+        self.config = westpa.rc.config
 
     def setup(self, worker):
         os.environ['WEST_SIM_ROOT'] = self.sim_root
-        westpa.rc = self.rc
+        westpa.rc.config = self.config
 
 
 class DaskWorkManager(WorkManager):
@@ -86,10 +86,10 @@ class DaskWorkManager(WorkManager):
     def __init__(self, client=None):
         super().__init__()
         self.client = client or distributed.Client()
-        self.client.register_plugin(_RCSetter())
+        self.client.register_plugin(_ConfigSetter())
 
     def shutdown(self):
-        self.client.shutdown()
+        self.client.close()
         super().shutdown()
 
     def submit(self, fn, args=None, kwargs=None):
