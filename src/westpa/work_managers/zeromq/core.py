@@ -211,17 +211,9 @@ class PassiveMultiTimer:
 
         new_idx = len(self._identifiers)
 
-        # Necessary due to coverage.py's use of a tracer triggering an error on resize
-        refcheck = True if sys.gettrace() is None else False
-
-        if not refcheck:
-            self._durations.resize((new_idx + 1,), refcheck=refcheck)
-            self._started.resize((new_idx + 1,), refcheck=refcheck)
-            self._identifiers.resize((new_idx + 1,), refcheck=refcheck)
-        else:
-            self._durations = np.resize(self._durations, (new_idx + 1,))
-            self._started = np.resize(self._started, (new_idx + 1,))
-            self._identifiers = np.resize(self._identifiers, (new_idx + 1,))
+        self._durations = np.resize(self._durations, (new_idx + 1,))
+        self._started = np.resize(self._started, (new_idx + 1,))
+        self._identifiers = np.resize(self._identifiers, (new_idx + 1,))
 
         self._durations[new_idx] = duration
         self._started[new_idx] = time.time()
