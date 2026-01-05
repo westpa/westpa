@@ -211,13 +211,10 @@ class PassiveMultiTimer:
 
         new_idx = len(self._identifiers)
 
-        self._durations = np.resize(self._durations, (new_idx + 1,))
-        self._started = np.resize(self._started, (new_idx + 1,))
-        self._identifiers = np.resize(self._identifiers, (new_idx + 1,))
+        self._durations = np.pad(self._durations, (0, 1), mode='constant', constant_values=duration)
+        self._started = np.pad(self._started, (0, 1), mode='constant', constant_values=time.time())
+        self._identifiers = np.pad(self._identifiers, (0, 1), mode='constant', constant_values=identifier)
 
-        self._durations[new_idx] = duration
-        self._started[new_idx] = time.time()
-        self._identifiers[new_idx] = identifier
         self._indices[identifier] = new_idx
 
     def remove_timer(self, identifier):
