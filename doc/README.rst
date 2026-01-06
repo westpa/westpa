@@ -34,7 +34,7 @@ WESTPA is free software, licensed under the terms of the MIT License. See the fi
 Requirements
 ------------
 
-WESTPA is written in Python and requires version 3.9 or later. WESTPA further
+WESTPA is written in Python and requires version 3.10 or later. WESTPA further
 requires a large number of scientific software libraries for Python and other
 languages. The simplest way to meet these requirements is to download the
 Anaconda Python distribution from www.continuum.io (free for all users).
@@ -67,7 +67,7 @@ See the install instructions on our `wiki`_ for more detailed information.
 
 To install from source (**not recommended**), start by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
 
-    tar xvzf westpa-2022.11.tar.gz
+    tar xvzf westpa-2022.12.tar.gz
     cd westpa
     python -m pip install -e .
 

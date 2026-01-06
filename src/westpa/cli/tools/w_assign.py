@@ -340,14 +340,15 @@ Command-line options
         from westpa.core._rc import bins_from_yaml_dict
 
         self.binning.mapper = bins_from_yaml_dict(config['analysis_schemes'][scheme]['bins'][0])
+
+        # Output file/folder wrangling
         path = os.path.join(os.getcwd(), config['directory'], scheme)
+        self.output_filename = os.path.join(path, 'assign.h5')
+
         try:
-            os.mkdir(config['directory'])
-            os.mkdir(path)
+            os.makedirs(path, exist_ok=True)
         except Exception:
             pass
-
-        self.output_filename = os.path.join(path, 'assign.h5')
 
     def load_state_file(self, state_filename):
         import yaml
