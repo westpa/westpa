@@ -1,13 +1,8 @@
 import itertools
-import warnings
 import sys
 
 import numpy as np
-
-try:
-    import pandas as pd
-except ImportError:
-    pd = None
+import pandas as pd
 
 from westpa.core.binning.assign import BinMapper
 from westpa.core.h5io import WESTPAH5File, tostr
@@ -30,11 +25,6 @@ class Run:
 
     def __init__(self, h5filename='west.h5'):
         self.h5filename = h5filename
-        if pd is None:
-            warnings.warn(
-                "A lot of `westpa.analysis` rely on optional dependency `pandas`. Note that "
-                "some functions (e.g., summaries) might not work since you do not have `pandas` installed."
-            )
 
     def __enter__(self):
         return self
