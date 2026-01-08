@@ -44,6 +44,7 @@ dependencies = [
   "matplotlib",
   "blessings",
   "ipykernel",
+  "pandas",
   "tqdm",
   "tables",
 ]
