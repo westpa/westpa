@@ -5,7 +5,7 @@ import tarfile
 from io import BytesIO
 
 import westpa
-from westpa.core.trajectory import load_mdtraj, load_netcdf, load_mda
+from westpa.core.trajectory import load_mdtraj, load_netcdf, load_mdanalysis
 from westpa.core.h5io import safe_extract
 
 log = logging.getLogger(__name__)
@@ -87,12 +87,12 @@ def netcdf_trajectory_loader(fieldname, coord_folder, segment, single_point):
         mdtraj_trajectory_loader(fieldname, coord_folder, segment, single_point)
 
 
-def mda_trajectory_loader(fieldname, coord_folder, segment, single_point):
+def mdanalysis_trajectory_loader(fieldname, coord_folder, segment, single_point):
     '''Load data from the trajectory return. ``coord_folder`` should be the path to a folder
     containing trajectory files. ``segment`` is the ``Segment`` object that the data is associated with.
-    Please see ``load_mda`` for more details. ``single_point`` is not used by this loader.'''
+    Please see ``load_mdanalysis`` for more details. ``single_point`` is not used by this loader.'''
     try:
-        data = load_mda(coord_folder)
+        data = load_mdanalysis(coord_folder)
         segment.data['iterh5/trajectory'] = data
     except Exception as e:
         log.warning('Falling back to default loader for {}: {}'.format(fieldname, str(e)))
@@ -179,7 +179,7 @@ trajectory_loaders = {
     'mdtraj_trajectory_loader': mdtraj_trajectory_loader,
     'amber_trajectory_loader': netcdf_trajectory_loader,
     'netcdf_trajectory_loader': netcdf_trajectory_loader,
-    'mda_trajectory_loader': mda_trajectory_loader,
-    'MDAnalysis_trajectory_loader': mda_trajectory_loader,
-    'mdanalysis_trajectory_loader': mda_trajectory_loader,
+    'mda_trajectory_loader': mdanalysis_trajectory_loader,
+    'MDAnalysis_trajectory_loader': mdanalysis_trajectory_loader,
+    'mdanalysis_trajectory_loader': mdanalysis_trajectory_loader,
 }

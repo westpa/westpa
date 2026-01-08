@@ -62,7 +62,7 @@ def loadNameReplacementTables():
     return residueNameReplacements, atomNameReplacements
 
 
-def convert_mda_top_to_mdtraj(universe):
+def convert_mdanalysis_top_to_mdtraj(universe):
     '''Convert a MDAnalysis Universe object's topology to a ``mdtraj.Topology`` object.'''
 
     from mdtraj import Topology
@@ -541,7 +541,7 @@ def load_netcdf(folder):
     return WESTTrajectory(**map_dataset)
 
 
-def load_mda(folder):
+def load_mdanalysis(folder):
     '''Load a file from ``folder`` using ``MDAnalysis`` and return a ``mdtraj.Trajectory``
     object. The folder should contain a trajectory and a topology file (with a recognizable
     extension) that is supported by ``MDAnalysis``. The topology file is optional if the
