@@ -44,6 +44,7 @@ Version history:
 """
 
 import logging
+import os
 import pickle
 import posixpath
 import sys
@@ -65,7 +66,6 @@ from . import h5io
 from .segment import Segment
 from .states import BasisState, TargetState, InitialState
 from .we_driver import NewWeightEntry
-from .propagators.executable import ExecutablePropagator
 
 import westpa
 
@@ -74,7 +74,21 @@ log = logging.getLogger(__name__)
 
 file_format_version = 10
 
-makepath = ExecutablePropagator.makepath
+
+def makepath(template, template_args=None, expanduser=True, expandvars=True, abspath=False, realpath=False):
+    """Function for manipulating paths. Used in ExecutablePropagator as well."""
+    template_args = template_args or {}
+    path = template.format(**template_args)
+    if expandvars:
+        path = os.path.expandvars(path)
+    if expanduser:
+        path = os.path.expanduser(path)
+    if realpath:
+        path = os.path.realpath(path)
+    if abspath:
+        path = os.path.abspath(path)
+    path = os.path.normpath(path)
+    return path
 
 
 class flushing_lock:

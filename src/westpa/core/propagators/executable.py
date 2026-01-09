@@ -10,6 +10,7 @@ import time
 import numpy as np
 from numpy.random import MT19937, Generator
 
+from westpa.core.data_manager import makepath
 from westpa.core.extloader import get_object
 from westpa.core.propagators import WESTPropagator
 from westpa.core.propagators.loaders import (
@@ -58,20 +59,7 @@ class ExecutablePropagator(WESTPropagator):
     ENV_RAND128 = 'WEST_RAND128'
     ENV_RANDFLOAT = 'WEST_RANDFLOAT'
 
-    @staticmethod
-    def makepath(template, template_args=None, expanduser=True, expandvars=True, abspath=False, realpath=False):
-        template_args = template_args or {}
-        path = template.format(**template_args)
-        if expandvars:
-            path = os.path.expandvars(path)
-        if expanduser:
-            path = os.path.expanduser(path)
-        if realpath:
-            path = os.path.realpath(path)
-        if abspath:
-            path = os.path.abspath(path)
-        path = os.path.normpath(path)
-        return path
+    makepath = staticmethod(makepath)
 
     def __init__(self, rc=None):
         super().__init__(rc)
