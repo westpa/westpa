@@ -10,6 +10,7 @@ import sys
 import time
 import logging
 import warnings
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -117,7 +118,7 @@ def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
         if not is_within_directory(path, member_path):
             raise Exception("Attempted Path Traversal in Tar File")
 
-    tar.extractall(path, members, numeric_owner=numeric_owner)
+    tar.extractall(path, members, numeric_owner=numeric_owner, filter='fully_trusted')
 
 
 #
@@ -447,7 +448,7 @@ class WESTPAH5File(h5py.File):
 
 class WESTIterationFile(HDF5TrajectoryFile):
     def __init__(self, file, mode='r', force_overwrite=True, compression='zlib', link=None):
-        if isinstance(file, str):
+        if isinstance(file, (str, Path)):
             super(WESTIterationFile, self).__init__(file, mode, force_overwrite, compression)
         else:
             try:
@@ -593,6 +594,9 @@ class WESTIterationFile(HDF5TrajectoryFile):
     def has_restart(self, segment):
         return self._has_node('/restart', '%d_%d' % (segment.n_iter, segment.seg_id))
 
+    def has_seglog(self, segment):
+        return self._has_node('/log', '%d_%d' % (segment.n_iter, segment.seg_id))
+
     def write_data(self, where, name, data):
         node = self._get_node(where=where, name=name)
         node.append(data)
@@ -652,6 +656,13 @@ class WESTIterationFile(HDF5TrajectoryFile):
         else:
             raise ValueError('no restart data available for {}'.format(str(segment)))
 
+    def read_seglog(self, segment):
+        if self.has_seglog(segment):
+            data = self.read_data('/log/%d_%d' % (segment.niter, segment.seg_id), 'data')
+            segment.data['iterh5/log'] = data
+        else:
+            raise ValueError('no log data available for {}'.format(str(segment)))
+
     def write_segment(self, segment, pop=False):
         n_iter = segment.n_iter
 
@@ -687,27 +698,72 @@ class WESTIterationFile(HDF5TrajectoryFile):
             if not self.has_pointer():
                 self._create_earray('/', name='pointer', atom=self.tables.Int64Atom(), shape=(0, 2))
 
+            try:
+                existing_labels = np.where(self.root['pointer'][:, 1] == traj.seg_labels[0])[0]
+            except ValueError:
+                existing_labels = []
+
             iter_idx = traj.iter_labels
             seg_idx = traj.seg_labels
 
             pointers = np.stack((iter_idx, seg_idx)).T
+            # This is to deal with the case where the simulation ended mid-iteration and some segment data are saved but itself not marked as complete yet.
+            if [segment.seg_id] in self.root['pointer'][:, 1]:
+                needed_extra = len(pointers) - len(existing_labels)
+                # If previous run did not save all frames
+                if needed_extra > 0:
+                    # Write extra rows for extra frames
+                    self.write_data('/', 'pointer', pointers[-needed_extra:])
 
-            self.write_data('/', 'pointer', pointers)
+                    # write trajectory for the extra rows
+                    output_dict = {
+                        'coordinates': in_units_of(traj.xyz[-needed_extra:], Trajectory._distance_unit, self.distance_unit),
+                        'time': traj.time[-needed_extra:],
+                    }
+                    if traj.unitcell_lengths:
+                        output_dict['cell_lengths'] = in_units_of(
+                            traj.unitcell_lengths[-needed_extra:], Trajectory._distance_unit, self.distance_unit
+                        )
+                        output_dict['cell_angles'] = (traj.unitcell_angles[-needed_extra:],)
 
-            # trajectory
-            self.write(
-                coordinates=in_units_of(traj.xyz, Trajectory._distance_unit, self.distance_unit),
-                time=traj.time,
-                cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
-                cell_angles=traj.unitcell_angles,
-            )
+                    self.write(**output_dict)
+                    needed_extra = len(existing_labels)
+                elif needed_extra < 0:
+                    # Extra frames found, turning pointer for those rows to sentinel
+                    log.warning(
+                        f'Extra frames for segment {n_iter}_{segment.seg_id} found in WESTIterationFile. Overwriting extra frame pointers with sentinal [-n_iter, seg_id].'
+                    )
+                    for row_idx in range(needed_extra, 0):
+                        self.root['pointer'][existing_labels[row_idx]] = [-n_iter, segment.seg_id]
+                    needed_extra = len(pointers)
+                else:
+                    # Number of Frames match. None will return all frames and traj.
+                    needed_extra = None
+
+                # Replace existing rows with corresponding data, up until specified
+                self.replace_frames(existing_labels[:needed_extra], traj[:needed_extra])
+
+            else:
+                # Write pointers
+                self.write_data('/', 'pointer', pointers)
+
+                # trajectory
+                self.write(
+                    coordinates=in_units_of(traj.xyz, Trajectory._distance_unit, self.distance_unit),
+                    time=traj.time,
+                    cell_lengths=in_units_of(traj.unitcell_lengths, Trajectory._distance_unit, self.distance_unit),
+                    cell_angles=traj.unitcell_angles,
+                )
 
             # topology
-            if self.mode == 'a':
-                if not self.has_topology():
+            try:
+                if self.mode == 'a':
+                    if not self.has_topology():
+                        self.topology = traj.topology
+                elif self.mode == 'w':
                     self.topology = traj.topology
-            elif self.mode == 'w':
-                self.topology = traj.topology
+            except (ModuleNotFoundError, ImportError):
+                pass
 
         # restart
         if restart is not None:
@@ -733,6 +789,14 @@ class WESTIterationFile(HDF5TrajectoryFile):
                 obj=slog,
                 createparents=True,
             )
+
+    def replace_frames(self, rows, traj):
+        datasets = {'coordinates': 'xyz', 'time': 'time', 'cell_angles': 'unitcell_angles', 'cell_lengths': 'unitcell_lengths'}
+
+        for ptkey, mdkey in datasets.items():
+            if self._has_node('/', ptkey) and getattr(traj, mdkey) is not None:
+                for frame_idx, row in enumerate(rows):
+                    self.root[ptkey][row] = getattr(traj, mdkey)[frame_idx]
 
     @property
     def _create_group(self):
