@@ -258,9 +258,9 @@ class WESTDataManager:
         self.iter_ref_h5_path_template = config.get(['west', 'data', 'data_refs', 'iteration'], None)
         try:
             # Generating path to a template file for per-iter h5 file
-            self.iter_ref_h5_template = re.sub(r'\{(.*?)\}', 'template', self.iter_ref_h5_path_template)
+            self.iter_h5_template_file_path = re.sub(r'\{(.*?)\}', 'template', self.iter_ref_h5_path_template)
         except TypeError:
-            self.iter_ref_h5_template = None
+            self.iter_h5_template_file_path = None
 
         # If not provided, turn HDF5 Framework off.
         self.store_h5 = self.iter_ref_h5_path_template is not None
@@ -296,7 +296,7 @@ class WESTDataManager:
 
         self._system = None
         self.iter_ref_h5_path_template = None  # Template for per-iter H5 file Path
-        self.iter_ref_h5_template = None  # Path to per-iter H5 template file
+        self.iter_h5_template_file_path = None  # Path to per-iter H5 template file
         self.store_h5 = False  # Indicates HDF5 Framework is activated or not
         self.template_copy_flag = False  # Flag indicating the template file was made this iteration
 
@@ -588,32 +588,34 @@ class WESTDataManager:
         west_h5_file = makepath(self.we_h5filename)
         iter_ref_h5_file = makepath(self.iter_ref_h5_path_template, {'n_iter': n_iter})
         iter_ref_rel_path = relpath(iter_ref_h5_file, dirname(west_h5_file))
-        if self.iter_ref_h5_template:
+        if self.iter_h5_template_file_path:
             # Make path to per-iter H5 File
-            iter_ref_h5_file_template = makepath(self.iter_ref_h5_template, {'n_iter': n_iter})
+            iter_h5_template_file_path_expanded = makepath(self.iter_h5_template_file_path)
 
             # Copy the template per-iter H5 file with topology
-            if exists(iter_ref_h5_file_template) and not exists(iter_ref_h5_file):
-                copyfile(iter_ref_h5_file_template, iter_ref_h5_file)
+            if exists(iter_h5_template_file_path_expanded) and not exists(iter_ref_h5_file):
+                copyfile(iter_h5_template_file_path_expanded, iter_ref_h5_file)
 
         with h5io.WESTIterationFile(iter_ref_h5_file, 'a') as outf:
             for segment in segments:
                 outf.write_segment(segment, True)
 
-        if self.iter_ref_h5_template and not exists(iter_ref_h5_file_template):
+        if self.iter_h5_template_file_path and not exists(iter_h5_template_file_path_expanded):
             # If template per-iter H5 file does not exist, copy and scrub out old data
-            copyfile(iter_ref_h5_file, iter_ref_h5_file_template)
-            with h5io.WESTIterationFile(iter_ref_h5_file_template, 'a') as outf:
+            copyfile(iter_ref_h5_file, iter_h5_template_file_path_expanded)
+            with h5io.WESTIterationFile(iter_h5_template_file_path_expanded, 'a') as outf:
                 outf.scrub_data()
 
             # Launch a subprocess to repack the file to reclaim space, replacing template with smaller file
             try:
-                run(f'h5repack {iter_ref_h5_file_template} {iter_ref_h5_file_template}_repacked', shell=True).check_returncode()
-                move(f'{iter_ref_h5_file_template}_repacked', iter_ref_h5_file_template)
+                run(
+                    f'h5repack {iter_h5_template_file_path_expanded} {iter_h5_template_file_path_expanded}_repacked.h5', shell=True
+                ).check_returncode()
+                move(f'{iter_h5_template_file_path_expanded}_repacked.h5', iter_h5_template_file_path_expanded)
             except CalledProcessError as e:  # Unsuccessful in repacking file
-                log.warning(f'Unable to repack into {iter_ref_h5_file_template}_repacked.h5: {e}')
-                if exists(f'{iter_ref_h5_file_template}_repacked.h5'):
-                    remove(f'{iter_ref_h5_file_template}_repacked.h5')
+                log.warning(f'Unable to repack into {iter_h5_template_file_path_expanded}_repacked.h5: {e}')
+                if exists(f'{iter_h5_template_file_path_expanded}_repacked.h5'):
+                    remove(f'{iter_h5_template_file_path_expanded}_repacked.h5')
 
         iter_group = self.get_iter_group(n_iter)
 
