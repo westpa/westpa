@@ -1,5 +1,6 @@
 import numpy as np
 import os
+from functools import cache
 
 from mdtraj import Trajectory
 
@@ -12,6 +13,7 @@ def parseResidueAtoms(residue, map):
             map[atom.attrib[id]] = name
 
 
+@cache
 def loadNameReplacementTables():
     '''Load the list of atom and residue name replacements. Taken from OpenMM 8.2.0.'''
 
@@ -459,6 +461,7 @@ def find_top_traj_file(folder, eligible_top, eligible_traj):
     return top_file, traj_file
 
 
+@cache
 def mdtraj_supported_extensions():
     from mdtraj import FormatRegistry, formats as mdformats
     from mdtraj.core.trajectory import _TOPOLOGY_EXTS
@@ -477,6 +480,7 @@ def mdtraj_supported_extensions():
     return TOPOLOGY_EXTS, TRAJECTORY_EXTS
 
 
+@cache
 def mdanalysis_supported_extensions():
     import MDAnalysis as mda
 
