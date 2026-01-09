@@ -685,13 +685,6 @@ class WESTIterationFile(HDF5TrajectoryFile):
         restart = get_data('iterh5/restart', None)
         slog = get_data('iterh5/log', None)
 
-        # topology
-        if self.mode == 'a':
-            if not self.has_topology():
-                self.topology = traj.topology
-        elif self.mode == 'w':
-            self.topology = traj.topology
-
         if traj is not None:
             # create trajectory object or if already is, skip.
             if not isinstance(traj, WESTTrajectory):
