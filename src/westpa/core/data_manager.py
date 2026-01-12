@@ -269,15 +269,15 @@ class WESTDataManager:
         self.flush_period = config.get(['west', 'data', 'flush_period'], self.default_flush_period)
 
         # Path to per-iter h5 file
-        self.iter_ref_h5_path_template = config.get(['west', 'data', 'data_refs', 'iteration'], None)
+        self.iter_h5_path_template = config.get(['west', 'data', 'data_refs', 'iteration'], None)
         try:
             # Generating path to a template file for per-iter h5 file
-            self.iter_h5_template_file_path = re.sub(r'\{(.*?)\}', 'template', self.iter_ref_h5_path_template)
+            self.iter_h5_template_file_path = re.sub(r'\{(.*?)\}', 'template', self.iter_h5_path_template)
         except TypeError:
             self.iter_h5_template_file_path = None
 
         # If not provided, turn HDF5 Framework off.
-        self.store_h5 = self.iter_ref_h5_path_template is not None
+        self.store_h5 = self.iter_h5_path_template is not None
 
         # Process dataset options
         dsopts_list = config.get(['west', 'data', 'datasets']) or []
@@ -309,7 +309,7 @@ class WESTDataManager:
         self.last_flush = 0
 
         self._system = None
-        self.iter_ref_h5_path_template = None  # Template for per-iter H5 file Path
+        self.iter_h5_path_template = None  # Template for per-iter H5 file Path
         self.iter_h5_template_file_path = None  # Path to per-iter H5 template file
         self.store_h5 = False  # Indicates HDF5 Framework is activated or not
         self.template_copy_flag = False  # Flag indicating the template file was made this iteration
@@ -600,7 +600,7 @@ class WESTDataManager:
             return
 
         west_h5_file = makepath(self.we_h5filename)
-        iter_ref_h5_file = makepath(self.iter_ref_h5_path_template, {'n_iter': n_iter})
+        iter_ref_h5_file = makepath(self.iter_h5_path_template, {'n_iter': n_iter})
         iter_ref_rel_path = relpath(iter_ref_h5_file, dirname(west_h5_file))
         if self.iter_h5_template_file_path:
             # Make path to per-iter H5 File
@@ -1216,7 +1216,7 @@ class WESTDataManager:
                 parent = Segment(n_iter=segment.n_iter - 1, seg_id=segment.parent_id)
 
             try:
-                parent_iter_ref_h5_file = makepath(self.iter_ref_h5_path_template, {'n_iter': parent.n_iter})
+                parent_iter_ref_h5_file = makepath(self.iter_h5_path_template, {'n_iter': parent.n_iter})
 
                 with h5io.WESTIterationFile(parent_iter_ref_h5_file, 'r') as outf:
                     outf.read_restart(parent)
