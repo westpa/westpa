@@ -101,8 +101,6 @@ class Test_Loaders:
         # Write the current file into self.write_dir
         seglog_writer(self.write_dir, test_segment)
 
-        print(self.write_dir)
-
         # Check to ensure contents are preserved
         with open(self.write_dir / 'seg.log', 'r') as text_file:
             assert text_file.read() == dummy_text
