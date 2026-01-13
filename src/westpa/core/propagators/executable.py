@@ -99,15 +99,13 @@ def restart_loader(fieldname, restart_folder, segment, single_point):
     and store it in the per-iteration HDF5 file. ``segment`` is the ``Segment`` object that
     the data is associated with. ``single_point`` is not used by this loader.'''
     try:
-        d = BytesIO()
-        with tarfile.open(mode='w:gz', fileobj=d) as t:
-            t.add(restart_folder, arcname='.')
+        with BytesIO() as d:
+            with tarfile.open(mode='w:gz', fileobj=d) as t:
+                t.add(restart_folder, arcname='.')
 
-        segment.data['iterh5/restart'] = d.getvalue() + b'\x01'  # add tail protection
+            segment.data['iterh5/restart'] = d.getvalue() + b'\x01'  # add tail protection
     except Exception as e:
         log.warning('could not read any {} data for HDF5 Framework: {}'.format(fieldname, str(e)))
-    finally:
-        d.close()
 
 
 def restart_writer(path, segment):
@@ -118,10 +116,9 @@ def restart_writer(path, segment):
         if restart is None:
             raise ValueError('restart data is not present')
 
-        d = BytesIO(restart[:-1])  # remove tail protection
-        with tarfile.open(fileobj=d, mode='r:gz') as t:
-            safe_extract(t, path=path)
-
+        with BytesIO(restart[:-1]) as d:  # remove tail protection
+            with tarfile.open(fileobj=d, mode='r:gz') as t:
+                safe_extract(t, path=path)
     except ValueError as e:
         log.warning('could not write HDF5 Framework restart data for {}: {}'.format(str(segment), str(e)))
         d = BytesIO()
@@ -133,25 +130,37 @@ def restart_writer(path, segment):
             )
     except Exception as e:
         log.warning('could not write HDF5 Framework restart data for {}: {}'.format(str(segment), str(e)))
-    finally:
-        d.close()
 
 
 def seglog_loader(fieldname, log_file, segment, single_point):
     '''Load data from the log return. The loader will tar all files in ``log_file``
     and store it in the per-iteration HDF5 file. ``segment`` is the ``Segment`` object that
-    the data is associated with. ``single_point`` is not used by this loader.'''
+    the data is associated with. ``single_point`` is not used by this loader. The file
+    will be renamed to seg.log by default.'''
     try:
-        d = BytesIO()
-        with tarfile.open(mode='w:gz', fileobj=d) as t:
-            t.add(log_file, arcname='.')
+        with BytesIO() as d:
+            with tarfile.open(mode='w:gz', fileobj=d) as t:
+                t.add(log_file, arcname='seg.log')
 
-        segment.data['iterh5/log'] = d.getvalue() + b'\x01'  # add tail protection
+            segment.data['iterh5/log'] = d.getvalue() + b'\x01'  # add tail protection
     except Exception as e:
-
         log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
-    finally:
-        d.close()
+
+
+def seglog_writer(path, segment):
+    '''Untar the log file from segment.'''
+    try:
+        seglog = segment.data.pop('iterh5/log', None)
+
+        # Making an exception for start states in iteration 1
+        if seglog is None:
+            raise ValueError('Log file is not present for segment: {}'.format(str(segment)))
+
+        with BytesIO(seglog[:-1]) as d:  # remove tail protection
+            with tarfile.open(fileobj=d, mode='r:gz') as t:
+                safe_extract(t, path=path)
+    except Exception as e:
+        log.warning('could not extract HDF5 Framework log file for {}: {}'.format(str(segment), str(e)))
 
 
 # Dictionary with all the possible loaders

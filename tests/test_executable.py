@@ -1,8 +1,18 @@
+from filecmp import cmpfiles
 import numpy as np
 import pickle
 import westpa
 
-from westpa.core.propagators.executable import npy_data_loader, pickle_data_loader, aux_data_loader, ExecutablePropagator
+from westpa.core.propagators.executable import (
+    npy_data_loader,
+    pickle_data_loader,
+    aux_data_loader,
+    restart_loader,
+    restart_writer,
+    seglog_loader,
+    seglog_writer,
+    ExecutablePropagator,
+)
 from westpa.core.segment import Segment
 
 
@@ -60,3 +70,37 @@ class Test_Loaders:
         test_array = test_segment.data['test'][:]
 
         assert np.array_equal(test_array, ref_array)
+
+    def test_restart_loader_writer(self, nacl_restart_files):
+        '''Test if the restart file can be read, saved and reloaded correctly.'''
+
+        # Make a dummy segment and read/write the restart files
+        test_segment = Segment()
+        restart_loader('restart', self.return_dir, test_segment, False)
+        restart_writer(self.write_dir, test_segment)
+
+        # Do a shallow file comparison and make sure files tarred up and written out matches
+        (matches, mismatches, errors) = cmpfiles(self.return_dir, self.write_dir, ['nacl.prmtop', 'nacl.ncrst'])
+        assert sum([True if file in self.nacl_restart_files else False for file in matches]) == 2
+
+    def test_seglog_loader_writer(self, nacl_restart_files):
+        '''Test if the log file can be saved and reloaded correctly.'''
+
+        # Make a dummy segment and read/write the seglog file
+        test_segment = Segment()
+
+        # Generate dummy log file
+        dummy_text = 'abc\nlog\nend'
+        self.test_file_path = self.test_dir / 'test.log'
+        with open(self.test_file_path, 'w') as text_file:
+            text_file.write(dummy_text)
+
+        # Save the file into
+        seglog_loader('log', self.test_file_path, test_segment, False)
+
+        # Write the current file into self.write_dir
+        seglog_writer(self.write_dir, test_segment)
+
+        # Check to ensure contents are preserved
+        with open(self.write_dir / 'seg.log', 'r') as text_file:
+            assert text_file.read() == dummy_text

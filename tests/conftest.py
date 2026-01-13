@@ -6,6 +6,7 @@ from shutil import copyfile, copy
 import numpy as np
 
 import westpa
+from westpa.core.h5io import WESTIterationFile
 
 
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
@@ -27,7 +28,8 @@ def copy_ref(dest_dir):
 
 def clear_state():
     os.chdir(STARTING_PATH)
-    del os.environ['WEST_SIM_ROOT']
+    if 'WEST_SIM_ROOT' in os.environ:
+        del os.environ['WEST_SIM_ROOT']
     westpa.rc = westpa.core._rc.WESTRC()
 
 
@@ -237,6 +239,20 @@ def ref_executable(request, tmp_path):
     request.addfinalizer(clear_state)
 
 
+@pytest.fixture(scope='function')
+def west_iteration_file(request, tmp_path):
+    os.chdir(tmp_path)
+    request.cls.h5_iter_file_path = tmp_path / 'WESTITERFILE.h5'
+
+    request.cls.rng = rng = np.random.default_rng()
+    request.cls.dummy_data = {'iterh5/trajectory': rng.uniform(low=-3, high=3, size=(4, 5, 3))}
+
+    # Initialize and close the file
+    WESTIterationFile(request.cls.h5_iter_file_path, mode='w').close()
+
+    request.addfinalizer(clear_state)
+
+
 @pytest.fixture
 def ref_mab(request, tmp_path):
     """
@@ -258,4 +274,18 @@ def ref_mab(request, tmp_path):
 
     request.cls.tmpdir = test_dir
 
-    request.addfinalizer(clear_state)
+
+@pytest.fixture
+def nacl_restart_files(request, tmp_path):
+    request.cls.test_dir = tmp_path
+    request.cls.return_dir = tmp_path / 'restart_return'
+    request.cls.write_dir = tmp_path / 'restart_write'
+
+    request.cls.nacl_restart_files = ['nacl.prmtop', 'nacl.ncrst']
+
+    os.chdir(tmp_path)
+    os.mkdir(request.cls.return_dir)
+    os.mkdir(request.cls.write_dir)
+
+    for file in request.cls.nacl_restart_files:
+        copyfile(os.path.join(REFERENCE_PATH, file), request.cls.return_dir / file)
