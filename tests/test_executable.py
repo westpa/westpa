@@ -9,7 +9,7 @@ from numpy.testing import assert_array_equal
 import westpa
 from westpa.core.propagators.executable import ExecutablePropagator
 from westpa.core.propagators.loaders import (
-    npy_data_loader,
+    numpy_data_loader,
     pickle_data_loader,
     aux_data_loader,
     restart_loader,
@@ -32,7 +32,7 @@ class Test_Executable:
         executable = ExecutablePropagator(rc=westpa.rc)
 
         assert 'displacement' in executable.data_info
-        assert executable.data_info['displacement']['loader'] == npy_data_loader
+        assert executable.data_info['displacement']['loader'] == numpy_data_loader
 
     def test_legacy_data_config(self, ref_executable):
         '''Test if the dataset config is initialized correctly using the legacy part, where propagator datasets have to be specified twice.'''
@@ -46,14 +46,14 @@ class Test_Executable:
 
 
 class Test_Loaders:
-    '''Class to test if npy_data_loader and pickle_date_loader are able to successfully add data into a dummy segment object.'''
+    '''Class to test if numpy_data_loader and pickle_data_loader are able to successfully add data into a dummy segment object.'''
 
-    def test_npy_loader(self, ref_idtype):
-        '''Test if data loaded with npy_data_loader is consistent.'''
+    def test_numpy_loader(self, ref_idtype):
+        '''Test if data loaded with numpy_data_loader is consistent.'''
 
         test_segment = Segment()
 
-        npy_data_loader('test', self.correct_pkl, test_segment, False)
+        numpy_data_loader('test', self.correct_pkl, test_segment, False)
 
         with open(self.correct_pkl, 'rb') as f:
             ref_array = pickle.load(f)
@@ -63,7 +63,7 @@ class Test_Loaders:
         assert np.array_equal(test_array, ref_array)
 
     def test_pickle_loader(self, ref_idtype):
-        '''Test if data loaded with npy_data_loader is consistent.'''
+        '''Test if data loaded with numpy_data_loader is consistent.'''
 
         test_segment = Segment()
 
