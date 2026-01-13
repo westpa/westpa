@@ -6,7 +6,6 @@ import numpy as np
 import pickle
 from numpy.testing import assert_array_equal
 
-
 import westpa
 from westpa.core.propagators.executable import ExecutablePropagator
 from westpa.core.propagators.loaders import (
