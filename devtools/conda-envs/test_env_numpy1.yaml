@@ -15,7 +15,6 @@ dependencies:
   - mpi4py
   - tqdm
   - mdtraj
-  - netcdf4
   - mdanalysis
   # testing
   - pytest
