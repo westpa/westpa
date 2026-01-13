@@ -1,8 +1,13 @@
+import pytest
 from filecmp import cmpfiles
+from io import StringIO
+
 import numpy as np
 import pickle
-import westpa
+from numpy.testing import assert_array_equal
 
+
+import westpa
 from westpa.core.propagators.executable import ExecutablePropagator
 from westpa.core.propagators.loaders import (
     npy_data_loader,
@@ -12,6 +17,7 @@ from westpa.core.propagators.loaders import (
     restart_writer,
     seglog_loader,
     seglog_writer,
+    pcoord_loader,
 )
 from westpa.core.segment import Segment
 
@@ -104,3 +110,33 @@ class Test_Loaders:
         # Check to ensure contents are preserved
         with open(self.write_dir / 'seg.log', 'r') as text_file:
             assert text_file.read() == dummy_text
+
+    def test_pcoord_loader_failures(self, ref_mab):
+        test_segment = Segment()
+
+        # Making test data
+        rng = np.random.default_rng()
+        c = rng.random(size=(11, 2), dtype=np.float32)
+        io_file = StringIO()
+        np.savetxt(io_file, c)
+
+        with pytest.raises(AssertionError):
+            pcoord_loader('test', c, test_segment, False)
+
+        with pytest.raises(ValueError, match=r'incorrect shape \(11, 2\) \[expected \(2, 1\)\]'):
+            io_file.seek(0)
+            pcoord_loader('pcoord', io_file, test_segment, False)
+
+    def test_pcoord_loader(self, ref_mab):
+        test_segment = Segment()
+
+        # Making test data
+        rng = np.random.default_rng()
+        c = rng.random(size=(2, 1), dtype=np.float32)
+        io_file = StringIO()
+        np.savetxt(io_file, c)
+
+        io_file.seek(0)
+        pcoord_loader('pcoord', io_file, test_segment, False)
+
+        assert_array_equal(test_segment.pcoord, c)
