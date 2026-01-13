@@ -28,31 +28,36 @@ class TestRectilinearBinMapper:
 
         assigner = RectilinearBinMapper([bounds])
         assert (assigner.assign(coords) == [0, 0, 1, 1, 2, 2, 2]).all()
+        assert list(assigner.labels) == ['[(0.0, 1.0)]', '[(1.0, 2.0)]', '[(2.0, 3.0)]']
 
     def test2dAssign(self):
+        """bin structure: [(a,b), (c,d)] => x in [a,b), y in [c, d)"""
+
         boundaries = [(-1, -0.5, 0, 0.5, 1), (-1, -0.5, 0, 0.5, 1)]
         coords = np.array([(-0.75, -0.75), (-0.25, -0.25), (0, 0), (0.25, 0.25), (0.75, 0.75), (-0.25, 0.75), (0.25, -0.75)])
         assigner = RectilinearBinMapper(boundaries)
 
-        """bin structure: [(a,b), (c,d)] => x in [a,b), y in [c, d)
-        0:[(-1, -0.5), (-1, -0.5)]
-        1:[(-1, -0.5), (-0.5, 0)]
-        2:[(-1, -0.5), (0, 0.5)]
-        3:[(-1, -0.5), (0.5, 1)]
-        4:[(-0.5, 0), (-1, -0.5)]
-        5:[(-0.5, 0), (-0.5, 0)]
-        6:[(-0.5, 0), (0, 0.5)]
-        7:[(-0.5, 0), (0.5, 1)]
-        8:[(0, 0.5), (-1, -0.5)]
-        9:[(0, 0.5), (-0.5, 0)]
-        10:[(0, 0.5), (0, 0.5)]
-        11:[(0, 0.5), (0.5, 1)]
-        12:[(0.5, 1), (-1, -0.5)]
-        13:[(0.5, 1), (-0.5, 0)]
-        14:[(0.5, 1), (0, 0.5)]
-        15:[(0.5, 1), (0.5, 1)]"""
+        expected_labels = [
+            '[(-1.0, -0.5), (-1.0, -0.5)]',
+            '[(-1.0, -0.5), (-0.5, 0.0)]',
+            '[(-1.0, -0.5), (0.0, 0.5)]',
+            '[(-1.0, -0.5), (0.5, 1.0)]',
+            '[(-0.5, 0.0), (-1.0, -0.5)]',
+            '[(-0.5, 0.0), (-0.5, 0.0)]',
+            '[(-0.5, 0.0), (0.0, 0.5)]',
+            '[(-0.5, 0.0), (0.5, 1.0)]',
+            '[(0.0, 0.5), (-1.0, -0.5)]',
+            '[(0.0, 0.5), (-0.5, 0.0)]',
+            '[(0.0, 0.5), (0.0, 0.5)]',
+            '[(0.0, 0.5), (0.5, 1.0)]',
+            '[(0.5, 1.0), (-1.0, -0.5)]',
+            '[(0.5, 1.0), (-0.5, 0.0)]',
+            '[(0.5, 1.0), (0.0, 0.5)]',
+            '[(0.5, 1.0), (0.5, 1.0)]',
+        ]
 
         assert (assigner.assign(coords) == [0, 5, 10, 10, 15, 7, 8]).all()
+        assert list(assigner.labels) == expected_labels
 
 
 class TestPiecewiseBinMapper:
@@ -287,8 +292,6 @@ class TestNestingBinMapper:
         output = rmapper.assign(coords)
         assert list(output) == [1, 1, 2, 2, 0, 3, 4]
 
-    # TODO: Fix this test
-    @pytest.mark.xfail(reason="known error in assign")
     def test2dRectilinearRecursion(self):
         '''
          0                            1                      2
@@ -296,7 +299,7 @@ class TestNestingBinMapper:
          |                            |         1.5          |
          |                            | +--------+---------+ |
          |                            | |        |         | |
-         |             0              | |   3    |   4     | |
+         |             0              | |   4    |   5     | |
          |                            | |        |         | |
          |                            | |        |         | |
          |                            | +--------+---------+ |
@@ -304,7 +307,7 @@ class TestNestingBinMapper:
          |            0.5             |                      |
          | +-----------+------------+ |                      |
          | |           |            | |                      |
-         | |    1      |     2      | |           5          |
+         | |    2      |     3      | |           1          |
          | |           |            | |                      |
          | |           |            | |                      |
          | +-----------+------------+ |                      |
@@ -325,12 +328,23 @@ class TestNestingBinMapper:
 
         assert rmapper.nbins == 6
         assignments = rmapper.assign(pairs)
-        expected = [0, 3, 4, 1, 2, 5]
+        labels = list(rmapper.labels)
+        expected = [0, 4, 5, 2, 3, 1]
+        expected_labels = [
+            '[(0.0, 1.0), (0.0, 1.0)]',
+            '[(1.0, 2.0), (1.0, 2.0)]',
+            '[(0.0, 0.5), (1.0, 2.0)]',
+            '[(0.5, 1.0), (1.0, 2.0)]',
+            '[(1.0, 1.5), (0.0, 1.0)]',
+            '[(1.5, 2.0), (0.0, 1.0)]',
+        ]
+
         print('PAIRS', pairs)
-        print('LABELS', list(rmapper.labels))
+        print('LABELS', labels)
         print('EXPECTED', expected)
         print('OUTPUT  ', assignments)
         assert (assignments == expected).all()
+        assert labels == expected_labels
 
 
 # Following section is for MAB Testing
