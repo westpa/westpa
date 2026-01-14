@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest"]  # macos-latest is arm64
-        python-version: [10, 11, 12, 13, 14] # sub-versions of Python
+        python-version: [11, 12, 13, 14] # sub-versions of Python
     steps:
       - uses: actions/checkout@v6
 
@@ -48,7 +48,10 @@ jobs:
           # Alma Linux 8 does not have blosc2 available so we're installing it via pip
           # PyTables doesn't detect python-blosc2 very well...
           # https://github.com/PyTables/PyTables/issues/998
-          CIBW_BEFORE_TEST_LINUX: 'dnf install -y hdf5 hdf5-devel && BLOSC2_DIR=$(python -c "import site; print(site.getsitepackages()[0])") && python -m pip install git+https://github.com/pytables/pytables'
+          CIBW_BEFORE_TEST_LINUX: >
+            dnf install -y hdf5 hdf5-devel && 
+            BLOSC2_DIR=$(python -c "import site; print(site.getsitepackages()[0])") && 
+            python -m pip install git+https://github.com/pytables/pytables
           CIBW_TEST_COMMAND: > 
             python -c "import westpa; print(westpa.__version__)" && 
             python -c "import westpa.core.propagators" &&
