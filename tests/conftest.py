@@ -36,11 +36,8 @@ def clear_state():
 
 @pytest.fixture
 def ref_3iter(request, tmp_path):
-    """
-    Fixture that prepares a simulation directory with a completed 3-iteration WESTPA,
-    west.h5, plus the config file west.cfg
-
-    """
+    """Fixture that prepares a simulation directory with a completed 3-iteration WESTPA,
+    west.h5, plus the config file west.cfg"""
 
     test_dir = str(tmp_path)
     os.chdir(test_dir)
@@ -61,6 +58,7 @@ def ref_3iter(request, tmp_path):
 @pytest.fixture
 def ref_cfg(request, tmp_path):
     """Fixture that prepares a simulation directory with a populated west.cfg file."""
+
     test_dir = str(tmp_path)
     os.chdir(test_dir)
 
@@ -88,8 +86,8 @@ def ref_initialized(request, tmp_path):
     """
     Fixture that prepares a simulation directory with an initialized WESTPA system,
     west.h5, plus the config file west.cfg
-
     """
+
     test_dir = str(tmp_path)
 
     os.chdir(test_dir)
@@ -112,8 +110,8 @@ def ref_50iter(request, tmp_path):
     """
     Fixture that prepares a simulation directory with a completed 50-iteration WESTPA,
     west.h5, plus the config file west.cfg
-
     """
+
     test_dir = str(tmp_path)
 
     os.chdir(test_dir)
@@ -136,8 +134,8 @@ def ref_multi(request, tmp_path):
     """
     Fixture that prepares a simulation directory for w_multi_west, including a master
     folder with sub folders 01, 02, 03 containing west_aux_ref.h5 renamed as west.h5.
-
     """
+
     test_dir = str(tmp_path)
 
     os.chdir(test_dir)
@@ -163,11 +161,9 @@ def ref_multi(request, tmp_path):
 
 @pytest.fixture
 def ref_multi_noaux(request, tmp_path):
-    """
-    Fixture that prepares a simulation directory for w_multi_west, including a master
-    folder with sub folders 01, 02, 03 containing west_aux_ref.h5 renamed as west.h5.
+    """Fixture that prepares a simulation directory for w_multi_west, including a master
+    folder with sub folders 01, 02, 03 containing west_aux_ref.h5 renamed as west.h5."""
 
-    """
     test_dir = str(tmp_path)
 
     os.chdir(test_dir)
@@ -194,6 +190,7 @@ def ref_multi_noaux(request, tmp_path):
 @pytest.fixture
 def ref_idtype(request, tmp_path):
     """Fixture that prepares the west.h5 file and also links in the "correct" istate dtype array."""
+
     test_dir = str(tmp_path)
     os.chdir(test_dir)
 
@@ -213,6 +210,7 @@ def ref_idtype(request, tmp_path):
 @pytest.fixture
 def ref_executable(request, tmp_path):
     """Fixture that prepares a simulation directory with a populated west_executable.cfg file."""
+
     test_dir = str(tmp_path)
     os.chdir(test_dir)
 
@@ -250,6 +248,7 @@ def west_iteration_file(request, tmp_path):
 @pytest.fixture
 def traj_setup(request, tmp_path):
     """Fixture for testing the trajectory reading capabilities of the HDF5 Framework"""
+
     test_dir = str(tmp_path)
 
     os.chdir(test_dir)
@@ -271,9 +270,7 @@ def traj_setup(request, tmp_path):
 
 @pytest.fixture
 def ref_mab(request, tmp_path):
-    """
-    Fixture that prepares an rc/sim_manager/WESTSystem from west_mab.cfg
-    """
+    """Fixture that prepares an rc/sim_manager/WESTSystem from west_mab.cfg"""
 
     test_dir = str(tmp_path)
 

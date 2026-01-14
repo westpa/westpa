@@ -10,7 +10,7 @@ from westpa.core.propagators.loaders import mdtraj_trajectory_loader, mdanalysis
 
 
 class TestHDF5Framework:
-    '''Class to test HDF5 Framework'''
+    """Class to test HDF5 Framework"""
 
     @pytest.mark.filterwarnings("ignore:Element information is missing")
     def test_load_mdanalysis(self, traj_setup):
@@ -53,6 +53,7 @@ class TestHDF5Framework:
 
     def test_mdanalysis_trajectory_loader_fail_import(self, traj_setup, monkeypatch):
         """Test fallback to MDTraj with `mdanalysis_trajectory_loader`"""
+
         dummy_segment = Segment()
 
         with monkeypatch.context() as m:

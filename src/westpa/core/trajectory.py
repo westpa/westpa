@@ -6,7 +6,8 @@ from mdtraj import Trajectory
 
 
 def parseResidueAtoms(residue, map):
-    '''Parse all atoms from residue. Taken from OpenMM 8.2.0.'''
+    """Parse all atoms from residue. Taken from OpenMM 8.2.0."""
+
     for atom in residue.findall('Atom'):
         name = atom.attrib['name']
         for id in atom.attrib:
@@ -15,7 +16,7 @@ def parseResidueAtoms(residue, map):
 
 @cache
 def loadNameReplacementTables():
-    '''Load the list of atom and residue name replacements. Taken from OpenMM 8.2.0.'''
+    """Load the list of atom and residue name replacements. Taken from OpenMM 8.2.0."""
 
     # importing things here because they're only used in this function
     try:
@@ -65,7 +66,7 @@ def loadNameReplacementTables():
 
 
 def convert_mdanalysis_top_to_mdtraj(universe):
-    '''Convert a MDAnalysis Universe object's topology to a ``mdtraj.Topology`` object.'''
+    """Convert a MDAnalysis Universe object's topology to a ``mdtraj.Topology`` object."""
 
     from mdtraj import Topology
     from mdtraj.core.element import get_by_symbol
@@ -113,8 +114,8 @@ def convert_mdanalysis_top_to_mdtraj(universe):
 
 
 class WESTTrajectory(Trajectory):
-    '''A subclass of ``mdtraj.Trajectory`` that contains the trajectory of atom coordinates with
-    pointers denoting the iteration number and segment index of each frame.'''
+    """A subclass of ``mdtraj.Trajectory`` that contains the trajectory of atom coordinates with
+    pointers denoting the iteration number and segment index of each frame."""
 
     def __init__(
         self,
@@ -146,6 +147,7 @@ class WESTTrajectory(Trajectory):
 
     def _string_summary_basic(self):
         """Basic summary of WESTTrajectory in string form."""
+
         unitcell_str = 'and unitcells' if self._have_unitcell else 'without unitcells'
         value = "%s with %d frames, %d atoms, %d residues, %s" % (
             self.__class__.__name__,
@@ -227,29 +229,32 @@ class WESTTrajectory(Trajectory):
         time : np.ndarray, shape=(n_frames,)
             The iteration index corresponding to each frame
         """
+
         return self._iters
 
     @iter_labels.setter
     def iter_labels(self, value):
-        "Set the iteration index corresponding to each frame"
+        """Set the iteration index corresponding to each frame"""
 
         self._iters = self._check_labels(value)
         self._shape = None
 
     @property
     def seg_labels(self):
-        """Segment index corresponding to each frame
+        """
+        Segment index corresponding to each frame
 
         Returns
         -------
         time : np.ndarray, shape=(n_frames,)
             The segment index corresponding to each frame
         """
+
         return self._segs
 
     @seg_labels.setter
     def seg_labels(self, value):
-        "Set the segment index corresponding to each frame"
+        """Set the segment index corresponding to each frame"""
 
         self._segs = self._check_labels(value)
         self._shape = None
@@ -271,10 +276,12 @@ class WESTTrajectory(Trajectory):
         self._parent_ids = self._check_labels(value)
 
     def join(self, other, check_topology=True, discard_overlapping_frames=False):
-        """Join two ``Trajectory``s. This overrides ``mdtraj.Trajectory.join``
+        """
+        Join two ``Trajectory``s. This overrides ``mdtraj.Trajectory.join``
         so that it also handles WESTPA pointers.
         ``mdtraj.Trajectory.join``'s documentation for more details.
         """
+
         if isinstance(other, Trajectory):
             other = [other]
 
@@ -338,7 +345,8 @@ class WESTTrajectory(Trajectory):
         return new_westpa_traj
 
     def slice(self, key, copy=True):
-        """Slice the ``Trajectory``. This overrides ``mdtraj.Trajectory.slice``
+        """
+        Slice the ``Trajectory``. This overrides ``mdtraj.Trajectory.slice``
         so that it also handles WESTPA pointers. Please see
         ``mdtraj.Trajectory.slice``'s documentation for more details.
         """
@@ -386,7 +394,8 @@ class WESTTrajectory(Trajectory):
 
 
 def get_extension(filename):
-    '''A function to get the format extension of a file.'''
+    """A function to get the format extension of a file."""
+
     (base, extension) = os.path.splitext(filename)
 
     # Return the other part of the extension as well if it's a gzip.
@@ -397,7 +406,8 @@ def get_extension(filename):
 
 
 def find_top_traj_file(folder, eligible_top, eligible_traj):
-    '''A general (reusable) function for identifying and returning the appropriate
+    """
+    A general (reusable) function for identifying and returning the appropriate
     file names in ``folder`` which are toplogy and trajectory. Useful when writing custom loaders.
     Note that it's possible that the topology_file and trajectory_file are identical.
 
@@ -420,8 +430,7 @@ def find_top_traj_file(folder, eligible_top, eligible_traj):
 
     traj_file : str
         Path to trajectory file
-
-    '''
+    """
 
     # Setting up the return variables
     top_file = traj_file = None
@@ -494,11 +503,13 @@ def mdanalysis_supported_extensions():
 
 
 def load_mdtraj(folder):
-    '''Load trajectory from ``folder`` using ``mdtraj`` and return a ``mdtraj.Trajectory``
+    """
+    Load trajectory from ``folder`` using ``mdtraj`` and return a ``mdtraj.Trajectory``
     object. The folder should contain a trajectory and a topology file (with a recognizable
     extension) that is supported by ``mdtraj``. The topology file is optional if the
     trajectory file contains topology data (e.g., HDF5 format).
-    '''
+    """
+
     from mdtraj import load as load_traj
 
     TOPOLOGY_EXTS, TRAJECTORY_EXTS = mdtraj_supported_extensions()
@@ -512,11 +523,13 @@ def load_mdtraj(folder):
 
 
 def load_netcdf(folder):
-    '''Load netcdf file from ``folder`` using ``scipy.io`` and return a ``mdtraj.Trajectory``
+    """
+    Load netcdf file from ``folder`` using ``scipy.io`` and return a ``mdtraj.Trajectory``
     object. The folder should contain a Amber trajectory file with extensions `.nc` or `.ncdf`.
 
     Note coordinates and box lengths are all divided by 10 to change from Angstroms to nanometers.
-    '''
+    """
+
     from scipy.io import netcdf_file
 
     _, traj_file = find_top_traj_file(folder, [], ['.nc', '.ncdf', '.ncrst'])
@@ -546,13 +559,15 @@ def load_netcdf(folder):
 
 
 def load_mdanalysis(folder):
-    '''Load a file from ``folder`` using ``MDAnalysis`` and return a ``mdtraj.Trajectory``
+    """
+    Load a file from ``folder`` using ``MDAnalysis`` and return a ``mdtraj.Trajectory``
     object. The folder should contain a trajectory and a topology file (with a recognizable
     extension) that is supported by ``MDAnalysis``. The topology file is optional if the
     trajectory file contains topology data (e.g., H5MD format).
 
     Note coordinates and box lengths are all divided by 10 to change from Angstroms to nanometers.
-    '''
+    """
+
     import MDAnalysis as mda
 
     TOPOLOGY_EXTS, TRAJECTORY_EXTS = mdanalysis_supported_extensions()

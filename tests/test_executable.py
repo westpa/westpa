@@ -22,10 +22,10 @@ from westpa.core.segment import Segment
 
 
 class Test_Executable:
-    '''Class to test the propagator executable.'''
+    """Class to test the propagator executable."""
 
     def test_data_config(self, ref_executable):
-        '''Test if the config is initialized correctly, where the executable propagator dataset options are set with the data manager options.'''
+        """Test if the config is initialized correctly, where the executable propagator dataset options are set with the data manager options."""
 
         # Make the rc and executable read the config file.
         westpa.rc.read_config(filename='west_implicit.cfg')
@@ -35,7 +35,7 @@ class Test_Executable:
         assert executable.data_info['displacement']['loader'] == numpy_data_loader
 
     def test_legacy_data_config(self, ref_executable):
-        '''Test if the dataset config is initialized correctly using the legacy part, where propagator datasets have to be specified twice.'''
+        """Test if the dataset config is initialized correctly using the legacy part, where propagator datasets have to be specified twice."""
 
         # Make the rc and executable read the config file.
         westpa.rc.read_config(filename='west.cfg')
@@ -46,10 +46,10 @@ class Test_Executable:
 
 
 class Test_Loaders:
-    '''Class to test if numpy_data_loader and pickle_data_loader are able to successfully add data into a dummy segment object.'''
+    """Class to test if numpy_data_loader and pickle_data_loader are able to successfully add data into a dummy segment object."""
 
     def test_numpy_loader(self, ref_idtype):
-        '''Test if data loaded with numpy_data_loader is consistent.'''
+        """Test if data loaded with numpy_data_loader is consistent."""
 
         test_segment = Segment()
 
@@ -63,7 +63,7 @@ class Test_Loaders:
         assert np.array_equal(test_array, ref_array)
 
     def test_pickle_loader(self, ref_idtype):
-        '''Test if data loaded with numpy_data_loader is consistent.'''
+        """Test if data loaded with numpy_data_loader is consistent."""
 
         test_segment = Segment()
 
@@ -77,7 +77,7 @@ class Test_Loaders:
         assert np.array_equal(test_array, ref_array)
 
     def test_restart_loader_writer(self, nacl_restart_files):
-        '''Test if the restart file can be read, saved and reloaded correctly.'''
+        """Test if the restart file can be read, saved and reloaded correctly."""
 
         # Make a dummy segment and read/write the restart files
         test_segment = Segment()
@@ -89,7 +89,7 @@ class Test_Loaders:
         assert sum([True if file in self.nacl_restart_files else False for file in matches]) == 2
 
     def test_seglog_loader_writer(self, nacl_restart_files):
-        '''Test if the log file can be saved and reloaded correctly.'''
+        """Test if the log file can be saved and reloaded correctly."""
 
         # Make a dummy segment and read/write the seglog file
         test_segment = Segment()
