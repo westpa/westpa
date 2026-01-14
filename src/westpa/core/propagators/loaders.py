@@ -67,7 +67,7 @@ def pickle_data_loader(fieldname, coord_file, segment, single_point):
 def mdtraj_trajectory_loader(fieldname, coord_folder, segment, single_point):
     '''Load data from the trajectory return using MDTraj. ``coord_folder`` should be the path to a folder
     containing trajectory files. ``segment`` is the ``Segment`` object that the data is associated with.
-    Please see ``load_trajectory`` for more details. ``single_point`` is not used by this loader.'''
+    Please see ``load_mdtraj`` for more details. ``single_point`` is not used by this loader.'''
     try:
         data = load_mdtraj(coord_folder)
         segment.data['iterh5/trajectory'] = data
