@@ -44,6 +44,11 @@ jobs:
           CIBW_ARCHS_MACOS: "universal2" # universal2 wheel for macos
           CIBW_ARCHS_LINUX: "auto64" # x86_64 and arm64, depending on the os
           CIBW_DEPENDENCY_VERSIONS: "pinned" # default
+          CIBW_BEFORE_TEST_LINUX: >
+            dnf install -y hdf5 hdf5-devel
+          CIBW_TEST_REQUIRES_LINUX: "blosc2" "git+https://github.com/pytables/pytables"
+          CIBW_TEST_ENVIRONMENT_LINUX: >
+            BLOSC2_DIR=$(python -c "import site; print(site.getsitepackages()[0])")
           CIBW_TEST_COMMAND: > 
             python -c "import westpa; print(westpa.__version__)" && 
             python -c "import westpa.core.propagators" &&
