@@ -45,8 +45,8 @@ jobs:
           CIBW_ARCHS_MACOS: "universal2" # universal2 wheel for macos
           CIBW_ARCHS_LINUX: "auto64" # x86_64 and arm64, depending on the os
           CIBW_DEPENDENCY_VERSIONS: "pinned" # default
-          CIBW_TEST_COMMAND: > 
-            python -c "import westpa; print(westpa.__version__)" && 
+          CIBW_TEST_COMMAND: >
+            python -c "import westpa; print(westpa.__version__)" &&
             python -c "import westpa.core.propagators" &&
             python -c "import westpa.core.binning" &&
             python -c "import westpa.core.kinetics" &&
