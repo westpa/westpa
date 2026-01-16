@@ -72,7 +72,7 @@ jobs:
           auto-activate-base: false
           show-channel-urls: true
           conda-remove-defaults: true
-  
+
       - name: Install package
         # conda setup requires this special shell
         shell: bash -l {0}

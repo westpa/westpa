@@ -55,19 +55,17 @@ class WESimManager:
 
         # A table of function -> list of (priority, name, callback) tuples
         self._callback_table = {}
-        self._valid_callbacks = set(
-            (
-                self.prepare_run,
-                self.finalize_run,
-                self.prepare_iteration,
-                self.finalize_iteration,
-                self.pre_propagation,
-                self.post_propagation,
-                self.pre_we,
-                self.post_we,
-                self.prepare_new_iteration,
-            )
-        )
+        self._valid_callbacks = {
+            self.prepare_run,
+            self.finalize_run,
+            self.prepare_iteration,
+            self.finalize_iteration,
+            self.pre_propagation,
+            self.post_propagation,
+            self.pre_we,
+            self.post_we,
+            self.prepare_new_iteration,
+        }
         self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
         self.n_propagated = 0
 

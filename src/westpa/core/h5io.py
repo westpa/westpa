@@ -452,11 +452,11 @@ class WESTIterationFile(HDF5TrajectoryFile):
             super(WESTIterationFile, self).__init__(file, mode, force_overwrite, compression)
         else:
             try:
-                self._init_from_handle(file)
+                self._init_from_handle(file)  # If a WESTIterationFile object, just make sure it's open correctly
             except AttributeError:
                 raise ValueError('unknown input type: %s' % str(type(file)))
 
-    def _init_from_handle(self, handle):
+    def _init_from_handle(self, handle: HDF5TrajectoryFile):
         self._handle = handle
         self._open = handle.isopen != 0
         self.mode = mode = handle.mode  # the mode in which the file was opened?
@@ -483,6 +483,14 @@ class WESTIterationFile(HDF5TrajectoryFile):
         elif mode == 'r':
             self._frame_index = 0
             self._needs_initialization = False
+
+    def __contains__(self, path):
+        try:
+            self._get_node('/', path)
+        except self.tables.NoSuchNodeError:
+            return False
+
+        return True
 
     def read(self, frame_indices=None, atom_indices=None):
         _check_mode(self.mode, ('r',))
@@ -678,8 +686,9 @@ class WESTIterationFile(HDF5TrajectoryFile):
         slog = get_data('iterh5/log', None)
 
         if traj is not None:
-            # create trajectory object
-            traj = WESTTrajectory(traj, iter_labels=n_iter, seg_labels=segment.seg_id)
+            # create trajectory object or if already is, skip.
+            if not isinstance(traj, WESTTrajectory):
+                traj = WESTTrajectory(traj, iter_labels=n_iter, seg_labels=segment.seg_id)
             if traj.n_frames == 0:
                 # we may consider logging warnings instead throwing errors for later.
                 # right now this is good for debugging purposes
@@ -789,6 +798,17 @@ class WESTIterationFile(HDF5TrajectoryFile):
                 obj=slog,
                 createparents=True,
             )
+
+    def scrub_data(self):
+        '''Method to remove existing coordinates, pointers etc. while preserving topology'''
+        for node in ['log', 'restart', 'time', 'coordinates', 'pointer', 'cell_angles', 'cell_lengths']:
+            try:
+                self._remove_node('/', node, recursive=True)
+            except self.tables.exceptions.NoSuchNodeError:
+                pass
+        self._frame_index = 0
+        self.root._v_attrs.n_iter = 0
+        self.flush()
 
     def replace_frames(self, rows, traj):
         datasets = {'coordinates': 'xyz', 'time': 'time', 'cell_angles': 'unitcell_angles', 'cell_lengths': 'unitcell_lengths'}

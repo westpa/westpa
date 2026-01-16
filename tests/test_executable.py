@@ -1,36 +1,41 @@
+import pytest
 from filecmp import cmpfiles
+from io import StringIO
+
 import numpy as np
 import pickle
-import westpa
+from numpy.testing import assert_array_equal
 
-from westpa.core.propagators.executable import (
-    npy_data_loader,
+import westpa
+from westpa.core.propagators.executable import ExecutablePropagator
+from westpa.core.propagators.loaders import (
+    numpy_data_loader,
     pickle_data_loader,
     aux_data_loader,
     restart_loader,
     restart_writer,
     seglog_loader,
     seglog_writer,
-    ExecutablePropagator,
+    pcoord_loader,
 )
 from westpa.core.segment import Segment
 
 
 class Test_Executable:
-    '''Class to test the propagator executable.'''
+    """Class to test the propagator executable."""
 
     def test_data_config(self, ref_executable):
-        '''Test if the config is initialized correctly, where the executable propagator dataset options are set with the data manager options.'''
+        """Test if the config is initialized correctly, where the executable propagator dataset options are set with the data manager options."""
 
         # Make the rc and executable read the config file.
         westpa.rc.read_config(filename='west_implicit.cfg')
         executable = ExecutablePropagator(rc=westpa.rc)
 
         assert 'displacement' in executable.data_info
-        assert executable.data_info['displacement']['loader'] == npy_data_loader
+        assert executable.data_info['displacement']['loader'] == numpy_data_loader
 
     def test_legacy_data_config(self, ref_executable):
-        '''Test if the dataset config is initialized correctly using the legacy part, where propagator datasets have to be specified twice.'''
+        """Test if the dataset config is initialized correctly using the legacy part, where propagator datasets have to be specified twice."""
 
         # Make the rc and executable read the config file.
         westpa.rc.read_config(filename='west.cfg')
@@ -41,14 +46,14 @@ class Test_Executable:
 
 
 class Test_Loaders:
-    '''Class to test if npy_data_loader and pickle_date_loader are able to successfully add data into a dummy segment object.'''
+    """Class to test if numpy_data_loader and pickle_data_loader are able to successfully add data into a dummy segment object."""
 
-    def test_npy_loader(self, ref_idtype):
-        '''Test if data loaded with npy_data_loader is consistent.'''
+    def test_numpy_loader(self, ref_idtype):
+        """Test if data loaded with numpy_data_loader is consistent."""
 
         test_segment = Segment()
 
-        npy_data_loader('test', self.correct_pkl, test_segment, False)
+        numpy_data_loader('test', self.correct_pkl, test_segment, False)
 
         with open(self.correct_pkl, 'rb') as f:
             ref_array = pickle.load(f)
@@ -58,7 +63,7 @@ class Test_Loaders:
         assert np.array_equal(test_array, ref_array)
 
     def test_pickle_loader(self, ref_idtype):
-        '''Test if data loaded with npy_data_loader is consistent.'''
+        """Test if data loaded with numpy_data_loader is consistent."""
 
         test_segment = Segment()
 
@@ -72,7 +77,7 @@ class Test_Loaders:
         assert np.array_equal(test_array, ref_array)
 
     def test_restart_loader_writer(self, nacl_restart_files):
-        '''Test if the restart file can be read, saved and reloaded correctly.'''
+        """Test if the restart file can be read, saved and reloaded correctly."""
 
         # Make a dummy segment and read/write the restart files
         test_segment = Segment()
@@ -84,7 +89,7 @@ class Test_Loaders:
         assert sum([True if file in self.nacl_restart_files else False for file in matches]) == 2
 
     def test_seglog_loader_writer(self, nacl_restart_files):
-        '''Test if the log file can be saved and reloaded correctly.'''
+        """Test if the log file can be saved and reloaded correctly."""
 
         # Make a dummy segment and read/write the seglog file
         test_segment = Segment()
@@ -104,3 +109,33 @@ class Test_Loaders:
         # Check to ensure contents are preserved
         with open(self.write_dir / 'seg.log', 'r') as text_file:
             assert text_file.read() == dummy_text
+
+    def test_pcoord_loader_failures(self, ref_mab):
+        test_segment = Segment()
+
+        # Making test data
+        rng = np.random.default_rng()
+        c = rng.random(size=(11, 2), dtype=np.float32)
+        io_file = StringIO()
+        np.savetxt(io_file, c)
+
+        with pytest.raises(AssertionError):
+            pcoord_loader('test', c, test_segment, False)
+
+        with pytest.raises(ValueError, match=r'incorrect shape \(11, 2\) \[expected \(2, 1\)\]'):
+            io_file.seek(0)
+            pcoord_loader('pcoord', io_file, test_segment, False)
+
+    def test_pcoord_loader(self, ref_mab):
+        test_segment = Segment()
+
+        # Making test data
+        rng = np.random.default_rng()
+        c = rng.random(size=(2, 1), dtype=np.float32)
+        io_file = StringIO()
+        np.savetxt(io_file, c)
+
+        io_file.seek(0)
+        pcoord_loader('pcoord', io_file, test_segment, False)
+
+        assert_array_equal(test_segment.pcoord, c)

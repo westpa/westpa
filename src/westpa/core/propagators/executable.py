@@ -6,173 +6,32 @@ import subprocess
 import sys
 import tempfile
 import time
-import tarfile
-import pickle
-from io import BytesIO
 
 import numpy as np
 from numpy.random import MT19937, Generator
 
-import westpa
+from westpa.core.data_manager import makepath
 from westpa.core.extloader import get_object
 from westpa.core.propagators import WESTPropagator
+from westpa.core.propagators.loaders import (
+    data_loaders,
+    trajectory_loaders,
+    pcoord_loader,
+    mdtraj_trajectory_loader,
+    restart_loader,
+    seglog_loader,
+    restart_writer,
+    aux_data_loader,
+)
+from westpa.core.propagators.loaders import *  # noqa
 from westpa.core.states import BasisState, InitialState, return_state_type
 from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
-
-from westpa.core.trajectory import load_trajectory
-from westpa.core.h5io import safe_extract
 
 log = logging.getLogger(__name__)
 
 # Get a list of user-friendly signal names
 SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) if name.startswith('SIG') and not name.startswith('SIG_')}
-
-
-def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
-    """Read progress coordinate data into the ``pcoord`` field on ``destobj``.
-    An exception will be raised if the data is malformed.  If ``single_point`` is true,
-    then only one (N-dimensional) point will be read, otherwise system.pcoord_len points
-    will be read.
-    """
-
-    system = westpa.rc.get_system_driver()
-
-    assert fieldname == 'pcoord'
-
-    pcoord = np.loadtxt(pcoord_return_filename, dtype=system.pcoord_dtype)
-
-    if single_point:
-        expected_shape = (system.pcoord_ndim,)
-        if pcoord.ndim == 0:
-            pcoord.shape = (1,)
-    else:
-        expected_shape = (system.pcoord_len, system.pcoord_ndim)
-        if pcoord.ndim < 2:
-            pcoord.shape = expected_shape
-    if pcoord.shape != expected_shape:
-        raise ValueError(
-            'progress coordinate data has incorrect shape {!r} [expected {!r}] Check get_pcoord stderr or seg_logs for more information.'.format(
-                pcoord.shape, expected_shape
-            )
-        )
-    destobj.pcoord = pcoord
-
-
-def aux_data_loader(fieldname, data_filename, segment, single_point):
-    data = np.loadtxt(data_filename)
-    segment.data[fieldname] = data
-    if data.nbytes == 0:
-        raise ValueError('could not read any data for {}'.format(fieldname))
-
-
-def npy_data_loader(fieldname, coord_file, segment, single_point):
-    log.debug('using npy_data_loader')
-    data = np.load(coord_file, allow_pickle=True)
-    segment.data[fieldname] = data
-    if data.nbytes == 0:
-        raise ValueError('could not read any data for {}'.format(fieldname))
-
-
-def pickle_data_loader(fieldname, coord_file, segment, single_point):
-    log.debug('using pickle_data_loader')
-    with open(coord_file, 'rb') as fo:
-        data = pickle.load(fo)
-    segment.data[fieldname] = data
-    if data.nbytes == 0:
-        raise ValueError('could not read any data for {}'.format(fieldname))
-
-
-def trajectory_loader(fieldname, coord_folder, segment, single_point):
-    '''Load data from the trajectory return. ``coord_folder`` should be the path to a folder
-    containing trajectory files. ``segment`` is the ``Segment`` object that the data is associated with.
-    Please see ``load_trajectory`` for more details. ``single_point`` is not used by this loader.'''
-    try:
-        data = load_trajectory(coord_folder)
-        segment.data['iterh5/trajectory'] = data
-    except Exception as e:
-        log.warning('could not read any {} data for HDF5 Framework: {}'.format(fieldname, str(e)))
-
-
-def restart_loader(fieldname, restart_folder, segment, single_point):
-    '''Load data from the restart return. The loader will tar all files in ``restart_folder``
-    and store it in the per-iteration HDF5 file. ``segment`` is the ``Segment`` object that
-    the data is associated with. ``single_point`` is not used by this loader.'''
-    try:
-        with BytesIO() as d:
-            with tarfile.open(mode='w:gz', fileobj=d) as t:
-                t.add(restart_folder, arcname='.')
-
-            segment.data['iterh5/restart'] = d.getvalue() + b'\x01'  # add tail protection
-    except Exception as e:
-        log.warning('could not read any {} data for HDF5 Framework: {}'.format(fieldname, str(e)))
-
-
-def restart_writer(path, segment):
-    '''Prepare the necessary files from the per-iteration HDF5 file to run ``segment``.'''
-    try:
-        restart = segment.data.pop('iterh5/restart', None)
-        # Making an exception for start states in iteration 1
-        if restart is None:
-            raise ValueError('restart data is not present')
-
-        with BytesIO(restart[:-1]) as d:  # remove tail protection
-            with tarfile.open(fileobj=d, mode='r:gz') as t:
-                safe_extract(t, path=path)
-    except ValueError as e:
-        log.warning('could not write HDF5 Framework restart data for {}: {}'.format(str(segment), str(e)))
-        d = BytesIO()
-        if segment.n_iter == 1:
-            log.warning(
-                'In iteration 1. Assuming this is a start state and proceeding to skip reading restart from per-iteration HDF5 file for {}'.format(
-                    str(segment)
-                )
-            )
-    except Exception as e:
-        log.warning('could not write HDF5 Framework restart data for {}: {}'.format(str(segment), str(e)))
-
-
-def seglog_loader(fieldname, log_file, segment, single_point):
-    '''Load data from the log return. The loader will tar all files in ``log_file``
-    and store it in the per-iteration HDF5 file. ``segment`` is the ``Segment`` object that
-    the data is associated with. ``single_point`` is not used by this loader. The file
-    will be renamed to seg.log by default.'''
-    try:
-        with BytesIO() as d:
-            with tarfile.open(mode='w:gz', fileobj=d) as t:
-                t.add(log_file, arcname='seg.log')
-
-            segment.data['iterh5/log'] = d.getvalue() + b'\x01'  # add tail protection
-    except Exception as e:
-        log.warning('could not read any data for {}: {}'.format(fieldname, str(e)))
-
-
-def seglog_writer(path, segment):
-    '''Untar the log file from segment.'''
-    try:
-        seglog = segment.data.pop('iterh5/log', None)
-
-        # Making an exception for start states in iteration 1
-        if seglog is None:
-            raise ValueError('Log file is not present for segment: {}'.format(str(segment)))
-
-        with BytesIO(seglog[:-1]) as d:  # remove tail protection
-            with tarfile.open(fileobj=d, mode='r:gz') as t:
-                safe_extract(t, path=path)
-    except Exception as e:
-        log.warning('could not extract HDF5 Framework log file for {}: {}'.format(str(segment), str(e)))
-
-
-# Dictionary with all the possible loaders
-data_loaders = {
-    'default': aux_data_loader,
-    'auxdata_loader': aux_data_loader,
-    'aux_data_loader': aux_data_loader,
-    'npy_loader': npy_data_loader,
-    'npy_data_loader': npy_data_loader,
-    'pickle_loader': pickle_data_loader,
-    'pickle_data_loader': pickle_data_loader,
-}
 
 
 class ExecutablePropagator(WESTPropagator):
@@ -200,6 +59,8 @@ class ExecutablePropagator(WESTPropagator):
     ENV_RAND128 = 'WEST_RAND128'
     ENV_RANDFLOAT = 'WEST_RANDFLOAT'
 
+    makepath = staticmethod(makepath)
+
     def __init__(self, rc=None):
         super().__init__(rc)
 
@@ -218,8 +79,7 @@ class ExecutablePropagator(WESTPropagator):
 
         # A mapping of data set name ('pcoord', 'coord', 'com', etc) to a dictionary of
         # attributes like 'loader', 'dtype', etc
-        self.data_info = {}
-        self.data_info['pcoord'] = {}
+        self.data_info = {'pcoord': {}}
 
         # Validate configuration
         config = self.rc.config
@@ -273,9 +133,10 @@ class ExecutablePropagator(WESTPropagator):
 
         # Load configuration items relating to dataset input
         self.data_info['pcoord'] = {'name': 'pcoord', 'loader': pcoord_loader, 'enabled': True, 'filename': None, 'dir': False}
+
         self.data_info['trajectory'] = {
             'name': 'trajectory',
-            'loader': trajectory_loader,
+            'loader': mdtraj_trajectory_loader,
             'enabled': store_h5,
             'filename': None,
             'dir': True,
@@ -304,39 +165,42 @@ class ExecutablePropagator(WESTPropagator):
                 check_bool(dsinfo.setdefault('enabled', True))
 
             loader_directive = dsinfo.get('loader', None)
-            if callable(loader_directive):
-                loader = loader_directive
-            elif loader_directive in data_loaders.keys():
-                if dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
-                    loader = data_loaders[loader_directive]
-                else:
-                    loader = get_object(loader_directive)
-            elif dsname not in ['pcoord', 'seglog', 'restart', 'trajectory']:
-                loader = aux_data_loader
+            if 'module_path' in dsinfo:
+                dspath = self.makepath(dsinfo['module_path'])
             else:
-                # YOLO. Or maybe it wasn't specified.
-                loader = loader_directive
+                dspath = None
+
+            match loader_directive:
+                case loader_directive if callable(loader_directive):
+                    # If directly callable, then use it
+                    loader = loader_directive
+                case 'pcoord' | 'seglog' | 'restart':
+                    # These are "protected" dataset names
+                    if loader_directive in data_loaders:
+                        loader = data_loaders[loader_directive]
+                    else:
+                        loader = get_object(loader_directive)
+                case 'trajectory':
+                    # Special dataset for saving trajectory coordinates in HDF5 Framework
+                    if loader_directive in trajectory_loaders:
+                        loader = trajectory_loaders[loader_directive]
+                    else:
+                        loader = get_object(loader_directive, path=dspath)
+                case _:
+                    # All other dataset names
+                    if loader_directive in data_loaders:
+                        loader = data_loaders[loader_directive]
+                    elif isinstance(loader_directive, str):
+                        loader = get_object(loader_directive, path=dspath)
+                    else:
+                        # Assumed aux dataset, defaulting to aux_data_loader
+                        loader = aux_data_loader
 
             if loader:
                 dsinfo['loader'] = loader
             self.data_info.setdefault(dsname, {}).update(dsinfo)
 
         log.debug('data_info: {!r}'.format(self.data_info))
-
-    @staticmethod
-    def makepath(template, template_args=None, expanduser=True, expandvars=True, abspath=False, realpath=False):
-        template_args = template_args or {}
-        path = template.format(**template_args)
-        if expandvars:
-            path = os.path.expandvars(path)
-        if expanduser:
-            path = os.path.expanduser(path)
-        if realpath:
-            path = os.path.realpath(path)
-        if abspath:
-            path = os.path.abspath(path)
-        path = os.path.normpath(path)
-        return path
 
     def random_val_env_vars(self):
         '''Return a set of environment variables containing random seeds. These are returned

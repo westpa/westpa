@@ -44,14 +44,19 @@ Version history:
 """
 
 import logging
+import os
 import pickle
 import posixpath
 import sys
 import threading
 import time
+import re
 import builtins
 from operator import attrgetter
-from os.path import relpath, dirname
+from os.path import relpath, dirname, exists
+from os import remove
+from shutil import copyfile, move
+from subprocess import run, CalledProcessError
 
 import h5py
 from h5py import h5s
@@ -61,7 +66,6 @@ from . import h5io
 from .segment import Segment
 from .states import BasisState, TargetState, InitialState
 from .we_driver import NewWeightEntry
-from .propagators.executable import ExecutablePropagator
 
 import westpa
 
@@ -70,7 +74,21 @@ log = logging.getLogger(__name__)
 
 file_format_version = 10
 
-makepath = ExecutablePropagator.makepath
+
+def makepath(template, template_args=None, expanduser=True, expandvars=True, abspath=False, realpath=False):
+    """Function for manipulating paths. Used in ExecutablePropagator as well."""
+    template_args = template_args or {}
+    path = template.format(**template_args)
+    if expandvars:
+        path = os.path.expandvars(path)
+    if expanduser:
+        path = os.path.expanduser(path)
+    if realpath:
+        path = os.path.realpath(path)
+    if abspath:
+        path = os.path.abspath(path)
+    path = os.path.normpath(path)
+    return path
 
 
 class flushing_lock:
@@ -249,8 +267,17 @@ class WESTDataManager:
             ['west', 'data', 'aux_compression_threshold'], self.default_aux_compression_threshold
         )
         self.flush_period = config.get(['west', 'data', 'flush_period'], self.default_flush_period)
-        self.iter_ref_h5_template = config.get(['west', 'data', 'data_refs', 'iteration'], None)
-        self.store_h5 = self.iter_ref_h5_template is not None
+
+        # Path to per-iter h5 file
+        self.iter_h5_path_template = config.get(['west', 'data', 'data_refs', 'iteration'], None)
+        try:
+            # Generating path to a template file for per-iter h5 file
+            self.iter_h5_template_file_path = re.sub(r'\{(.*?)\}', 'template', self.iter_h5_path_template)
+        except TypeError:
+            self.iter_h5_template_file_path = None
+
+        # If not provided, turn HDF5 Framework off.
+        self.store_h5 = self.iter_h5_path_template is not None
 
         # Process dataset options
         dsopts_list = config.get(['west', 'data', 'datasets']) or []
@@ -282,8 +309,10 @@ class WESTDataManager:
         self.last_flush = 0
 
         self._system = None
-        self.iter_ref_h5_template = None
-        self.store_h5 = False
+        self.iter_h5_path_template = None  # Template for per-iter H5 file Path
+        self.iter_h5_template_file_path = None  # Path to per-iter H5 template file
+        self.store_h5 = False  # Indicates HDF5 Framework is activated or not
+        self.template_copy_flag = False  # Flag indicating the template file was made this iteration
 
         self.dataset_options = {}
         self.process_config()
@@ -399,9 +428,11 @@ class WESTDataManager:
                 self.last_flush = time.time()
 
     def save_target_states(self, tstates, n_iter=None):
-        '''Save the given target states in the HDF5 file; they will be used for the next iteration to
+        """
+        Save the given target states in the HDF5 file; they will be used for the next iteration to
         be propagated.  A complete set is required, even if nominally appending to an existing set,
-        which simplifies the mapping of IDs to the table.'''
+        which simplifies the mapping of IDs to the table.
+        """
 
         system = self.system
 
@@ -538,9 +569,11 @@ class WESTDataManager:
             return state_group
 
     def create_ibstate_iter_h5file(self, basis_states):
-        '''Create the per-iteration HDF5 file for the basis states (i.e., iteration 0).
+        """
+        Create the per-iteration HDF5 file for the basis states (i.e., iteration 0).
         This special treatment is needed so that the analysis tools can access basis states
-        more easily.'''
+        more easily.
+        """
 
         if not self.store_h5:
             return
@@ -564,19 +597,43 @@ class WESTDataManager:
         self.update_iter_h5file(0, segments)
 
     def update_iter_h5file(self, n_iter, segments):
-        '''Write out the per-iteration HDF5 file with given segments and add an external link to it
-        in the main HDF5 file (west.h5) if the link is not present.'''
+        """Write out the per-iteration HDF5 file with given segments and add an external link to it
+        in the main HDF5 file (west.h5) if the link is not present."""
 
         if not self.store_h5:
             return
 
         west_h5_file = makepath(self.we_h5filename)
-        iter_ref_h5_file = makepath(self.iter_ref_h5_template, {'n_iter': n_iter})
+        iter_ref_h5_file = makepath(self.iter_h5_path_template, {'n_iter': n_iter})
         iter_ref_rel_path = relpath(iter_ref_h5_file, dirname(west_h5_file))
+        if self.iter_h5_template_file_path:
+            # Make path to per-iter H5 File
+            iter_h5_template_file_path_expanded = makepath(self.iter_h5_template_file_path)
+
+            # Copy the template per-iter H5 file with topology
+            if exists(iter_h5_template_file_path_expanded) and not exists(iter_ref_h5_file):
+                copyfile(iter_h5_template_file_path_expanded, iter_ref_h5_file)
 
         with h5io.WESTIterationFile(iter_ref_h5_file, 'a') as outf:
             for segment in segments:
                 outf.write_segment(segment, True)
+
+        if self.iter_h5_template_file_path and not exists(iter_h5_template_file_path_expanded):
+            # If template per-iter H5 file does not exist, copy and scrub out old data
+            copyfile(iter_ref_h5_file, iter_h5_template_file_path_expanded)
+            with h5io.WESTIterationFile(iter_h5_template_file_path_expanded, 'a') as outf:
+                outf.scrub_data()
+
+            # Launch a subprocess to repack the file to reclaim space, replacing template with smaller file
+            try:
+                run(
+                    f'h5repack {iter_h5_template_file_path_expanded} {iter_h5_template_file_path_expanded}_repacked.h5', shell=True
+                ).check_returncode()
+                move(f'{iter_h5_template_file_path_expanded}_repacked.h5', iter_h5_template_file_path_expanded)
+            except CalledProcessError as e:  # Unsuccessful in repacking file
+                log.warning(f'Unable to repack into {iter_h5_template_file_path_expanded}_repacked.h5: {e}')
+                if exists(f'{iter_h5_template_file_path_expanded}_repacked.h5'):
+                    remove(f'{iter_h5_template_file_path_expanded}_repacked.h5')
 
         iter_group = self.get_iter_group(n_iter)
 
@@ -584,7 +641,7 @@ class WESTDataManager:
             iter_group['trajectories'] = h5py.ExternalLink(iter_ref_rel_path, '/')
 
     def get_basis_states(self, n_iter=None):
-        '''Return a list of BasisState objects representing the basis states that are in use for iteration n_iter.'''
+        """Return a list of BasisState objects representing the basis states that are in use for iteration n_iter."""
 
         with self.lock:
             n_iter = n_iter or self.current_iteration
@@ -615,8 +672,8 @@ class WESTDataManager:
             return bstates
 
     def create_initial_states(self, n_states, n_iter=None):
-        '''Create storage for ``n_states`` initial states associated with iteration ``n_iter``, and
-        return bare InitialState objects with only state_id set.'''
+        """Create storage for ``n_states`` initial states associated with iteration ``n_iter``, and
+        return bare InitialState objects with only state_id set."""
 
         system = self.system
         with self.lock:
@@ -659,7 +716,7 @@ class WESTDataManager:
         return new_istates
 
     def update_initial_states(self, initial_states, n_iter=None):
-        '''Save the given initial states in the HDF5 file'''
+        """Save the given initial states in the HDF5 file"""
 
         system = self.system
         initial_states = sorted(initial_states, key=attrgetter('state_id'))
@@ -761,9 +818,9 @@ class WESTDataManager:
             return istates
 
     def get_unused_initial_states(self, n_states=None, n_iter=None):
-        '''Retrieve any prepared but unused initial states applicable to the given iteration.
+        """Retrieve any prepared but unused initial states applicable to the given iteration.
         Up to ``n_states`` states are returned; if ``n_states`` is None, then all unused states
-        are returned.'''
+        are returned."""
 
         n_states = n_states or sys.maxsize
         ISTATE_UNUSED = InitialState.ISTATE_UNUSED
@@ -916,9 +973,9 @@ class WESTDataManager:
             pcoord_ds[...] = pcoord
 
     def update_iter_group_links(self, n_iter):
-        '''Update the per-iteration hard links pointing to the tables of target and initial/basis states for the
+        """Update the per-iteration hard links pointing to the tables of target and initial/basis states for the
         given iteration.  These links are not used by this class, but are remarkably convenient for third-party
-        analysis tools and hdfview.'''
+        analysis tools and hdfview."""
 
         with self.lock:
             iter_group = self.require_iter_group(n_iter)
@@ -950,8 +1007,8 @@ class WESTDataManager:
             self.we_h5file['summary'].resize((min_iter - 1,))
 
     def update_segments(self, n_iter, segments):
-        '''Update segment information in the HDF5 file; all prior information for each
-        ``segment`` is overwritten, except for parent and weight transfer information.'''
+        """Update segment information in the HDF5 file; all prior information for each
+        ``segment`` is overwritten, except for parent and weight transfer information."""
 
         segments = sorted(segments, key=attrgetter('seg_id'))
 
@@ -985,7 +1042,7 @@ class WESTDataManager:
                 si_fsel.select_hyperslab((seg_id,), (1,), op=op)
                 pc_fsel.select_hyperslab((seg_id, 0, 0), (1, pcoord_len, pcoord_ndim), op=op)
 
-            # read summary data so that we have valud parent and weight transfer information
+            # read summary data so that we have value, parent and weight transfer information
             si_dsid.read(si_msel, si_fsel, seg_index_entries)
 
             for iseg, (segment, ientry) in enumerate(zip(segments, seg_index_entries)):
@@ -1055,14 +1112,16 @@ class WESTDataManager:
             self.update_iter_h5file(n_iter, segments)
 
     def get_segments(self, n_iter=None, seg_ids=None, load_pcoords=True):
-        '''Return the given (or all) segments from a given iteration.
+        """
+        Return the given (or all) segments from a given iteration.
 
         If the optional parameter ``load_auxdata`` is true, then all auxiliary datasets
         available are loaded and mapped onto the ``data`` dictionary of each segment. If
         ``load_auxdata`` is None, then use the default ``self.auto_load_auxdata``, which can
         be set by the option ``load_auxdata`` in the ``[data]`` section of ``west.cfg``. This
         essentially requires as much RAM as there is per-iteration auxiliary data, so this
-        behavior is not on by default.'''
+        behavior is not on by default.
+        """
 
         n_iter = n_iter or self.current_iteration
         file_version = self.we_h5file_version
@@ -1137,9 +1196,11 @@ class WESTDataManager:
         return segments
 
     def prepare_segment_restarts(self, segments, basis_states=None, initial_states=None):
-        '''Prepare the necessary folder and files given the data stored in parent per-iteration HDF5 file
+        """
+        Prepare the necessary folder and files given the data stored in parent per-iteration HDF5 file
         for propagating the simulation. ``basis_states`` and ``initial_states`` should be provided if the
-        segments are newly created'''
+        segments are newly created
+        """
 
         if not self.store_h5:
             return
@@ -1163,7 +1224,7 @@ class WESTDataManager:
                 parent = Segment(n_iter=segment.n_iter - 1, seg_id=segment.parent_id)
 
             try:
-                parent_iter_ref_h5_file = makepath(self.iter_ref_h5_template, {'n_iter': parent.n_iter})
+                parent_iter_ref_h5_file = makepath(self.iter_h5_path_template, {'n_iter': parent.n_iter})
 
                 with h5io.WESTIterationFile(parent_iter_ref_h5_file, 'r') as outf:
                     outf.read_restart(parent)
@@ -1218,7 +1279,7 @@ class WESTDataManager:
             return [weight_map[seg_id] for seg_id in seg_ids]
 
     def get_child_ids(self, n_iter, seg_id):
-        '''Return the seg_ids of segments who have the given segment as a parent.'''
+        """Return the seg_ids of segments who have the given segment as a parent."""
 
         with self.lock:
             if n_iter == self.current_iteration:
@@ -1238,7 +1299,7 @@ class WESTDataManager:
             return seg_ids[parent_ids == seg_id]
 
     def get_children(self, segment):
-        '''Return all segments which have the given segment as a parent'''
+        """Return all segments which have the given segment as a parent"""
 
         if segment.n_iter == self.current_iteration:
             return []
@@ -1281,10 +1342,12 @@ class WESTDataManager:
         self.close_backing()
 
     def save_new_weight_data(self, n_iter, new_weights):
-        '''Save a set of NewWeightEntry objects to HDF5. Note that this should
+        """
+        Save a set of NewWeightEntry objects to HDF5. Note that this should
         be called for the iteration in which the weights appear in their
         new locations (e.g. for recycled walkers, the iteration following
-        recycling).'''
+        recycling).
+        """
 
         if not new_weights:
             return
@@ -1377,8 +1440,10 @@ class WESTDataManager:
         return entries
 
     def find_bin_mapper(self, hashval):
-        '''Check to see if the given has value is in the binning table. Returns the index in the
-        bin data tables if found, or raises KeyError if not.'''
+        """
+        Check to see if the given has value is in the binning table. Returns the index in the
+        bin data tables if found, or raises KeyError if not.
+        """
 
         try:
             hashval = hashval.hexdigest()
@@ -1408,8 +1473,8 @@ class WESTDataManager:
             raise KeyError('hash {} not found'.format(hashval))
 
     def get_bin_mapper(self, hashval):
-        '''Look up the given hash value in the binning table, unpickling and returning the corresponding
-        bin mapper if available, or raising KeyError if not.'''
+        """Look up the given hash value in the binning table, unpickling and returning the corresponding
+        bin mapper if available, or raising KeyError if not."""
 
         # Convert to a hex digest if we need to
         try:
@@ -1446,8 +1511,8 @@ class WESTDataManager:
             raise KeyError('hash {} not found'.format(hashval))
 
     def save_bin_mapper(self, hashval, pickle_data):
-        '''Store the given mapper in the table of saved mappers. If the mapper cannot be stored,
-        PickleError will be raised. Returns the index in the bin data tables where the mapper is stored.'''
+        """Store the given mapper in the table of saved mappers. If the mapper cannot be stored,
+        PickleError will be raised. Returns the index in the bin data tables where the mapper is stored."""
 
         try:
             hashval = hashval.hexdigest()
@@ -1494,7 +1559,7 @@ class WESTDataManager:
             return n_entries - 1
 
     def save_iter_binning(self, n_iter, hashval, pickled_mapper, target_counts):
-        '''Save information about the binning used to generate segments for iteration n_iter.'''
+        """Save information about the binning used to generate segments for iteration n_iter."""
 
         with self.lock:
             iter_group = self.get_iter_group(n_iter)
@@ -1674,8 +1739,8 @@ def require_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None
 
 
 def calc_chunksize(shape, dtype, max_chunksize=262144):
-    '''Calculate a chunk size for HDF5 data, anticipating that access will slice
-    along lower dimensions sooner than higher dimensions.'''
+    """Calculate a chunk size for HDF5 data, anticipating that access will slice
+    along lower dimensions sooner than higher dimensions."""
 
     chunk_shape = list(shape)
     for idim in range(len(shape)):
