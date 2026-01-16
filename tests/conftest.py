@@ -305,13 +305,13 @@ def nacl_restart_files(request, tmp_path):
         copyfile(os.path.join(REFERENCE_PATH, file), request.cls.return_dir / file)
 
 
-@pytest.fixture()
-def ref_analysis(request, tmp_path):
+@pytest.fixture(scope='class')
+def ref_analysis(request, tmp_path_factory):
     """
     Fixture that prepares a simulation directory with a completed 50-iteration WESTPA,
     west.h5, plus the config file west.cfg, plus a westpa run object.
     """
-    test_dir = str(tmp_path)
+    test_dir = str(tmp_path_factory.getbasetemp())
 
     os.chdir(test_dir)
     copy_ref(test_dir)
