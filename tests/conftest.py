@@ -309,7 +309,7 @@ def nacl_restart_files(request, tmp_path):
 def ref_analysis(request, tmp_path_factory):
     """
     Fixture that prepares a simulation directory with a completed 50-iteration WESTPA,
-    west.h5, plus the config file west.cfg, plus a westpa run object.
+    west.h5, plus the config file west.cfg, plus a westpa.analysis.Run object.
     """
     test_dir = str(tmp_path_factory.getbasetemp())
 
