@@ -20,7 +20,7 @@ requires = [
 name = "westpa"
 dynamic = ["version", "scripts"]
 license = "MIT"
-license-files = ["LICEN[CS]E.*"]
+license-files = ["LICEN[CS]E*"]
 readme = {file = "README.rst", content-type = "text/x-rst"}
 keywords = []
 description = 'WESTPA is a package for constructing and running stochastic simulations using the "weighted ensemble" approach of Huber and Kim (1996).'
