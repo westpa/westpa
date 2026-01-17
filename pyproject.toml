@@ -105,3 +105,10 @@ versionfile_build = "westpa/_version.py"
 tag_prefix = "v"
 parentdir_prefix = "westpa-"
 
+[tool.pytest]
+filterwarnings = [
+    # The following is to filter warnings from unpickling `west_ref.h5`'s binmapper pickles. Numpy changed their internals
+    # so it'll throw a DeprecationWarning (load 1.X pickle in 2.X) or throw a ModuleNotFoundError (load 2.X pickle in 1.X).
+    # Once we drop support for numpy 1.X, remake the binmapper pickles in numpy 2.0 and remove this filter.
+    'ignore:numpy.core.numeric is deprecated and has been renamed to numpy._core.numeric.:DeprecationWarning',
+]
