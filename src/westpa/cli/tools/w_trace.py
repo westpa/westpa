@@ -538,21 +538,15 @@ The following options for datasets are supported:
         )
 
         if pcoord_ndim == 1:
-            output_file.write(
-                '''\
+            output_file.write('''\
 # column  5: final progress coordinate value
-'''
-            )
+''')
         else:
             fpcbegin = 5
             fpcend = fpcbegin + pcoord_ndim - 1
-            output_file.write(
-                '''\
+            output_file.write('''\
 # columns {fpcbegin:d} -- {fpcend:d}: final progress coordinate value
-'''.format(
-                    fpcbegin=fpcbegin, fpcend=fpcend
-                )
-            )
+'''.format(fpcbegin=fpcbegin, fpcend=fpcend))
 
         pcoord_formats = self.pcoord_formats
 

@@ -17,7 +17,6 @@ from westpa.core.binning.assign import (
 from westpa.core.binning.assign import coord_dtype
 from westpa.core.binning.mab import MABBinMapper, map_mab, log_bin_boundaries
 
-
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
 
 

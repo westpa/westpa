@@ -290,7 +290,7 @@ class ZMQCore:
 
     @classmethod
     def make_ipc_endpoint(cls):
-        (fd, socket_path) = tempfile.mkstemp()
+        fd, socket_path = tempfile.mkstemp()
         os.close(fd)
         endpoint = 'ipc://{}'.format(socket_path)
         cls._ipc_endpoints_to_delete.append(endpoint)

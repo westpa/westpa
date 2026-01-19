@@ -396,7 +396,7 @@ class WESTTrajectory(Trajectory):
 def get_extension(filename):
     """A function to get the format extension of a file."""
 
-    (base, extension) = os.path.splitext(filename)
+    base, extension = os.path.splitext(filename)
 
     # Return the other part of the extension as well if it's a gzip.
     if extension == '.gz':

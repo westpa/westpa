@@ -9,7 +9,6 @@ import logging
 
 from .core import WorkManager, WMFuture, FutureWatcher  # noqa
 
-
 # Import core work managers, which should run most everywhere that
 # Python does
 from . import serial, threads, processes  # noqa
@@ -43,7 +42,6 @@ else:
 
 from . import environment  # noqa
 from .environment import make_work_manager  # noqa
-
 
 __all__ = [
     'serial',

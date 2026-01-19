@@ -10,7 +10,6 @@ from westpa.core import h5io
 from westpa.core.binning import index_dtype
 from westpa.core.reweight import stats_process
 
-
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)

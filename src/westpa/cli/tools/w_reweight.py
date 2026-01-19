@@ -13,7 +13,6 @@ from westpa.mclib import mcbs_ci_correl
 
 from westpa.core.reweight import reweight_for_c, FluxMatrix
 
-
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)

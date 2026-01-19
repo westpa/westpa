@@ -247,7 +247,7 @@ class ExecutablePropagator(WESTPropagator):
         )
 
         # Wait on child and get resource usage
-        (_pid, _status, rusage) = os.wait4(proc.pid, 0)
+        _pid, _status, rusage = os.wait4(proc.pid, 0)
         # Do a subprocess.Popen.wait() to let the Popen instance (and subprocess module) know that
         # we are done with the process, and to get a more friendly return code
         rc = proc.wait()
@@ -438,7 +438,7 @@ class ExecutablePropagator(WESTPropagator):
                 if isdir:
                     rfname = tempfile.mkdtemp()
                 else:
-                    (fd, rfname) = tempfile.mkstemp()
+                    fd, rfname = tempfile.mkstemp()
                     os.close(fd)
                 return_files[dataset] = rfname
                 del_return_files[dataset] = True

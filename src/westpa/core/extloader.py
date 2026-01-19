@@ -62,7 +62,7 @@ def get_object(object_name, path=None):
     """Attempt to load the given object, using additional path information if given."""
 
     try:
-        (modspec, symbol) = object_name.rsplit('.', 1)
+        modspec, symbol = object_name.rsplit('.', 1)
     except ValueError:
         # no period found
         raise ValueError("object_name name must be in the form 'module.symbol'")

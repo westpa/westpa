@@ -69,7 +69,6 @@ from .we_driver import NewWeightEntry
 
 import westpa
 
-
 log = logging.getLogger(__name__)
 
 file_format_version = 10

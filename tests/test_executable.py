@@ -85,7 +85,7 @@ class Test_Loaders:
         restart_writer(self.write_dir, test_segment)
 
         # Do a shallow file comparison and make sure files tarred up and written out matches
-        (matches, mismatches, errors) = cmpfiles(self.return_dir, self.write_dir, ['nacl.prmtop', 'nacl.ncrst'])
+        matches, mismatches, errors = cmpfiles(self.return_dir, self.write_dir, ['nacl.prmtop', 'nacl.ncrst'])
         assert sum([True if file in self.nacl_restart_files else False for file in matches]) == 2
 
     def test_seglog_loader_writer(self, nacl_restart_files):

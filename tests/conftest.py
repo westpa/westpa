@@ -9,7 +9,6 @@ from scipy.io import netcdf_file
 import westpa
 from westpa.core.h5io import WESTIterationFile
 
-
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
 
 H5_FILENAME = 'west.h5'

@@ -39,7 +39,7 @@ def randport():
 
 
 def randipc():
-    (fd, socket_path) = tempfile.mkstemp()
+    fd, socket_path = tempfile.mkstemp()
     os.close(fd)
     endpoint = 'ipc://{}'.format(socket_path)
     return endpoint

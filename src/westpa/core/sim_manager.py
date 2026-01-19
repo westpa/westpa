@@ -17,7 +17,6 @@ from .states import InitialState
 from . import extloader
 from . import wm_ops
 
-
 log = logging.getLogger(__name__)
 
 EPS = np.finfo(weight_dtype).eps

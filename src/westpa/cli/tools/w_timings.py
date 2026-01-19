@@ -8,7 +8,6 @@ from westpa.tools import (
     IterRangeSelection,
 )
 
-
 # NumPy fixed time units (excludes nonlinear units 'Y and 'M')
 TIME_UNITS = ('W', 'D', 'h', 'm', 's', 'ms', 'us', 'ns', 'ps', 'fs', 'as')
 
