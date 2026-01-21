@@ -45,6 +45,9 @@ class TestSimManager(TestCase):
         self.sim_manager.completed_segments = self.sim_manager.segments
         self.sim_manager.report_bin_statistics = MagicMock(return_value=True)
 
+        self.work_manager = westpa.rc.get_work_manager()
+        self.work_manager.running = True
+
         data = self.sim_manager.we_driver.rc.get_data_manager()
         data.we_h5filename = self.hdf5
         data.prepare_backing()
