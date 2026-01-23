@@ -7,7 +7,6 @@ import numpy as np
 from scipy.io import netcdf_file
 
 import westpa
-from westpa.analysis import Run
 from westpa.core.h5io import WESTIterationFile
 
 
@@ -303,20 +302,3 @@ def nacl_restart_files(request, tmp_path):
 
     for file in request.cls.nacl_restart_files:
         copyfile(os.path.join(REFERENCE_PATH, file), request.cls.return_dir / file)
-
-
-@pytest.fixture(scope='class')
-def ref_analysis(request, tmp_path_factory):
-    """
-    Fixture that prepares a simulation directory with a completed 50-iteration WESTPA,
-    west.h5, plus the config file west.cfg, plus a westpa.analysis.Run object.
-    """
-    test_dir = str(tmp_path_factory.getbasetemp())
-
-    os.chdir(test_dir)
-    copy_ref(test_dir)
-
-    copyfile(os.path.join(REFERENCE_PATH, 'west_ref.h5'), H5_FILENAME)
-    request.cls.h5_filepath = H5_FILENAME
-
-    request.cls.run = Run(H5_FILENAME)
