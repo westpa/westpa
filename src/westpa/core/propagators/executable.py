@@ -132,13 +132,7 @@ class ExecutablePropagator(WESTPropagator):
         log.debug('exe_info: {!r}'.format(self.exe_info))
 
         # Load configuration items relating to dataset input
-        self.data_info['pcoord'] = {
-            'name': 'pcoord',
-            'loader': pcoord_loader,
-            'enabled': True,
-            'filename': None,
-            'dir': False
-        }
+        self.data_info['pcoord'] = {'name': 'pcoord', 'loader': pcoord_loader, 'enabled': True, 'filename': None, 'dir': False}
         self.data_info['trajectory'] = {
             'name': 'trajectory',
             'loader': mdtraj_trajectory_loader,
@@ -153,13 +147,7 @@ class ExecutablePropagator(WESTPropagator):
             'filename': None,
             'dir': True,
         }
-        self.data_info['log'] = {
-            'name': 'seglog',
-            'loader': seglog_loader,
-            'enabled': store_h5,
-            'filename': None,
-            'dir': False
-        }
+        self.data_info['log'] = {'name': 'seglog', 'loader': seglog_loader, 'enabled': store_h5, 'filename': None, 'dir': False}
 
         # Grab config from west.executable.datasets, else fallback to west.data.datasets.
         dataset_configs = config.get(["west", "executable", "datasets"]) or config.get(['west', 'data', 'datasets'], {})

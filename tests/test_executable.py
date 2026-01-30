@@ -18,7 +18,7 @@ from westpa.core.propagators.loaders import (
     seglog_writer,
     pcoord_loader,
     mdanalysis_trajectory_loader,
-    mdtraj_trajectory_loader
+    mdtraj_trajectory_loader,
 )
 from westpa.core.segment import Segment
 
@@ -33,10 +33,11 @@ class Test_Executable:
         westpa.rc.read_config(filename='west_implicit.cfg')
         executable = ExecutablePropagator(rc=westpa.rc)
 
-        check = {'pcoord': pcoord_loader,
-                 'displacement': numpy_data_loader,
-                 'trajectory' : mdanalysis_trajectory_loader,
-                }
+        check = {
+            'pcoord': pcoord_loader,
+            'displacement': numpy_data_loader,
+            'trajectory': mdanalysis_trajectory_loader,
+        }
 
         for dsname, loader in check.items():
             assert dsname in executable.data_info
@@ -49,10 +50,11 @@ class Test_Executable:
         westpa.rc.read_config(filename='west.cfg')
         executable = ExecutablePropagator(rc=westpa.rc)
 
-        check = {'pcoord': pcoord_loader,
-                 'displacement': aux_data_loader,
-                 'trajectory' : mdtraj_trajectory_loader,
-                }
+        check = {
+            'pcoord': pcoord_loader,
+            'displacement': aux_data_loader,
+            'trajectory': mdtraj_trajectory_loader,
+        }
 
         for dsname, loader in check.items():
             assert dsname in executable.data_info
