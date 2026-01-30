@@ -606,7 +606,7 @@ class WESimManager:
             futures.add(future)
             segment_futures.add(future)
 
-        while futures and self.work_manager.running:
+        while futures:
             future = self.work_manager.wait_any(futures)
             futures.remove(future)
 
