@@ -132,8 +132,13 @@ class ExecutablePropagator(WESTPropagator):
         log.debug('exe_info: {!r}'.format(self.exe_info))
 
         # Load configuration items relating to dataset input
-        self.data_info['pcoord'] = {'name': 'pcoord', 'loader': pcoord_loader, 'enabled': True, 'filename': None, 'dir': False}
-
+        self.data_info['pcoord'] = {
+            'name': 'pcoord',
+            'loader': pcoord_loader,
+            'enabled': True,
+            'filename': None,
+            'dir': False
+        }
         self.data_info['trajectory'] = {
             'name': 'trajectory',
             'loader': mdtraj_trajectory_loader,
@@ -148,10 +153,17 @@ class ExecutablePropagator(WESTPropagator):
             'filename': None,
             'dir': True,
         }
-        self.data_info['log'] = {'name': 'seglog', 'loader': seglog_loader, 'enabled': store_h5, 'filename': None, 'dir': False}
+        self.data_info['log'] = {
+            'name': 'seglog',
+            'loader': seglog_loader,
+            'enabled': store_h5,
+            'filename': None,
+            'dir': False
+        }
 
         # Grab config from west.executable.datasets, else fallback to west.data.datasets.
         dataset_configs = config.get(["west", "executable", "datasets"]) or config.get(['west', 'data', 'datasets'], {})
+
         for dsinfo in dataset_configs:
             try:
                 dsname = dsinfo['name']
@@ -170,31 +182,29 @@ class ExecutablePropagator(WESTPropagator):
             else:
                 dspath = None
 
-            match loader_directive:
-                case loader_directive if callable(loader_directive):
-                    # If directly callable, then use it
-                    loader = loader_directive
-                case 'pcoord' | 'seglog' | 'restart':
-                    # These are "protected" dataset names
-                    if loader_directive in data_loaders:
-                        loader = data_loaders[loader_directive]
-                    else:
-                        loader = get_object(loader_directive)
-                case 'trajectory':
-                    # Special dataset for saving trajectory coordinates in HDF5 Framework
-                    if loader_directive in trajectory_loaders:
-                        loader = trajectory_loaders[loader_directive]
-                    else:
-                        loader = get_object(loader_directive, path=dspath)
-                case _:
-                    # All other dataset names
-                    if loader_directive in data_loaders:
-                        loader = data_loaders[loader_directive]
-                    elif isinstance(loader_directive, str):
-                        loader = get_object(loader_directive, path=dspath)
-                    else:
-                        # Assumed aux dataset, defaulting to aux_data_loader
-                        loader = aux_data_loader
+            if callable(loader_directive):
+                # If directly callable, then use it
+                loader = loader_directive
+            else:
+                match dsname:
+                    case 'pcoord' | 'seglog' | 'restart':
+                        # These are proteced dataset names, so set them directly.
+                        loader = loader_directive
+                    case 'trajectory':
+                        # Special dataset for saving trajectory coordinates in HDF5 Framework
+                        if loader_directive in trajectory_loaders:
+                            loader = trajectory_loaders[loader_directive]
+                        else:
+                            loader = get_object(loader_directive, path=dspath)
+                    case _:
+                        # All other dataset names
+                        if loader_directive in data_loaders:
+                            loader = data_loaders[loader_directive]
+                        elif isinstance(loader_directive, str):
+                            loader = get_object(loader_directive, path=dspath)
+                        else:
+                            # Assumed aux dataset, defaulting to aux_data_loader
+                            loader = aux_data_loader
 
             if loader:
                 dsinfo['loader'] = loader
