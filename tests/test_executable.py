@@ -17,6 +17,8 @@ from westpa.core.propagators.loaders import (
     seglog_loader,
     seglog_writer,
     pcoord_loader,
+    mdanalysis_trajectory_loader,
+    mdtraj_trajectory_loader
 )
 from westpa.core.segment import Segment
 
@@ -31,8 +33,14 @@ class Test_Executable:
         westpa.rc.read_config(filename='west_implicit.cfg')
         executable = ExecutablePropagator(rc=westpa.rc)
 
-        assert 'displacement' in executable.data_info
-        assert executable.data_info['displacement']['loader'] == numpy_data_loader
+        check = {'pcoord': pcoord_loader,
+                 'displacement': numpy_data_loader,
+                 'trajectory' : mdanalysis_trajectory_loader,
+                }
+
+        for dsname, loader in check.items():
+            assert dsname in executable.data_info
+            assert executable.data_info[dsname]['loader'] == loader
 
     def test_legacy_data_config(self, ref_executable):
         """Test if the dataset config is initialized correctly using the legacy part, where propagator datasets have to be specified twice."""
@@ -41,8 +49,14 @@ class Test_Executable:
         westpa.rc.read_config(filename='west.cfg')
         executable = ExecutablePropagator(rc=westpa.rc)
 
-        assert 'displacement' in executable.data_info
-        assert executable.data_info['displacement']['loader'] == aux_data_loader
+        check = {'pcoord': pcoord_loader,
+                 'displacement': aux_data_loader,
+                 'trajectory' : mdtraj_trajectory_loader,
+                }
+
+        for dsname, loader in check.items():
+            assert dsname in executable.data_info
+            assert executable.data_info[dsname]['loader'] == loader
 
 
 class Test_Loaders:
