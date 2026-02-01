@@ -37,7 +37,7 @@ jobs:
         run: "brew install hdf5"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.3.0
+        uses: pypa/cibuildwheel@v3.3.1
         if: ${{ matrix.python-version != '14' }}
         env:
           CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
@@ -64,7 +64,7 @@ jobs:
           config-file: "{package}/pyproject.toml"
 
       - name: Build wheels (Python 3.14)
-        uses: pypa/cibuildwheel@v3.3.0
+        uses: pypa/cibuildwheel@v3.3.1
         if: ${{ matrix.python-version == '14' }}
         env:
           CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
