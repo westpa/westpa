@@ -36,7 +36,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install HDF5 with brew
-        if: ${{ matrix.os == "macos-latest" || matrix.os == "macos-15-intel" }}
+        if: ${{ matrix.os == "macos-latest" }} || ${{ matrix.os == "macos-15-intel" }}
         run: "brew install hdf5"
 
       - name: Build wheels
