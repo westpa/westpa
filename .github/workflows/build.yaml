@@ -68,7 +68,7 @@ jobs:
 
       - name: Build wheels (Python 3.14)
         uses: pypa/cibuildwheel@v3.3.1
-        if: ${{ (matrix.python-version == '14') && (matrix.os != "macos-15-intel") }}
+        if: ${{ matrix.python-version == '14' }} && ${{ matrix.os != "macos-15-intel" }}
         env:
           CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
@@ -103,7 +103,7 @@ jobs:
 
       - name: Build wheels (Python 3.14-macos-intel)
         uses: pypa/cibuildwheel@v3.3.1
-        if: ${{ (matrix.python-version == '14') && (matrix.os == "macos-15-intel") }}
+        if: ${{ matrix.python-version == '14' }} && ${{ matrix.os == "macos-15-intel" }}
         env:
           CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
