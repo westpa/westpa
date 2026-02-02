@@ -77,7 +77,10 @@ jobs:
           CIBW_BEFORE_TEST_LINUX: >
             dnf install -y hdf5 hdf5-devel &&
             python -m pip install git+https://github.com/pytables/pytables
-          CIBW_BEFORE_TEST_MACOS: "python -m pip install git+https://github.com/pytables/pytables"
+          CIBW_BEFORE_TEST_MACOS: >
+            arch -arm64 /bin/sh -c "brew install hdf5" &&
+            python -m pip install git+https://github.com/pytables/pytables &&
+            arch -arm64 /bin/sh -c "brew uninstall hdf5"
           CIBW_TEST_COMMAND: > 
             python -c "import tables" &&
             python -c "import westpa; print(westpa.__version__)" &&
