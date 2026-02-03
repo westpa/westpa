@@ -607,6 +607,7 @@ class WESimManager:
             segment_futures.add(future)
 
         while futures:
+            # TODO: add capacity to timeout or SIGINT here
             future = self.work_manager.wait_any(futures)
             futures.remove(future)
 
