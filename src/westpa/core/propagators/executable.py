@@ -176,8 +176,16 @@ class ExecutablePropagator(WESTPropagator):
             else:
                 match dsname:
                     case 'pcoord' | 'seglog' | 'restart':
-                        # These are proteced dataset names, so set the defaults.
-                        loader = None
+                        # These are proteced dataset names.
+                        if loader_directive:
+                            try:
+                                # trust the user
+                                loader = get_object(loader_directive, path=dspath)
+                            except (AttributeError, ValueError, IndexError, ImportError):
+                                # Failed. Use defaults.
+                                loader = None
+                        else:
+                            loader = None
                     case 'trajectory':
                         # Special dataset for saving trajectory coordinates in HDF5 Framework
                         if loader_directive in trajectory_loaders:
