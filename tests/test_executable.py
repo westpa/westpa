@@ -35,7 +35,7 @@ class Test_Executable:
         with caplog.at_level(logging.WARNING):
             executable = ExecutablePropagator(rc=westpa.rc)
 
-        assert 'WARNING  westpa.core.propagators.executable:executable.py:187' in caplog.text
+        assert 'Unable to use specified loader' in caplog.text
 
         check = {
             'pcoord': pcoord_loader,
