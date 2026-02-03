@@ -1708,7 +1708,7 @@ def create_dataset_from_dsopts(group, dsopts, shape=None, dtype=None, data=None,
         opts['scaleoffset'] = scaleoffset
 
     if log.isEnabledFor(logging.DEBUG):
-        log.debug('requiring aux dataset {!r}, shape={!r}, opts={!r}'.format(h5_dsname, shape, opts))
+        log.debug('requiring dataset {!r}, shape={!r}, opts={!r}'.format(h5_dsname, shape, opts))
 
     dset = containing_group.require_dataset(h5_dsname, **opts)
 
