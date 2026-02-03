@@ -219,7 +219,7 @@ def ref_executable(request, tmp_path):
 
     # Create a "temp" file
     with open(CFG_FILENAME, 'r') as f, open('west_implicit.cfg', 'w') as g:
-        for line in f.readlines()[:24]:
+        for line in f.readlines()[:25]:
             g.write(line)
 
     request.cls.cfg_filepath = CFG_FILENAME

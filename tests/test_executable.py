@@ -1,3 +1,4 @@
+import logging
 import pytest
 from filecmp import cmpfiles
 from io import StringIO
@@ -26,12 +27,15 @@ from westpa.core.segment import Segment
 class Test_Executable:
     """Class to test the propagator executable."""
 
-    def test_data_config(self, ref_executable):
+    def test_data_config(self, ref_executable, caplog):
         """Test if the config is initialized correctly, where the executable propagator dataset options are set with the data manager options."""
 
         # Make the rc and executable read the config file.
         westpa.rc.read_config(filename='west_implicit.cfg')
-        executable = ExecutablePropagator(rc=westpa.rc)
+        with caplog.at_level(logging.WARNING):
+            executable = ExecutablePropagator(rc=westpa.rc)
+
+        assert 'WARNING  westpa.core.propagators.executable:executable.py:187' in caplog.text
 
         check = {
             'pcoord': pcoord_loader,
@@ -48,6 +52,7 @@ class Test_Executable:
 
         # Make the rc and executable read the config file.
         westpa.rc.read_config(filename='west.cfg')
+
         executable = ExecutablePropagator(rc=westpa.rc)
 
         check = {
