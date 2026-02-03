@@ -69,7 +69,6 @@ jobs:
           miniforge-version: latest
           channel-priority: true
           auto-update-conda: true
-          auto-activate-base: false
           show-channel-urls: true
           conda-remove-defaults: true
 
