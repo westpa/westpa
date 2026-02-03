@@ -177,15 +177,16 @@ class ExecutablePropagator(WESTPropagator):
                 match dsname:
                     case 'pcoord' | 'seglog' | 'restart':
                         # These are proteced dataset names.
-                        if loader_directive:
-                            try:
-                                # trust the user
-                                loader = get_object(loader_directive, path=dspath)
-                            except (AttributeError, ValueError, IndexError, ImportError):
-                                # Failed. Use defaults.
-                                loader = None
-                        else:
-                            loader = None
+                        try:
+                            # trust the user
+                            loader = get_object(loader_directive, path=dspath)
+                        except (AttributeError, ValueError, IndexError, ImportError):
+                            # Failed. Using defaults.
+                            loader = self.data_info[dsname]['loader']
+                            if loader_directive:
+                                log.warning(
+                                    f'Unable to use specified loader `{loader_directive}` for dataset `{dsname}`. Revering to default `{loader.__name__}`.'
+                                )
                     case 'trajectory':
                         # Special dataset for saving trajectory coordinates in HDF5 Framework
                         if loader_directive in trajectory_loaders:
@@ -194,6 +195,7 @@ class ExecutablePropagator(WESTPropagator):
                             loader = get_object(loader_directive, path=dspath)
                         else:
                             loader = mdtraj_trajectory_loader
+                            log.debug(f'Using default `{loader.__name__}` for dataset `{dsname}`')
                     case _:
                         # All other dataset names
                         if loader_directive in data_loaders:
@@ -203,6 +205,7 @@ class ExecutablePropagator(WESTPropagator):
                         else:
                             # Assumed aux dataset, defaulting to aux_data_loader
                             loader = aux_data_loader
+                            log.debug(f'Using default `{loader.__name__}` for dataset `{dsname}`')
 
             if loader:
                 dsinfo['loader'] = loader
