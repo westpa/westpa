@@ -30,7 +30,8 @@ from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
 
 log = logging.getLogger(__name__)
-log.addFilter(DuplicateFilter())
+if log.root.level >= logging.WARNING:
+    log.addFilter(DuplicateFilter())
 
 # Get a list of user-friendly signal names
 SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) if name.startswith('SIG') and not name.startswith('SIG_')}
