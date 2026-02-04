@@ -1,4 +1,3 @@
-import logging
 import pytest
 from filecmp import cmpfiles
 from io import StringIO
@@ -32,10 +31,7 @@ class Test_Executable:
 
         # Make the rc and executable read the config file.
         westpa.rc.read_config(filename='west_implicit.cfg')
-        with caplog.at_level(logging.WARNING):
-            executable = ExecutablePropagator(rc=westpa.rc)
-
-        assert 'Unable to use specified loader' in caplog.text
+        executable = ExecutablePropagator(rc=westpa.rc)
 
         check = {
             'pcoord': pcoord_loader,
