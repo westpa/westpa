@@ -15,5 +15,5 @@ The WESTPA project recognizes that AI technologies are rapidly evolving and that
 * Requests for clarification. WESTPA maintainers and project leadership reserve the right to request clarification or revisions for any contribution or communication where undisclosed AI use is suspected.
 
 ## Acknowledgements
-The policies here are heavily inspired by discussions and similar AI policies by [Kornia](https://github.com/kornia/kornia/blob/main/AI_POLICY.md) [MDAnalysis](https://github.com/MDAnalysis/mdanalysis/blob/develop/AI_POLICY.md), [SymPy](https://docs.sympy.org/dev/contributing/ai-generated-code-policy.html), and others from the [Scientific Python Community](https://discuss.scientific-python.org/t/a-policy-on-generative-ai-assisted-contributions/1702/18).
+The policies here are heavily inspired by discussions and similar AI policies by [Kornia](https://github.com/kornia/kornia/blob/main/AI_POLICY.md), [MDAnalysis](https://github.com/MDAnalysis/mdanalysis/blob/develop/AI_POLICY.md), [SymPy](https://docs.sympy.org/dev/contributing/ai-generated-code-policy.html), and others from the [Scientific Python Community](https://discuss.scientific-python.org/t/a-policy-on-generative-ai-assisted-contributions/1702/18).
 
