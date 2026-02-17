@@ -26,7 +26,7 @@
 - [ ] I have added tests to cover my changes.
 - [ ] All new and existing tests passed.
 - [ ] I have read the AI POLICY document.
-- [ ] This PR conforms to WESTPA's AI POLICY.
+- [ ] This PR conforms to WESTPA's AI policy.
 - [ ] I have declared all usage of AI in the PR description.
 
 ## Additional context
