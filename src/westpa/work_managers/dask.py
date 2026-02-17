@@ -74,7 +74,7 @@ class _ConfigSetter(distributed.WorkerPlugin):
 
 
 class DaskWorkManager(WorkManager):
-    """Submits computations to a Dask cluster.
+    """Submits tasks to a Dask cluster.
 
     Parameters
     ----------
@@ -95,7 +95,7 @@ class DaskWorkManager(WorkManager):
     def submit(self, fn, args=None, kwargs=None):
         args = args or ()
         kwargs = kwargs or {}
-        future = self.client.submit(fn, *args, **kwargs)
+        future = self.client.submit(fn, *args, **kwargs, pure=False)
         return _DaskFutureWrapper(future)
 
     def as_completed(self, futures):
