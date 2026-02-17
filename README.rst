@@ -133,4 +133,6 @@ to sign up or search archived messages.
 Developers
 ----------
 
-Search archived messages or post to the westpa-devel Google group: https://groups.google.com/group/westpa-devel. 
+Get started by reading the `developer's guide`_.
+
+.. _`developer's guide`: https://github.com/westpa/westpa/wiki/WESTPA-Developer%27s-Guide
