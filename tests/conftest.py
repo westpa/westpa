@@ -4,8 +4,10 @@ import glob
 from shutil import copyfile, copy
 
 import numpy as np
+from scipy.io import netcdf_file
 
 import westpa
+from westpa.core.h5io import WESTIterationFile
 
 
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
@@ -27,16 +29,15 @@ def copy_ref(dest_dir):
 
 def clear_state():
     os.chdir(STARTING_PATH)
-    del os.environ['WEST_SIM_ROOT']
+    if 'WEST_SIM_ROOT' in os.environ:
+        del os.environ['WEST_SIM_ROOT']
     westpa.rc = westpa.core._rc.WESTRC()
 
 
 @pytest.fixture
 def ref_3iter(request, tmp_path):
-    """
-    Fixture that prepares a simulation directory with a completed 3-iteration WESTPA,
-    west.h5, plus the config file west.cfg
-    """
+    """Fixture that prepares a simulation directory with a completed 3-iteration WESTPA,
+    west.h5, plus the config file west.cfg"""
 
     test_dir = str(tmp_path)
     os.chdir(test_dir)
@@ -56,9 +57,7 @@ def ref_3iter(request, tmp_path):
 
 @pytest.fixture
 def ref_cfg(request, tmp_path):
-    """
-    Fixture that prepares a simulation directory with a populated west.cfg file.
-    """
+    """Fixture that prepares a simulation directory with a populated west.cfg file."""
 
     test_dir = str(tmp_path)
     os.chdir(test_dir)
@@ -162,10 +161,8 @@ def ref_multi(request, tmp_path):
 
 @pytest.fixture
 def ref_multi_noaux(request, tmp_path):
-    """
-    Fixture that prepares a simulation directory for w_multi_west, including a master
-    folder with sub folders 01, 02, 03 containing west_aux_ref.h5 renamed as west.h5.
-    """
+    """Fixture that prepares a simulation directory for w_multi_west, including a master
+    folder with sub folders 01, 02, 03 containing west_aux_ref.h5 renamed as west.h5."""
 
     test_dir = str(tmp_path)
 
@@ -192,9 +189,8 @@ def ref_multi_noaux(request, tmp_path):
 
 @pytest.fixture
 def ref_idtype(request, tmp_path):
-    """
-    Fixture that prepares the west.h5 file and also links in the "correct" istate dtype array.
-    """
+    """Fixture that prepares the west.h5 file and also links in the "correct" istate dtype array."""
+
     test_dir = str(tmp_path)
     os.chdir(test_dir)
 
@@ -213,9 +209,7 @@ def ref_idtype(request, tmp_path):
 
 @pytest.fixture
 def ref_executable(request, tmp_path):
-    """
-    Fixture that prepares a simulation directory with a populated west_executable.cfg file.
-    """
+    """Fixture that prepares a simulation directory with a populated west_executable.cfg file."""
 
     test_dir = str(tmp_path)
     os.chdir(test_dir)
@@ -237,11 +231,46 @@ def ref_executable(request, tmp_path):
     request.addfinalizer(clear_state)
 
 
+@pytest.fixture(scope='function')
+def west_iteration_file(request, tmp_path):
+    os.chdir(tmp_path)
+    request.cls.h5_iter_file_path = tmp_path / 'WESTITERFILE.h5'
+
+    request.cls.rng = rng = np.random.default_rng()
+    request.cls.dummy_data = {'iterh5/trajectory': rng.uniform(low=-3, high=3, size=(4, 5, 3))}
+
+    # Initialize and close the file
+    WESTIterationFile(request.cls.h5_iter_file_path, mode='w').close()
+
+    request.addfinalizer(clear_state)
+
+
+@pytest.fixture
+def traj_setup(request, tmp_path):
+    """Fixture for testing the trajectory reading capabilities of the HDF5 Framework"""
+
+    test_dir = str(tmp_path)
+
+    os.chdir(test_dir)
+
+    traj_file_path = os.path.join(REFERENCE_PATH, 'ntl9.nc')
+    top_file_path = os.path.join(REFERENCE_PATH, 'ntl9_reference.pdb')
+
+    copyfile((traj_file_path), 'ntl9.nc')
+    copyfile(top_file_path, 'ntl9_reference.pdb')
+
+    request.cls.current_path = tmp_path
+
+    with netcdf_file(traj_file_path) as rootgrp:
+        request.cls.ref_coords = rootgrp.variables['coordinates'][()].copy() / 10
+        #        request.cls.ref_lengths = rootgrp.variables['cell_lengths'][()]
+        #        request.cls.ref_angles = rootgrp.variables['cell_angles'][()]
+        request.cls.ref_time = rootgrp.variables['time'][()].copy()
+
+
 @pytest.fixture
 def ref_mab(request, tmp_path):
-    """
-    Fixture that prepares an rc/sim_manager/WESTSystem from west_mab.cfg
-    """
+    """Fixture that prepares an rc/sim_manager/WESTSystem from west_mab.cfg"""
 
     test_dir = str(tmp_path)
 
@@ -258,4 +287,18 @@ def ref_mab(request, tmp_path):
 
     request.cls.tmpdir = test_dir
 
-    request.addfinalizer(clear_state)
+
+@pytest.fixture
+def nacl_restart_files(request, tmp_path):
+    request.cls.test_dir = tmp_path
+    request.cls.return_dir = tmp_path / 'restart_return'
+    request.cls.write_dir = tmp_path / 'restart_write'
+
+    request.cls.nacl_restart_files = ['nacl.prmtop', 'nacl.ncrst']
+
+    os.chdir(tmp_path)
+    os.mkdir(request.cls.return_dir)
+    os.mkdir(request.cls.write_dir)
+
+    for file in request.cls.nacl_restart_files:
+        copyfile(os.path.join(REFERENCE_PATH, file), request.cls.return_dir / file)

@@ -109,6 +109,7 @@ class ProcessWorkManager(WorkManager):
                     raise AssertionError('unknown message {!r}'.format((message, task_id, payload)))
 
         log.debug('exiting results_loop')
+        return
 
     def submit(self, fn, args=None, kwargs=None):
         ft = WMFuture()
@@ -148,25 +149,30 @@ class ProcessWorkManager(WorkManager):
         try:
             while True:
                 self.task_queue.get_nowait()
-        except Empty:
-            pass
+        except (Empty, ValueError):
+            log.debug('Empty task_queue')
 
         try:
             while True:
                 self.result_queue.get_nowait()
-        except Empty:
-            pass
+        except (Empty, ValueError):
+            log.debug('Empty result_queue')
 
     def shutdown(self):
         while self.running:
             log.debug('shutting down {!r}'.format(self))
+
+            # Empty queues
+            self._empty_queues()
+            for _i in range(self.n_workers):
+                self.task_queue.put_nowait(task_shutdown_sentinel)
+            self.result_queue.put_nowait(result_shutdown_sentinel)
+
+            # Signal shutdown Event to stop queue loops
             self.shutdown_received.set()
             self._empty_queues()
 
-            # Send shutdown signal
-            for _i in range(self.n_workers):
-                self.task_queue.put_nowait(task_shutdown_sentinel)
-
+            # Terminating all workers
             for worker in self.workers:
                 worker.join(self.shutdown_timeout)
                 if worker.is_alive():
@@ -191,7 +197,5 @@ class ProcessWorkManager(WorkManager):
                     except ValueError:
                         pass  # Already closed.
 
-            self._empty_queues()
-            self.result_queue.put(result_shutdown_sentinel)
-
             self.running = False
+            log.debug('Done shutting down the processes work manager')

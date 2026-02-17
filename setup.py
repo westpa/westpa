@@ -70,6 +70,7 @@ console_scripts_core = [
     'w_succ = westpa.cli.core.w_succ:entry_point',
 ]
 
+
 console_scripts_tools = [
     'w_direct = westpa.cli.tools.w_direct:entry_point',
     'w_dumpsegs = westpa.cli.tools.w_dumpsegs:entry_point',
@@ -95,6 +96,7 @@ console_scripts_tools = [
     'w_red = westpa.cli.tools.w_red:entry_point',
     'w_timings = westpa.cli.tools.w_timings:entry_point',
 ]
+
 
 console_scripts = console_scripts_core + console_scripts_tools
 
