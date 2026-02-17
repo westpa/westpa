@@ -1,8 +1,8 @@
 # AI Policy for WESTPA
 
-### Version: 1.0 (2026-02-17)
+### Version: 1.1 (2026-02-17)
 
-This document established the WESTPA project’s policy governing the use of artificial intelligence (AI)-generated content in all project activities, including but not limited to code contributions, documentation, GitHub discussions, mailing lists, and other communication channels.
+This document establishes the WESTPA project’s policy governing the use of artificial intelligence (AI)-generated content in all project activities, including but not limited to code contributions, documentation, GitHub discussions, mailing lists, and other communication channels.
 
 The WESTPA project recognizes that AI technologies are rapidly evolving and that community norms surrounding their use continue to develop. Accordingly, this policy is subject to periodic review and may be revised as needed. Community feedback is encouraged via GitHub Discussions or the mailing list. Questions and concerns regarding this policy may be directed to the Project Director, Prof. Lillian Chong, at the University of Pittsburgh (ltchong AT pitt DOT edu).
 
