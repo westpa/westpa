@@ -7,7 +7,7 @@ This document established the WESTPA project’s policy governing the use of art
 The WESTPA project recognizes that AI technologies are rapidly evolving and that community norms surrounding their use continue to develop. Accordingly, this policy is subject to periodic review and may be revised as needed. Community feedback is encouraged via GitHub Discussions or the mailing list. Questions and concerns regarding this policy may be directed to the Project Director, Prof. Lillian Chong, at the University of Pittsburgh (ltchong AT pitt DOT edu).
 
 ## Policy
-* Disclosure of AI usage. Contributors are required to explicitly disclose any AI usage where relevant (e.g., in the Pull Request description).
+* Disclosure of AI usage. Contributors are required to explicitly disclose any AI usage where relevant (e.g., in the pull request description).
 * Substantial use of AI is prohibited. WESTPA will not accept substantial contributions that rely primarily on AI-generated content, such as pull requests, code, or documentation produced  solely through prompting a large language model (LLM) or similar system.
 * Contexts for limited use of AI. Contributors may use AI tools in limited, cosmetic contexts, such as code autocompletion, linting assistance, or language translation, provided that the contributor retains full responsibility for the content.
 * Project communications. Contributors are discouraged from using AI tools to draft project communications, except for translation or grammar editing. Important nuances may be altered or lost when text is processed by LLMs, which may hinder the clear and respectful communication essential for effective collaboration within the community.
