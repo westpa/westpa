@@ -1,6 +1,6 @@
 # AI Policy for WESTPA
 
-### Version: 1.1 (2026-02-17)
+### Version: 1.0 (2026-02-17)
 
 This document establishes the WESTPA project’s policy governing the use of artificial intelligence (AI)-generated content in all project activities, including but not limited to code contributions, documentation, GitHub discussions, mailing lists, and other communication channels.
 
