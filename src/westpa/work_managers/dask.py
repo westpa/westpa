@@ -125,12 +125,18 @@ class DaskWorkManager(WorkManager):
         group.add_argument(
             wmenv.arg_flag('dask_scheduler_address'),
             metavar='SCHEDULER_ADDRESS',
-            help="Address of the task scheduler (e.g., '127.0.0.1:8786').",
+            help="Address of a scheduler (e.g., '127.0.0.1:8786').",
+        )
+        group.add_argument(
+            wmenv.arg_flag('dask_scheduler_file'),
+            metavar='SCHEDULER_FILE',
+            help="Path to a JSON file containing scheduler information.",
         )
 
     @classmethod
     def from_environ(cls, wmenv=None):
         wmenv = wmenv or work_managers.environment.default_env
         address = wmenv.get_val('dask_scheduler_address')
-        client = distributed.Client(address)
+        scheduler_file = wmenv.get_val('dask_scheduler_file')
+        client = distributed.Client(address=address, scheduler_file=scheduler_file)
         return cls(client)
