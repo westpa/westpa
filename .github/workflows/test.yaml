@@ -19,6 +19,12 @@ on:
       - 'westpa2'
       - 'develop'
 
+concurrency:
+  # test runs from newer commits in PRs will cancel older, in-progress runs
+  # copied from https://stackoverflow.com/a/75403978/17047865
+  group: ${{ github.workflow }}-${{ github.head_ref && github.ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
