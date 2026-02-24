@@ -1,3 +1,4 @@
+import logging
 import os
 from itertools import islice
 
@@ -6,6 +7,8 @@ import dask.distributed as distributed
 import westpa
 import westpa.work_managers as work_managers
 from .core import WorkManager
+
+log = logging.getLogger(__name__)
 
 
 class _DaskFutureWrapper:
@@ -79,17 +82,34 @@ class DaskWorkManager(WorkManager):
     Parameters
     ----------
     client : dask.distributed.Client, optional
-        Connection to a Dask cluster. Defaults to ``Client()``.
+        Connection to a Dask cluster. If not provided, a ``LocalCluster``
+        will be created.
+    n_workers : int, optional
+        Number of workers to use when creating a ``LocalCluster``.
+        Ignored when connecting to an existing scheduler.
 
     """
 
-    def __init__(self, client=None):
+    def __init__(self, client=None, n_workers=None):
         super().__init__()
-        self.client = client or distributed.Client()
+
+        if client is not None:
+            self._local_cluster = None
+            self.client = client
+        else:
+            self._local_cluster = distributed.LocalCluster(n_workers=n_workers)
+            self.client = distributed.Client(self._local_cluster)
+            log.info(f'Started local Dask cluster with {self.n_workers} workers')
+
         self.client.register_plugin(_ConfigSetter())
 
+    @property
+    def n_workers(self):
+        return len(self.client.scheduler_info()['workers'])
+
     def shutdown(self):
-        self.client.close()
+        if self._local_cluster is not None:
+            self.client.shutdown()
         super().shutdown()
 
     def submit(self, fn, args=None, kwargs=None):
@@ -135,8 +155,18 @@ class DaskWorkManager(WorkManager):
 
     @classmethod
     def from_environ(cls, wmenv=None):
+        # When no scheduler address or file is provided, a ``LocalCluster`` is
+        # created automatically. The number of workers can be controlled with the
+        # ``--n-workers`` CLI flag or the ``WM_N_WORKERS`` environment variable.
         wmenv = wmenv or work_managers.environment.default_env
         address = wmenv.get_val('dask_scheduler_address')
         scheduler_file = wmenv.get_val('dask_scheduler_file')
-        client = distributed.Client(address=address, scheduler_file=scheduler_file)
-        return cls(client)
+
+        n_workers_val = wmenv.get_val('n_workers')
+        n_workers = int(n_workers_val) if n_workers_val is not None else None
+
+        if address or scheduler_file:
+            client = distributed.Client(address=address, scheduler_file=scheduler_file)
+            return cls(client=client)
+        else:
+            return cls(n_workers=n_workers)
