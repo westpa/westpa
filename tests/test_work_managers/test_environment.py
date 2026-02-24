@@ -4,7 +4,13 @@ import unittest
 
 import westpa.work_managers.environment
 from westpa.work_managers.environment import make_work_manager, add_wm_args, process_wm_args
-from westpa.work_managers import SerialWorkManager, ThreadsWorkManager, ProcessWorkManager, ZMQWorkManager
+from westpa.work_managers import (
+    SerialWorkManager,
+    ThreadsWorkManager,
+    ProcessWorkManager,
+    ZMQWorkManager,
+    DaskWorkManager,
+)
 
 from .tsupport import will_succeed, will_wait
 
@@ -88,3 +94,13 @@ class TestInstantiations(unittest.TestCase):
                 future.get_result()
 
             assert work_manager.n_workers == 3
+
+    def testDask(self):
+        os.environ['WM_WORK_MANAGER'] = 'dask'
+        os.environ['WM_N_WORKERS'] = str(3)
+        work_manager = make_work_manager()
+        assert isinstance(work_manager, DaskWorkManager)
+        assert work_manager.n_workers == 3
+        with work_manager:
+            future = work_manager.submit(will_succeed)
+            future.get_result()
