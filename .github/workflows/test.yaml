@@ -34,7 +34,7 @@ jobs:
           pre-commit run --all-files
 
   test:
-    name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}, Numpy ${{ matrix.numpy-version }}
+    name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
