@@ -7,12 +7,12 @@ NUM_TASKS = 5
 QUEUE_SIZE = 2
 
 
-@pytest.mark.timeout(10)
+@pytest.mark.timeout(5)
 class TestDaskWorkManager:
 
     @pytest.fixture(scope='class')
     def work_manager(self):
-        with distributed.Client(timeout=5) as client:
+        with distributed.Client() as client:
             with DaskWorkManager(client) as work_manager:
                 yield work_manager
 
