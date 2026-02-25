@@ -7,7 +7,6 @@ import shutil
 import argparse
 from io import BytesIO
 import tarfile
-from westpa.core.segment import Segment
 from westpa.core.h5io import WESTIterationFile
 from westpa.core.h5io import safe_extract
 from westpa.core._rc import WESTRC
@@ -176,9 +175,8 @@ class W_Reverse():
                             log.warning(f'File with extension {self.rst_extension} is not present in the restart data of {traj_seg}'.format(n_iter=it))
                     else:
                         # find the corresponding restart file
-                        segment = Segment(n_iter=it,seg_id=wlk)
-                        seg_path = self.traj_segs_path
-                        os.dirlist(seg_path)
+                        seg_path = self.traj_segs_path.replace('segment.n_iter','n_iter').replace('segment.seg_id','seg_id').format(n_iter=it,seg_id=wlk)
+                        os.listdir(seg_path)
                         rst_file_path = f'{seg_path}/{self.rst_file}'
                         # if bstate file exists, skip
                         if os.path.exists(f"{self.output_bstates_dir}/{rst_dest_name}"):
