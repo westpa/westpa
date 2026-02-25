@@ -29,9 +29,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]  # macos-latest is arm64
         python-version: [10, 11, 12, 13, 14] # sub-versions of Python
-        include:
-          - os: macos-15-intel  # Building the macOS x86_64 Python 3.14 wheel separately
-            python-version: 14
+    
     steps:
       - uses: actions/checkout@v6
 
