@@ -84,6 +84,7 @@ console_scripts_tools = [
     'w_crawl = westpa.cli.tools.w_crawl:entry_point',
     'w_kinetics = westpa.cli.tools.w_kinetics:entry_point',
     'w_fluxanl = westpa.cli.tools.w_fluxanl:entry_point',
+    'w_reverse = westpa.cli.tools.w_reverse:entry_point',
     'w_reweight = westpa.cli.tools.w_reweight:entry_point',
     'w_pdist = westpa.cli.tools.w_pdist:entry_point',
     'w_ipa = westpa.cli.tools.w_ipa:entry_point',
