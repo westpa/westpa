@@ -1,3 +1,4 @@
+import dask.distributed as distributed
 import pytest
 
 from westpa.work_managers import DaskWorkManager
@@ -11,8 +12,9 @@ class TestDaskWorkManager:
 
     @pytest.fixture(scope='class')
     def work_manager(self):
-        with DaskWorkManager() as work_manager:
-            yield work_manager
+        with distributed.Client(timeout=5) as client:
+            with DaskWorkManager(client) as work_manager:
+                yield work_manager
 
     def test_submit(self, work_manager):
         future = work_manager.submit(sum, args=[(1, 2)])
