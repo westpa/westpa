@@ -12,7 +12,6 @@ from westpa.core.states import BasisState, TargetState
 import westpa.work_managers as work_managers
 from westpa.work_managers import make_work_manager
 
-
 log = logging.getLogger('w_init')
 EPS = np.finfo(np.float64).eps
 

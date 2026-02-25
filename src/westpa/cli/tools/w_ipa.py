@@ -14,7 +14,6 @@ from westpa.tools import WESTParallelTool, WESTDataReader, ProgressIndicatorComp
 
 from westpa.tools import WIPIDataset, __get_data_for_iteration__, WIPIScheme
 
-
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)

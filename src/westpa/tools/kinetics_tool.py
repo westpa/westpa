@@ -7,7 +7,6 @@ from westpa.core import h5io
 
 from westpa.tools.dtypes import iter_block_ci_dtype as ci_dtype
 
-
 # A function to just help with creating future objects for the work manager.
 
 

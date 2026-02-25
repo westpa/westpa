@@ -14,7 +14,6 @@ from .core import ZMQCore, Message, ZMQWMTimeout, PassiveMultiTimer, Task, Resul
 
 import zmq
 
-
 log = logging.getLogger(__name__)
 
 

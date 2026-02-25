@@ -3,7 +3,6 @@ from argparse import ArgumentParser
 
 import westpa
 
-
 log = logging.getLogger('w_truncate')
 
 warning_string = '''\

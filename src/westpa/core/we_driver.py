@@ -678,7 +678,7 @@ class WEDriver:
                 for i in subgroups:
                     # Merges all members of set i.  Checks to see whether there are any to merge.
                     if len(i) > 1:
-                        (segment, parent) = self._merge_walkers(
+                        segment, parent = self._merge_walkers(
                             list(i),
                             np.add.accumulate(np.array(list(map(operator.attrgetter('weight'), i)))),
                             i,

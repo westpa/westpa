@@ -15,7 +15,6 @@ from westpa.core.extloader import get_object
 
 from .core import WESTToolComponent
 
-
 EPS = np.finfo(weight_dtype).eps
 
 log = logging.getLogger(__name__)
@@ -46,7 +45,7 @@ def mapper_from_function(funcspec):
     ``funcspec`` should be formatted as ``[PATH]:MODULE.FUNC``. This function
     loads MODULE, optionally adding PATH to the search path, then returns MODULE.FUNC()'''
     if ':' in funcspec:
-        (pathpart, funcpart) = funcspec.rsplit(':')
+        pathpart, funcpart = funcspec.rsplit(':')
         pathinfo = ['.'] + pathpart.split(':')
     else:
         funcpart = funcspec

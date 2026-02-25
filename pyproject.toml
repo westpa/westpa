@@ -106,3 +106,6 @@ versionfile_build = "westpa/_version.py"
 tag_prefix = "v"
 parentdir_prefix = "westpa-"
 
+[tool.pytest]
+testpaths = ['tests']
+addopts = ['-v', '-ra']

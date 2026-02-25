@@ -9,7 +9,6 @@ from scipy.io import netcdf_file
 import westpa
 from westpa.core.h5io import WESTIterationFile
 
-
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
 
 H5_FILENAME = 'west.h5'
@@ -120,6 +119,11 @@ def ref_50iter(request, tmp_path):
     copyfile(os.path.join(REFERENCE_PATH, 'west_ref.h5'), H5_FILENAME)
     copyfile(os.path.join(REFERENCE_PATH, 'west_ref.cfg'), CFG_FILENAME)
 
+    analysis_path = f'{test_dir}/ANALYSIS/TEST'
+    os.makedirs(analysis_path, exist_ok=True)
+    copyfile(os.path.join(REFERENCE_PATH, 'assign_ref.h5'), f'{analysis_path}/assign.h5')
+    copyfile(os.path.join(REFERENCE_PATH, 'direct_ref.h5'), f'{analysis_path}/direct.h5')
+
     request.cls.cfg_filepath = CFG_FILENAME
     request.cls.h5_filepath = H5_FILENAME
 
@@ -220,7 +224,7 @@ def ref_executable(request, tmp_path):
 
     # Create a "temp" file
     with open(CFG_FILENAME, 'r') as f, open('west_implicit.cfg', 'w') as g:
-        for line in f.readlines()[:22]:
+        for line in f.readlines()[:25]:
             g.write(line)
 
     request.cls.cfg_filepath = CFG_FILENAME

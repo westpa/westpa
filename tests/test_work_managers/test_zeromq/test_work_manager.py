@@ -14,7 +14,6 @@ import zmq
 from .zmq_tsupport import SETUP_WAIT, TEARDOWN_WAIT, BEACON_PERIOD, BEACON_WAIT
 from .zmq_tsupport import ZMQTestBase
 
-
 pytestmark = pytest.mark.flaky(reruns=5, reason='ZeroMQ tests are flaky')
 
 

@@ -45,7 +45,7 @@ class ProgressIndicator:
         if not len(history):
             return 'unknown'
         history[:, 1] -= self._extent
-        (_slope, intercept, _r, _p, _stderr) = linregress(history[:, 1], history[:, 0])
+        _slope, intercept, _r, _p, _stderr = linregress(history[:, 1], history[:, 0])
         if not np.isfinite(intercept):
             return 'unknown'
         else:

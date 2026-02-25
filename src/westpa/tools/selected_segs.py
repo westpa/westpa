@@ -30,7 +30,7 @@ class SegmentSelection:
         return tuple(pair) in self._segments
 
     def add(self, pair):
-        (n_iter, seg_id) = int(pair[0]), int(pair[1])
+        n_iter, seg_id = int(pair[0]), int(pair[1])
         self._segments.add((n_iter, seg_id))
         self._segs_by_iter.setdefault(n_iter, set()).add(seg_id)
         if self._start_iter is None:
@@ -105,7 +105,7 @@ class AllSegmentSelection(SegmentSelection):
         return segcount
 
     def __contains__(self, pair):
-        (n_iter, seg_id) = pair
+        n_iter, seg_id = pair
         return n_iter >= self._start_iter and n_iter < self._stop_iter and seg_id < self._count_from_iter(n_iter)
 
 

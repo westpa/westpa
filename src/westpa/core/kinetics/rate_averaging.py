@@ -12,7 +12,6 @@ from westpa.core.kinetics._kinetics import (
     StreamingStats2D,
 )  # @UnresolvedImport
 
-
 # Named tuple proxy for StreamingStats class
 StreamingStatsTuple = namedtuple('StreamingStatsTuple', ['M1', 'M2', 'n'])
 

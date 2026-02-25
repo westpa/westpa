@@ -2,7 +2,6 @@ import numpy as np
 import numpy.ma as ma
 import itertools
 
-
 TOL = 1.0e-6
 
 

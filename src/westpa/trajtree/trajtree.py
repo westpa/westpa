@@ -7,7 +7,6 @@ from westpa.tools.selected_segs import AllSegmentSelection
 from . import _trajtree
 from ._trajtree import _trajtree_base  # @UnresolvedImport
 
-
 trajnode = collections.namedtuple('trajnode', ('n_iter', 'seg_id'))
 
 

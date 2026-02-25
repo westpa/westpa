@@ -12,6 +12,7 @@ from numpy.random import MT19937, Generator
 
 from westpa.core.data_manager import makepath
 from westpa.core.extloader import get_object
+from westpa.core.logging import ConsecutiveDuplicateFilter
 from westpa.core.propagators import WESTPropagator
 from westpa.core.propagators.loaders import (
     data_loaders,
@@ -29,6 +30,8 @@ from westpa.core.segment import Segment
 from westpa.core.yamlcfg import check_bool
 
 log = logging.getLogger(__name__)
+if log.root.level >= logging.WARNING:
+    log.addFilter(ConsecutiveDuplicateFilter())
 
 # Get a list of user-friendly signal names
 SIGNAL_NAMES = {getattr(signal, name): name for name in dir(signal) if name.startswith('SIG') and not name.startswith('SIG_')}
@@ -133,7 +136,6 @@ class ExecutablePropagator(WESTPropagator):
 
         # Load configuration items relating to dataset input
         self.data_info['pcoord'] = {'name': 'pcoord', 'loader': pcoord_loader, 'enabled': True, 'filename': None, 'dir': False}
-
         self.data_info['trajectory'] = {
             'name': 'trajectory',
             'loader': mdtraj_trajectory_loader,
@@ -152,6 +154,7 @@ class ExecutablePropagator(WESTPropagator):
 
         # Grab config from west.executable.datasets, else fallback to west.data.datasets.
         dataset_configs = config.get(["west", "executable", "datasets"]) or config.get(['west', 'data', 'datasets'], {})
+
         for dsinfo in dataset_configs:
             try:
                 dsname = dsinfo['name']
@@ -170,31 +173,42 @@ class ExecutablePropagator(WESTPropagator):
             else:
                 dspath = None
 
-            match loader_directive:
-                case loader_directive if callable(loader_directive):
-                    # If directly callable, then use it
-                    loader = loader_directive
-                case 'pcoord' | 'seglog' | 'restart':
-                    # These are "protected" dataset names
-                    if loader_directive in data_loaders:
-                        loader = data_loaders[loader_directive]
-                    else:
-                        loader = get_object(loader_directive)
-                case 'trajectory':
-                    # Special dataset for saving trajectory coordinates in HDF5 Framework
-                    if loader_directive in trajectory_loaders:
-                        loader = trajectory_loaders[loader_directive]
-                    else:
-                        loader = get_object(loader_directive, path=dspath)
-                case _:
-                    # All other dataset names
-                    if loader_directive in data_loaders:
-                        loader = data_loaders[loader_directive]
-                    elif isinstance(loader_directive, str):
-                        loader = get_object(loader_directive, path=dspath)
-                    else:
-                        # Assumed aux dataset, defaulting to aux_data_loader
-                        loader = aux_data_loader
+            if callable(loader_directive):
+                # If directly callable, then use it
+                loader = loader_directive
+            else:
+                match dsname:
+                    case 'pcoord' | 'seglog' | 'restart':
+                        # These are proteced dataset names.
+                        try:
+                            # trust the user
+                            loader = get_object(loader_directive, path=dspath)
+                        except (AttributeError, ValueError, IndexError, ImportError):
+                            # Failed. Using defaults.
+                            loader = self.data_info[dsname]['loader']
+                            if loader_directive:
+                                log.warning(
+                                    f'Unable to use specified loader `{loader_directive}` for dataset `{dsname}`. Revering to default `{loader.__name__}`.'
+                                )
+                    case 'trajectory':
+                        # Special dataset for saving trajectory coordinates in HDF5 Framework
+                        if loader_directive in trajectory_loaders:
+                            loader = trajectory_loaders[loader_directive]
+                        elif isinstance(loader_directive, str):
+                            loader = get_object(loader_directive, path=dspath)
+                        else:
+                            loader = mdtraj_trajectory_loader
+                            log.debug(f'Using default `{loader.__name__}` for dataset `{dsname}`')
+                    case _:
+                        # All other dataset names
+                        if loader_directive in data_loaders:
+                            loader = data_loaders[loader_directive]
+                        elif isinstance(loader_directive, str):
+                            loader = get_object(loader_directive, path=dspath)
+                        else:
+                            # Assumed aux dataset, defaulting to aux_data_loader
+                            loader = aux_data_loader
+                            log.debug(f'Using default `{loader.__name__}` for dataset `{dsname}`')
 
             if loader:
                 dsinfo['loader'] = loader
@@ -247,7 +261,7 @@ class ExecutablePropagator(WESTPropagator):
         )
 
         # Wait on child and get resource usage
-        (_pid, _status, rusage) = os.wait4(proc.pid, 0)
+        _pid, _status, rusage = os.wait4(proc.pid, 0)
         # Do a subprocess.Popen.wait() to let the Popen instance (and subprocess module) know that
         # we are done with the process, and to get a more friendly return code
         rc = proc.wait()
@@ -438,7 +452,7 @@ class ExecutablePropagator(WESTPropagator):
                 if isdir:
                     rfname = tempfile.mkdtemp()
                 else:
-                    (fd, rfname) = tempfile.mkstemp()
+                    fd, rfname = tempfile.mkstemp()
                     os.close(fd)
                 return_files[dataset] = rfname
                 del_return_files[dataset] = True
