@@ -432,7 +432,7 @@ contained in the assign.h5 and direct.h5 files in ANALYSIS/DEFAULT.
         except KeyError:
             raise ValueError('Time step not specified in west.cfg.')
 
-        if not config['west']['analysis']['kinetics']['evolution'] == "cumulative":
+        if config['west']['analysis']['kinetics']['evolution'] != "cumulative":
             print("Only RED estimates with cumulative averaging are supported at this time.")
             exit()
 
