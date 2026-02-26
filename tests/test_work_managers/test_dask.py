@@ -12,9 +12,13 @@ class TestDaskWorkManager:
 
     @pytest.fixture(scope='class')
     def work_manager(self):
-        with distributed.Client() as client:
-            with DaskWorkManager(client) as work_manager:
-                yield work_manager
+        # Use a faster, lighter cluster for testing
+        cluster = distributed.LocalCluster(n_workers=2, threads_per_worker=1, memory_limit='1GB')
+        client = distributed.Client(cluster)
+        with DaskWorkManager(client) as work_manager:
+            yield work_manager
+        client.close()
+        cluster.close()
 
     def test_submit(self, work_manager):
         future = work_manager.submit(sum, args=[(1, 2)])
