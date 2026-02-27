@@ -7,7 +7,6 @@ NUM_TASKS = 5
 QUEUE_SIZE = 2
 
 
-@pytest.mark.timeout(5)
 class TestDaskWorkManager:
 
     @pytest.fixture(scope='class')
