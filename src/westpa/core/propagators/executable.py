@@ -221,6 +221,8 @@ class ExecutablePropagator(WESTPropagator):
         as a dictionary, suitable for use in ``os.environ.update()`` or as the ``env`` argument to
         ``subprocess.Popen()``. Every child process executed by ``exec_child()`` gets these.'''
 
+        # Initialize rng here when we need our first number. This will prevent
+        # certain work managers (e.g., `processes`) from reusing an initialized RNG.
         if self.rng is None:
             self.rng = Generator(MT19937())
 
