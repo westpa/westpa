@@ -185,7 +185,7 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
@@ -213,7 +213,7 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
