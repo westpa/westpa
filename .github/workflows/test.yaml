@@ -24,30 +24,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Set up Python 3.12
+      - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: 3.12
+          python-version: 3.13
       - name: Linting
         run: |
           pip install pre-commit
           pre-commit run --all-files
 
   test:
-    name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}, Numpy ${{ matrix.numpy-version }}
+    name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
         os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-15-intel", "macos-latest"]  # macos-15-intel is x86-64, macos-latest is arm64
         python-version: ["3.11", "3.12", "3.13", "3.14"]
-        numpy-version: ["1", "2"]
-        exclude:
-          - python-version: "3.13"
-            numpy-version: "1"
-          - python-version: "3.14"
-            numpy-version: "1"
-          - os: "ubuntu-24.04-arm"
-            numpy-version: "1"
     steps:
       - uses: actions/checkout@v6
         with: 
@@ -64,7 +56,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           python-version: ${{ matrix.python-version }}
-          environment-file: devtools/conda-envs/test_env_numpy${{ matrix.numpy-version }}.yaml
+          environment-file: devtools/conda-envs/test_env.yaml
           activate-environment: test_env
           miniforge-version: latest
           channel-priority: true
@@ -110,7 +102,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - name: "Install HDF5 with brew if macos-arm64"
         if: ${{ matrix.os == 'macos-latest' }}
         run: "brew install hdf5"
