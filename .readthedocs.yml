@@ -5,7 +5,7 @@ version: 2
 formats: all
 
 build:
-  os: ubuntu-lts-latest
+  os: ubuntu-22.04
   tools:
     python: mambaforge-4.10
 
