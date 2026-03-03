@@ -1,4 +1,5 @@
 import pytest
+from copy import copy
 from filecmp import cmpfiles
 from io import StringIO
 
@@ -61,6 +62,24 @@ class Test_Executable:
         for dsname, loader in check.items():
             assert dsname in executable.data_info
             assert executable.data_info[dsname]['loader'] == loader
+
+    def test_rng(self, ref_executable):
+        """Test if the RNG is initialized properly at first call of random numbers."""
+
+        westpa.rc.read_config(filename='west.cfg')
+        executable = ExecutablePropagator(rc=westpa.rc)
+
+        assert executable.rng is None  # RNG should not be initialized
+        cp_executable = copy(executable)  # Mock copying via os.fork()
+
+        # Create the RNGs
+        executable.random_val_env_vars()
+        cp_executable.random_val_env_vars()
+
+        # Assert
+        assert executable.rng is not None
+        assert cp_executable.rng is not None
+        assert executable.rng != cp_executable.rng
 
 
 class Test_Loaders:

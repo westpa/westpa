@@ -63,7 +63,7 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: artifact-wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: ./wheelhouse/*.whl
@@ -97,7 +97,7 @@ jobs:
           echo "All done with the import tests!"
           # Currently blocked by https://github.com/westpa/westpa/issues/70
           # python -c "import westpa.trajtree"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: artifact-sdist
           path: dist/*.tar.gz
@@ -119,7 +119,7 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
@@ -147,7 +147,7 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir

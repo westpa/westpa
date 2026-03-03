@@ -100,8 +100,8 @@ class ExecutablePropagator(WESTPropagator):
         self.initial_state_ref_template = config['west', 'data', 'data_refs', 'initial_state']
         store_h5 = config.get(['west', 'data', 'data_refs', 'iteration']) is not None
 
-        # Create a persistent RNG for each worker
-        self.rng = Generator(MT19937())
+        # Create a persistent variable for RNG, to be initialized later when we need our first random number
+        self.rng = None
 
         # Load additional environment variables for all child processes
         self.addtl_child_environ.update({k: str(v) for k, v in (config['west', 'executable', 'environ'] or {}).items()})
@@ -220,6 +220,11 @@ class ExecutablePropagator(WESTPropagator):
         '''Return a set of environment variables containing random seeds. These are returned
         as a dictionary, suitable for use in ``os.environ.update()`` or as the ``env`` argument to
         ``subprocess.Popen()``. Every child process executed by ``exec_child()`` gets these.'''
+
+        # Initialize rng here when we need our first number. This will prevent certain work managers
+        # (e.g., `processes`) from reusing an RNG that might be initialized too early (i.e. before forking).
+        if self.rng is None:
+            self.rng = Generator(MT19937())
 
         return {
             self.ENV_RAND16: str(self.rng.integers(2**16, dtype=np.uint16)),
