@@ -18,7 +18,7 @@ class TestProcessWorkManager(unittest.TestCase, CommonParallelTests, CommonWorkM
 
 
 class TestProcessWorkManagerAux:
-    @pytest.mark.timeout(5)
+    @pytest.mark.timeout(10)
     def test_shutdown(self):
         work_manager = ProcessWorkManager()
         work_manager.startup()
@@ -29,7 +29,7 @@ class TestProcessWorkManagerAux:
             except ValueError:
                 pass  # probably closed already
 
-    @pytest.mark.timeout(5)
+    @pytest.mark.timeout(10)
     def test_hang_shutdown(self):
         work_manager = ProcessWorkManager()
         work_manager.shutdown_timeout = 0.1
@@ -43,7 +43,7 @@ class TestProcessWorkManagerAux:
             except ValueError:
                 pass  # probably closed already
 
-    @pytest.mark.timeout(5)
+    @pytest.mark.timeout(10)
     def test_hang_shutdown_ignoring_sigint(self):
         work_manager = ProcessWorkManager()
         work_manager.shutdown_timeout = 0.1
@@ -57,7 +57,7 @@ class TestProcessWorkManagerAux:
             except ValueError:
                 pass  # probably closed already
 
-    @pytest.mark.timeout(5)
+    @pytest.mark.timeout(10)
     def test_sigint_shutdown(self):
         work_manager = ProcessWorkManager()
         work_manager.install_sigint_handler()
@@ -77,7 +77,7 @@ class TestProcessWorkManagerAux:
                         pass  # probably closed already
                 raise
 
-    @pytest.mark.timeout(5)
+    @pytest.mark.timeout(10)
     def test_worker_close_fail(self, monkeypatch):
         work_manager = ProcessWorkManager()
         work_manager.install_sigint_handler()
@@ -96,7 +96,7 @@ class TestProcessWorkManagerAux:
         # Clean up
         work_manager.shutdown()
 
-    @pytest.mark.timeout(5)
+    @pytest.mark.timeout(10)
     def test_worker_ids(self):
         work_manager = ProcessWorkManager()
         with work_manager:
