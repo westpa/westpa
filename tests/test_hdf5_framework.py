@@ -86,7 +86,7 @@ class TestHDF5Framework:
         """
         Test for checking if update_iter_h5file actually finds the correct relative paths
         relative to `west.h5` and not your current working directory.
-        The external link previously would to be something like `../abc/iter_000000.h5`
+        The external link would previously be something like `../abc/iter_000000.h5`
         instead of `iter_000000.h5`, even if your `west.h5` file is right next to it.
 
         Conditions necessary for this to happen:
@@ -94,7 +94,7 @@ class TestHDF5Framework:
         b) $WEST_SIM_ROOT must exist.
         c) You are working in a location other than $WEST_SIM_ROOT.
         d) `WESTDataManager.we_h5filename` (usually read from `west.cfg`
-           under `west/data/west_data/file`) either doesn't exist (so the `west.h5`
+           under `west/data/west_data_file`) either doesn't exist (so the `west.h5`
            default is used) or is a relative path.
 
         EXAMPLE TREE
