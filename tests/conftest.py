@@ -267,8 +267,9 @@ def traj_setup(request, tmp_path):
 
     with netcdf_file(traj_file_path) as rootgrp:
         request.cls.ref_coords = rootgrp.variables['coordinates'][()].copy() / 10
-        #        request.cls.ref_lengths = rootgrp.variables['cell_lengths'][()]
-        #        request.cls.ref_angles = rootgrp.variables['cell_angles'][()]
+        # Not all simulations have periodic boundaries
+        # request.cls.ref_lengths = rootgrp.variables['cell_lengths'][()]
+        # request.cls.ref_angles = rootgrp.variables['cell_angles'][()]
         request.cls.ref_time = rootgrp.variables['time'][()].copy()
 
 
