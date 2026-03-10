@@ -605,7 +605,7 @@ class WESTDataManager:
         west_h5_file = makepath(self.we_h5filename)
         west_h5_file_dir = dirname(west_h5_file)
         iter_ref_h5_file = makepath(self.iter_h5_path_template, {'n_iter': n_iter})
-        iter_ref_rel_path = relpath(iter_ref_h5_file, makepath('$WEST_SIM_ROOT') if west_h5_file_dir == '' else west_h5_file_dir)
+        iter_ref_rel_path = relpath(iter_ref_h5_file, west_h5_file_dir if west_h5_file_dir != '' else makepath('$WEST_SIM_ROOT'))
 
         if self.iter_h5_template_file_path:
             # Make path to per-iter H5 File
