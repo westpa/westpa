@@ -99,26 +99,28 @@ class TestHDF5Framework:
 
         EXAMPLE TREE
         |
-        |
         |---abc  => $WEST_SIM_ROOT
         |   |--- west.h5
         |   |--- iter_000000.h5
         |
-        |---def  => CWD
+        |---def  => $PWD
 
         """
+        # Setup folder structure and move to abc/
         os.makedirs('abc', exist_ok=True)
         os.makedirs('def', exist_ok=True)
         os.chdir('abc')
-        rc = WESTRC()
 
+        # Setup rc
+        rc = WESTRC()
         args = argparse.Namespace(
             verbosity='debug',
             rcfile='../' + self.cfg_filepath,
             we_h5filename=self.h5_filepath,
         )
-
         rc.process_args(args)
+
+        # Setup data manager and create west.h5 file
         dm = WESTDataManager(rc=rc)
         dm.iter_h5_path_template = '$WEST_SIM_ROOT/iter_{n_iter:06d}.h5'
         dm.we_h5filename = 'west.h5'
@@ -126,10 +128,15 @@ class TestHDF5Framework:
         dm.prepare_backing()
 
         with monkeypatch.context() as m:
+            # map $WEST_SIM_ROOT to abc, move to def/
             m.setenv('WEST_SIM_ROOT', f'{tmp_path}/abc')
             os.chdir('../def')
+
+            # Write to iter_000000.h5
             dm.require_iter_group(0)
             dm.update_iter_h5file(0, [])
+
+            # Check files existence (should be in $WEST_SIM_ROOT!) and link location
             assert os.path.exists(f'{tmp_path}/abc/iter_000000.h5')
             assert not os.path.exists(f'{tmp_path}/def/iter_000000.h5')
             with h5py.File('../abc/west.h5', 'r') as h5_iterfile:
