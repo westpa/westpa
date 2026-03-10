@@ -132,7 +132,7 @@ class TestHDF5Framework:
             m.setenv('WEST_SIM_ROOT', f'{tmp_path}/abc')
             os.chdir('../def')
 
-            # Write to iter_000000.h5
+            # Write to west.h5, create iter_000000.h5
             dm.require_iter_group(0)
             dm.update_iter_h5file(0, [])
 
