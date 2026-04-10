@@ -119,6 +119,11 @@ def ref_50iter(request, tmp_path):
     copyfile(os.path.join(REFERENCE_PATH, 'west_ref.h5'), H5_FILENAME)
     copyfile(os.path.join(REFERENCE_PATH, 'west_ref.cfg'), CFG_FILENAME)
 
+    analysis_path = f'{test_dir}/ANALYSIS/TEST'
+    os.makedirs(analysis_path, exist_ok=True)
+    copyfile(os.path.join(REFERENCE_PATH, 'assign_ref.h5'), f'{analysis_path}/assign.h5')
+    copyfile(os.path.join(REFERENCE_PATH, 'direct_ref.h5'), f'{analysis_path}/direct.h5')
+
     request.cls.cfg_filepath = CFG_FILENAME
     request.cls.h5_filepath = H5_FILENAME
 
@@ -262,8 +267,9 @@ def traj_setup(request, tmp_path):
 
     with netcdf_file(traj_file_path) as rootgrp:
         request.cls.ref_coords = rootgrp.variables['coordinates'][()].copy() / 10
-        #        request.cls.ref_lengths = rootgrp.variables['cell_lengths'][()]
-        #        request.cls.ref_angles = rootgrp.variables['cell_angles'][()]
+        # Not all simulations have periodic boundaries
+        # request.cls.ref_lengths = rootgrp.variables['cell_lengths'][()]
+        # request.cls.ref_angles = rootgrp.variables['cell_angles'][()]
         request.cls.ref_time = rootgrp.variables['time'][()].copy()
 
 

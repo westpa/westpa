@@ -29,9 +29,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]  # macos-latest is arm64
         python-version: [10, 11, 12, 13, 14] # sub-versions of Python
-        include:
-          - os: macos-15-intel  # Building the macOS x86_64 Python 3.14 wheel separately
-            python-version: 14
+    
     steps:
       - uses: actions/checkout@v6
 
@@ -41,7 +39,6 @@ jobs:
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.1
-        if: matrix.python-version != '14'
         env:
           CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
@@ -66,70 +63,7 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
 
-      - name: Build wheels (Python 3.14)
-        uses: pypa/cibuildwheel@v3.3.1
-        if: matrix.python-version == '14' && matrix.os != 'macos-15-intel' 
-        env:
-          CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
-          CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
-          CIBW_ARCHS_MACOS: "arm64" # python 3.14 wheels are separate for now
-          CIBW_ARCHS_LINUX: "auto64" # x86_64 and arm64, depending on the os
-          CIBW_DEPENDENCY_VERSIONS: "pinned" # default
-          CIBW_TEST_REQUIRES_LINUX: "blosc2"
-          # Installing pytables from source due to python 3.14 support
-          CIBW_BEFORE_TEST_LINUX: >
-            dnf install -y hdf5 hdf5-devel &&
-            python -m pip install git+https://github.com/pytables/pytables
-          CIBW_BEFORE_TEST_MACOS: >
-            python -m pip install git+https://github.com/pytables/pytables
-          CIBW_TEST_COMMAND: > 
-            python -c "import westpa; print(westpa.__version__)" &&
-            python -c "import westpa.core.propagators" &&
-            python -c "import westpa.core.binning" &&
-            python -c "import westpa.core.kinetics" &&
-            python -c "import westpa.core.reweight" &&
-            python -c "import westpa.work_managers" &&
-            python -c "import westpa.tools" &&
-            python -c "import westpa.fasthist" &&
-            python -c "import westpa.mclib" &&
-            echo "All done with the import tests!"
-            # Currently blocked by https://github.com/westpa/westpa/issues/70
-            #python -c "import westpa.trajtree"
-        with:
-          package-dir: .
-          output-dir: wheelhouse
-          config-file: "{package}/pyproject.toml"
-
-      - name: Build wheels (Python 3.14/macos-15-intel)
-        uses: pypa/cibuildwheel@v3.3.1
-        if: matrix.python-version == '14' && matrix.os == 'macos-15-intel'
-        env:
-          CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
-          CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
-          CIBW_ARCHS_MACOS: "x86_64" # python 3.14 wheels are separate for now
-          CIBW_DEPENDENCY_VERSIONS: "pinned" # default
-          # Installing pytables from source due to python 3.14 support
-          CIBW_BEFORE_TEST_MACOS: >
-            python -m pip install git+https://github.com/pytables/pytables
-          CIBW_TEST_COMMAND: > 
-            python -c "import westpa; print(westpa.__version__)" &&
-            python -c "import westpa.core.propagators" &&
-            python -c "import westpa.core.binning" &&
-            python -c "import westpa.core.kinetics" &&
-            python -c "import westpa.core.reweight" &&
-            python -c "import westpa.work_managers" &&
-            python -c "import westpa.tools" &&
-            python -c "import westpa.fasthist" &&
-            python -c "import westpa.mclib" &&
-            echo "All done with the import tests!"
-            # Currently blocked by https://github.com/westpa/westpa/issues/70
-            #python -c "import westpa.trajtree"
-        with:
-          package-dir: .
-          output-dir: wheelhouse
-          config-file: "{package}/pyproject.toml"
-
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: artifact-wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: ./wheelhouse/*.whl
@@ -143,7 +77,7 @@ jobs:
       
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: '3.13'
 
       - name: Build sdist
         run: pipx run build --sdist
@@ -163,7 +97,7 @@ jobs:
           echo "All done with the import tests!"
           # Currently blocked by https://github.com/westpa/westpa/issues/70
           # python -c "import westpa.trajtree"
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: artifact-sdist
           path: dist/*.tar.gz
@@ -185,7 +119,7 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
@@ -213,7 +147,7 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
