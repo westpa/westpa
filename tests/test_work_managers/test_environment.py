@@ -100,7 +100,9 @@ class TestInstantiations(unittest.TestCase):
         os.environ['WM_N_WORKERS'] = str(3)
         work_manager = make_work_manager()
         assert isinstance(work_manager, DaskWorkManager)
-        assert work_manager.n_workers == 3
         with work_manager:
+            assert work_manager.n_workers == 3
             future = work_manager.submit(will_succeed)
-            future.get_result()
+            result = future.get_result()
+            assert result
+
