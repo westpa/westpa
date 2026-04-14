@@ -12,10 +12,12 @@ class TestDaskWorkManager:
     @pytest.fixture(scope='class')
     def work_manager(self):
         # Use a faster, lighter cluster for testing
-        cluster = distributed.LocalCluster(n_workers=2, threads_per_worker=1, memory_limit='1GB')
+        cluster = distributed.LocalCluster(n_workers=3, threads_per_worker=1, memory_limit='1GB')
         client = distributed.Client(cluster)
         with DaskWorkManager(client) as work_manager:
             yield work_manager
+
+        # Cleanup done during fixture teardown
         client.close()
         cluster.close()
 

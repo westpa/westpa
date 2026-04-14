@@ -97,6 +97,10 @@ class DaskWorkManager(WorkManager):
         self.supplied_n_workers = n_workers
 
     def startup(self):
+        """
+        Automatically called when entering a context manager.
+        Usually called by each CLI tool.
+        """
         if not self.running:
             if self.client is not None:
                 self._local_cluster = None
@@ -114,6 +118,9 @@ class DaskWorkManager(WorkManager):
         return len(self.client.scheduler_info()['workers'])
 
     def shutdown(self):
+        """
+        Automatically called when exiting context manager.
+        """
         if self.running:
             if self._local_cluster is not None:
                 self._local_cluster.close()
