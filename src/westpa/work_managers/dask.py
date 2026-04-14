@@ -93,24 +93,33 @@ class DaskWorkManager(WorkManager):
     def __init__(self, client=None, n_workers=None):
         super().__init__()
 
-        if client is not None:
-            self._local_cluster = None
-            self.client = client
-        else:
-            self._local_cluster = distributed.LocalCluster(n_workers=n_workers)
-            self.client = distributed.Client(self._local_cluster)
-            log.info(f'Started local Dask cluster with {self.n_workers} workers')
+        self.client = client
+        self.supplied_n_workers = n_workers
 
-        self.client.register_plugin(_ConfigSetter())
+    def startup(self):
+        if not self.running:
+            if self.client is not None:
+                self._local_cluster = None
+                self.client = self.client
+            else:
+                self._local_cluster = distributed.LocalCluster(n_workers=self.supplied_n_workers)
+                self.client = distributed.Client(self._local_cluster)
+                log.info(f'Started local Dask cluster with {self.n_workers} workers')
+
+            self.client.register_plugin(_ConfigSetter())
+            self.running = True
 
     @property
     def n_workers(self):
         return len(self.client.scheduler_info()['workers'])
 
     def shutdown(self):
-        if self._local_cluster is not None:
-            self.client.shutdown()
-        super().shutdown()
+        if self.running:
+            if self._local_cluster is not None:
+                self._local_cluster.close()
+                self.client.shutdown()
+            self.running = False
+            super().shutdown()
 
     def submit(self, fn, args=None, kwargs=None):
         args = args or ()
