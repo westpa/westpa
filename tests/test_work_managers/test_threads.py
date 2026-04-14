@@ -6,7 +6,7 @@ from .tsupport import CommonWorkManagerTests, CommonParallelTests
 
 class TestThreadsWorkManager(unittest.TestCase, CommonWorkManagerTests, CommonParallelTests):
     def setUp(self):
-        self.work_manager = ThreadsWorkManager()
+        self.work_manager = ThreadsWorkManager(n_workers=3)
         self.work_manager.startup()
 
     def tearDown(self):
