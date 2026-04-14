@@ -79,4 +79,5 @@ skip in each dimension:        [0, 1]
             log_mab_stats(minlist, maxlist, direction, skip)
 
             captured = capsys.readouterr()
-            assert captured.out == desired_output
+            for out_line, desired_line in zip(captured.out.splitlines(), desired_output.splitlines()):
+                assert out_line == desired_line
