@@ -105,4 +105,3 @@ class TestInstantiations(unittest.TestCase):
             future = work_manager.submit(will_succeed)
             result = future.get_result()
             assert result
-
