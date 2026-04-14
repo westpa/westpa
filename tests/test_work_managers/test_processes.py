@@ -9,13 +9,15 @@ from .tsupport import will_busyhang, will_busyhang_uninterruptible, get_process_
 
 
 class TestProcessWorkManager(unittest.TestCase, CommonParallelTests, CommonWorkManagerTests):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         os.environ['WM_N_WORKERS'] = str(3)
-        self.work_manager = ProcessWorkManager(n_workers=3)
-        self.work_manager.startup()
+        cls.work_manager = ProcessWorkManager(n_workers=3)
+        cls.work_manager.startup()
 
-    def tearDown(self):
-        self.work_manager.shutdown()
+    @classmethod
+    def tearDownClass(cls):
+        cls.work_manager.shutdown()
 
 
 class TestProcessWorkManagerAux:

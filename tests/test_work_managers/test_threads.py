@@ -5,12 +5,14 @@ from .tsupport import CommonWorkManagerTests, CommonParallelTests
 
 
 class TestThreadsWorkManager(unittest.TestCase, CommonWorkManagerTests, CommonParallelTests):
-    def setUp(self):
-        self.work_manager = ThreadsWorkManager(n_workers=3)
-        self.work_manager.startup()
+    @classmethod
+    def setUpClass(cls):
+        cls.work_manager = ThreadsWorkManager(n_workers=3)
+        cls.work_manager.startup()
 
-    def tearDown(self):
-        self.work_manager.shutdown()
+    @classmethod
+    def tearDownClass(cls):
+        cls.work_manager.shutdown()
 
 
 class TestThreadsWorkManagerAux:
