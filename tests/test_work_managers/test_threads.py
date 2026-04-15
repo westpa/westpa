@@ -7,7 +7,7 @@ from .tsupport import CommonWorkManagerTests, CommonParallelTests
 class TestThreadsWorkManager(unittest.TestCase, CommonWorkManagerTests, CommonParallelTests):
     @classmethod
     def setUpClass(cls):
-        cls.work_manager = ThreadsWorkManager(n_workers=3)
+        cls.work_manager = ThreadsWorkManager(n_workers=5)
         cls.work_manager.startup()
 
     @classmethod
