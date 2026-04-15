@@ -213,7 +213,6 @@ class ZMQWorker(ZMQCore):
             self.log.error('timeout communicating with peer; shutting down')
         finally:
             self.shutdown_executor()
-            self.executor_process.join()
             self.context.destroy(linger=1)
             self.context = None
             self.remove_ipc_endpoints()
