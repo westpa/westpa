@@ -242,15 +242,6 @@ class ZMQWorker(ZMQCore):
         else:
             self.log.debug('worker process {:d} terminated gracefully with code {:d}'.format(pid, self.executor_process.exitcode))
 
-        try:
-            self.executor_process.close()
-        except ValueError:
-            try:
-                if self.executor_process.is_alive():
-                    self.log.debug('worker process {:d} could not be closed'.format(pid))
-            except ValueError:
-                pass  # Already closed.
-
     def install_signal_handlers(self, signals=None):
         if not signals:
             signals = {signal.SIGINT, signal.SIGQUIT, signal.SIGTERM}

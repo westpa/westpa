@@ -124,12 +124,10 @@ class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
         with self.expect_announcement(Message.SHUTDOWN):
             self.test_wm.signal_shutdown()
 
-    # This won't work, because initial beacon is discarded if no clients are connected
-    #     def test_immediate_master_beacon(self):
-    #         with self.expect_announcement(Message.MASTER_BEACON):
-    #             time.sleep(BEACON_WAIT)
+    def test_immediate_master_beacon(self):
+        with self.expect_announcement(Message.MASTER_BEACON):
+            time.sleep(BEACON_WAIT)
 
-    @pytest.mark.skip(reason='skipping')
     def test_delayed_master_beacon(self):
         self.discard_announcements()
         with self.expect_announcement(Message.MASTER_BEACON):
