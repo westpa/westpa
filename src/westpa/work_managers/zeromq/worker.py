@@ -234,23 +234,23 @@ class ZMQWorker(ZMQCore):
         # is_alive() is prone to a race condition so catch the case that the PID is already dead
         if self.executor_process.is_alive():
             self.log.debug('sending SIGTERM to worker process {:d}'.format(pid))
-            self.executor_process.terminate()
-            # try:
-            #     os.kill(self.executor_process.pid, signal.SIGINT)
-            # except ProcessLookupError:
-            #     self.log.debug('worker process {:d} already dead'.format(pid))
             self.executor_process.join(self.shutdown_timeout)
             if self.executor_process.is_alive():
                 self.executor_process.kill()
                 self.log.warning('sending SIGKILL to worker process {:d}'.format(pid))
-                # try:
-                #     os.kill(self.executor_process.pid, signal.SIGKILL)
-                # except ProcessLookupError:
-                #     self.log.debug('worker process {:d} already dead'.format(pid))
             self.executor_process.join()
             self.log.debug('worker process {:d} terminated'.format(pid))
         else:
             self.log.debug('worker process {:d} terminated gracefully with code {:d}'.format(pid, self.executor_process.exitcode))
+
+        try:
+            self.executor_process.close()
+        except ValueError:
+            try:
+                if self.executor_process.is_alive():
+                    self.log.debug('worker process {:d} could not be closed'.format(pid))
+            except ValueError:
+                pass  # Already closed.
 
     def install_signal_handlers(self, signals=None):
         if not signals:
