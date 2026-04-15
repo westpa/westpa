@@ -566,17 +566,26 @@ def shutdown_process(process, timeout=1.0):
     process.join(timeout)
     if process.is_alive():
         log.debug('sending SIGINT to process {:d}'.format(process.pid))
-        os.kill(process.pid, signal.SIGINT)
+        process.terminate()
         process.join(timeout)
         if process.is_alive():
             log.warning('sending SIGKILL to worker process {:d}'.format(process.pid))
-            os.kill(process.pid, signal.SIGKILL)
+            process.kill()
             process.join()
 
         log.debug('process {:d} terminated with code {:d}'.format(process.pid, process.exitcode))
     else:
         log.debug('worker process {:d} terminated gracefully with code {:d}'.format(process.pid, process.exitcode))
-    assert not process.is_alive()
+
+    try:
+        process.close()
+    except ValueError:
+        try:
+            if process.is_alive():
+                log.debug('process {:d} unable to be closed'.format(process.pid))
+            assert not process.is_alive()
+        except ValueError:
+            pass
 
 
 class IsNode:
