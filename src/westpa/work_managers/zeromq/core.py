@@ -578,7 +578,7 @@ def shutdown_process(process, timeout=1.0):
         log.debug('worker process {:d} terminated gracefully with code {:d}'.format(process.pid, process.exitcode))
 
     try:
-        process.close()
+        process.close()  # Release all resources
     except ValueError:
         try:
             if process.is_alive():
