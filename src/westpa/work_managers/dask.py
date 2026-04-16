@@ -75,6 +75,10 @@ class _ConfigSetter(distributed.WorkerPlugin):
         os.environ['WEST_SIM_ROOT'] = self.sim_root
         westpa.rc.config = self.config
 
+    def teardown(self, worker):
+        del westpa.rc.config
+        del self.config
+
 
 class DaskWorkManager(WorkManager):
     """Submits tasks to a Dask cluster.
@@ -110,7 +114,7 @@ class DaskWorkManager(WorkManager):
                 self.client = distributed.Client(self._local_cluster)
                 log.info(f'Started local Dask cluster with {self.n_workers} workers')
 
-            self.client.register_plugin(_ConfigSetter())
+            self.client.register_plugin(_ConfigSetter(), name='config_setter')
             self.running = True
 
     @property
@@ -123,8 +127,10 @@ class DaskWorkManager(WorkManager):
         """
         if self.running:
             if self._local_cluster is not None:
-                self._local_cluster.close()
+                self.client.unregister_worker_plugin(name='config_setter')
                 self.client.shutdown()
+                self._local_cluster.close()
+
             super().shutdown()
             self.running = False
 
