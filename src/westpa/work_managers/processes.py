@@ -27,7 +27,7 @@ class ProcessWorkManager(WorkManager):
     -----
 
     On MacOS, as of Python 3.8 the default start method for multiprocessing launching new processes was changed from fork to spawn.
-    On Linux, as of Python 3.14, the default start method for multiprocessing launching new processes was changed from fork to spawn.
+    On Linux, as of Python 3.14, the default start method for multiprocessing launching new processes was changed from fork to forkserver.
     In general, spawn is more robust and efficient, however it requires serializability of everything being passed to the child process.
     In contrast, fork is much less memory efficient, as it makes a full copy of everything in the parent process.
     However, it does not require picklability.
