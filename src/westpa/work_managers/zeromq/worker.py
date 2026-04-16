@@ -228,28 +228,33 @@ class ZMQWorker(ZMQCore):
             except Exception:
                 pass
 
-        pid = self.executor_process.pid
-        self.executor_process.join(self.shutdown_timeout)
-        # is_alive() is prone to a race condition so catch the case that the PID is already dead
-        if self.executor_process.is_alive():
-            self.log.debug('sending SIGTERM to worker process {:d}'.format(pid))
-            self.executor_process.join(self.shutdown_timeout)
-            if self.executor_process.is_alive():
-                self.executor_process.kill()
-                self.log.warning('sending SIGKILL to worker process {:d}'.format(pid))
-            self.executor_process.join()
-            self.log.debug('worker process {:d} terminated'.format(pid))
-        else:
-            self.log.debug('worker process {:d} terminated gracefully with code {:d}'.format(pid, self.executor_process.exitcode))
-
         try:
-            self.executor_process.close()
-        except ValueError:
-            try:
+            pid = self.executor_process.pid
+            self.executor_process.join(self.shutdown_timeout)
+            # is_alive() is prone to a race condition so catch the case that the PID is already dead
+            if self.executor_process.is_alive():
+                self.log.debug('sending SIGTERM to worker process {:d}'.format(pid))
+                self.executor_process.join(self.shutdown_timeout)
                 if self.executor_process.is_alive():
-                    self.log.debug('worker process {:d} could not be closed'.format(pid))
+                    self.executor_process.kill()
+                    self.log.warning('sending SIGKILL to worker process {:d}'.format(pid))
+                self.executor_process.join()
+                self.log.debug('worker process {:d} terminated'.format(pid))
+            else:
+                self.log.debug(
+                    'worker process {:d} terminated gracefully with code {:d}'.format(pid, self.executor_process.exitcode)
+                )
+
+            try:
+                self.executor_process.close()
             except ValueError:
-                pass  # Already closed.
+                try:
+                    if self.executor_process.is_alive():
+                        self.log.debug('worker process {:d} could not be closed'.format(pid))
+                except ValueError:
+                    pass  # Already closed.
+        except ValueError:
+            pass  # Already closed.
 
     def install_signal_handlers(self, signals=None):
         if not signals:
