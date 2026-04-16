@@ -125,8 +125,8 @@ class DaskWorkManager(WorkManager):
             if self._local_cluster is not None:
                 self._local_cluster.close()
                 self.client.shutdown()
-            self.running = False
             super().shutdown()
+            self.running = False
 
     def submit(self, fn, args=None, kwargs=None):
         args = args or ()
