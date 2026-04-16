@@ -234,6 +234,7 @@ class ZMQWorker(ZMQCore):
             # is_alive() is prone to a race condition so catch the case that the PID is already dead
             if self.executor_process.is_alive():
                 self.log.debug('sending SIGTERM to worker process {:d}'.format(pid))
+                self.executor_process.terminate()
                 self.executor_process.join(self.shutdown_timeout)
                 if self.executor_process.is_alive():
                     self.log.debug('sending SIGTERM to worker process {:d}'.format(pid))
