@@ -17,6 +17,12 @@ from .zmq_tsupport import ZMQTestBase
 pytestmark = pytest.mark.flaky(reruns=5, reason='ZeroMQ tests are flaky')
 
 
+@pytest.fixture(scope="class")
+def monkeypatch_for_class(request):
+    request.cls.monkeypatch = pytest.MonkeyPatch()
+
+
+@pytest.mark.usefixtures('monkeypatch_for_class')
 class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
     '''Tests for the core task dispersal/retrieval and shutdown operations
     (the parts of the WM that do not require ZMQWorker).'''
@@ -164,6 +170,16 @@ class TestZMQWorkManagerBasic(ZMQTestBase, unittest.TestCase):
             result = task.execute()
             self.test_core.send_message(s, Message.RESULT, result)
         assert future.result == r
+
+    def test_worker_close_fail(self):
+        with self.monkeypatch.context() as m:
+            for process in self.test_wm.local_worker_processes:
+                m.setattr(process, 'close', lambda: exec('raise(ValueError)'))
+
+            self.test_wm.signal_shutdown()
+            self.test_wm.join()
+
+            assert not self.test_wm.comm_thread.is_alive()
 
 
 class BaseInternal:

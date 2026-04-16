@@ -323,6 +323,13 @@ class ZMQCore:
             return cls.make_tcp_endpoint()
 
     def __init__(self):
+        try:
+            if sys.platform in ['darwin', 'linux']:  # UNIX Platforms
+                multiprocessing.set_start_method('fork')
+                log.debug('setting multiprocessing start method to fork')
+        except RuntimeError:
+            log.debug('failed to set start method to fork')
+
         # Unique identifier of this ZMQ node
         self.node_id = uuid.uuid4()
 
