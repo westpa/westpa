@@ -77,7 +77,10 @@ class ProcessWorkManager(WorkManager):
 
         while not self.shutdown_received.is_set():
             if not self.task_queue.empty():
-                message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
+                try:
+                    message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
+                except EOFError:
+                    pass  # Take into account of delays between if and get()
 
                 if message == 'shutdown':
                     break
@@ -95,7 +98,10 @@ class ProcessWorkManager(WorkManager):
     def results_loop(self):
         while not self.shutdown_received.is_set():
             if not self.result_queue.empty():
-                message, task_id, payload = self.result_queue.get()[:3]
+                try:
+                    message, task_id, payload = self.result_queue.get()[:3]
+                except EOFError:
+                    pass  # Take into account of delays between if and get()
 
                 if message == 'shutdown':
                     break
