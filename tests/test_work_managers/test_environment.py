@@ -87,7 +87,6 @@ class TestInstantiations(unittest.TestCase):
             future = work_manager.submit(will_succeed)
             future.get_result()
 
-    @pytest.mark.forked
     def testZeroMQ(self):
         os.environ['WM_WORK_MANAGER'] = 'zmq'
         os.environ['WM_N_WORKERS'] = str(3)
