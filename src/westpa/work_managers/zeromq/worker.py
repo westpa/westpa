@@ -237,16 +237,17 @@ class ZMQWorker(ZMQCore):
                 self.executor_process.terminate()
                 self.executor_process.join(self.shutdown_timeout)
                 if self.executor_process.is_alive():
-                    self.executor_process.kill()
                     self.log.warning('sending SIGKILL to worker process {:d}'.format(pid))
+                    self.executor_process.kill()
                 self.executor_process.join()
                 self.log.debug('worker process {:d} terminated'.format(pid))
             else:
                 self.log.debug(
                     'worker process {:d} terminated gracefully with code {:d}'.format(pid, self.executor_process.exitcode)
                 )
+
         except (ValueError, AttributeError):
-            pass  # Already Closed
+            pass  # Already closed.
 
         try:
             self.executor_process.close()
