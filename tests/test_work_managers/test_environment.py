@@ -93,7 +93,6 @@ class TestInstantiations(unittest.TestCase):
         os.environ['WM_N_WORKERS'] = str(3)
         work_manager = make_work_manager()
         assert isinstance(work_manager, ZMQWorkManager)
-        print(work_manager.__dict__)
         with work_manager:
             # Need to send enough work to start sufficient workers
             for _ in range(3):
