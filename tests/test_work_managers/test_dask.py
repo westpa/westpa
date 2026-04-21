@@ -34,7 +34,6 @@ class TestDaskWorkManager:
     def test_as_completed(self, work_manager):
         futures = [work_manager.submit(str, args=[index]) for index in range(NUM_TASKS)]
         for future in work_manager.as_completed(futures):
-            print(future)
             assert future.done
             assert future.result == str(futures.index(future))
 

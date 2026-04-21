@@ -116,19 +116,9 @@ class TestInstantiations(unittest.TestCase):
         work_manager = make_work_manager()
         assert isinstance(work_manager, DaskWorkManager)
 
-        def get_pid():
-            import os
-
-            return os.getpid()
-
         with work_manager:
-            print(work_manager.client.run(get_pid))
             future = work_manager.submit(will_succeed)
             result = future.get_result(discard=True)
             assert result
-
-            print(work_manager.client.processing())
-            del future
-            del result
 
             assert work_manager.n_workers == 3
