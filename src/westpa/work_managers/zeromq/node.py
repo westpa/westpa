@@ -26,6 +26,7 @@ class ZMQNode(ZMQCore, IsNode):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_traceback):
+        IsNode.shutdown()
         return False
 
     def run(self):

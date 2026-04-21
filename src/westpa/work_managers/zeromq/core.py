@@ -578,14 +578,14 @@ def shutdown_process(process, timeout=1.0):
         if process.is_alive():
             log.warning('sending SIGKILL to worker process {:d}'.format(process.pid))
             process.kill()
-            process.join()
+        process.join()
 
         log.debug('process {:d} terminated with code {:d}'.format(process.pid, process.exitcode))
     else:
         log.debug('worker process {:d} terminated gracefully with code {:d}'.format(process.pid, process.exitcode))
 
     try:
-        process.close()
+        process.close()  # Release all resources
     except ValueError:
         try:
             if process.is_alive():
@@ -640,6 +640,9 @@ class IsNode:
             shutdown_timeout = self.shutdown_timeout
         except AttributeError:
             shutdown_timeout = 1.0
+
+        for worker in self.local_workers:
+            worker.shutdown_executor()
 
         for process in self.local_worker_processes:
             shutdown_process(process, shutdown_timeout)
