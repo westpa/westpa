@@ -634,9 +634,6 @@ class IsNode:
     def startup(self):
         for process in self.local_worker_processes:
             process.start()
-            print(f'zmq: {process.pid}')
-
-        print(os.getpid())
 
     def shutdown(self):
         try:
