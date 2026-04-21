@@ -79,6 +79,8 @@ class TestProcessWorkManagerAux:
                         pass  # probably closed already
                 raise
 
+        work_manager.shutdown()
+
     @pytest.mark.timeout(10)
     def test_worker_close_fail(self, monkeypatch):
         work_manager = ProcessWorkManager(n_workers=5)
