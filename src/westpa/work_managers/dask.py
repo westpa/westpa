@@ -123,41 +123,26 @@ class DaskWorkManager(WorkManager):
         self.supplied_n_threads = threads_per_worker or 1
         self.startup_kwargs = kwargs['cluster'] if 'cluster' in kwargs else kwargs
 
-        print(f'{self.client=}')
-        print(f'{self.startup_kwargs=}')
-
     def startup(self):
         """Automatically called when entering a context manager.
         Usually called by each CLI tool."""
         if not self.running:
             if self.client:
                 if isinstance(self.client, dict):
-                    print('a')
                     self.client = distributed.Client(
                         n_workers=self.supplied_n_workers, threads_per_worker=self.supplied_n_threads, **self.client
                     )
                     self._local_cluster = self.client.cluster
                 else:
-                    print('b')
                     self._local_cluster = distributed.LocalCluster(n_workers=self.supplied_n_workers, **self.startup_kwargs)
                     self.client = distributed.Client(self._local_cluster)
             else:
-                print('c')
                 self._local_cluster = distributed.LocalCluster(n_workers=self.supplied_n_workers, **self.startup_kwargs)
                 self.client = distributed.Client(self._local_cluster)
                 log.info(f'Started local Dask cluster with {self.n_workers} workers')
 
             self.client.register_plugin(_ConfigSetter(), name='config_setter')
             self.running = True
-
-        if self._local_cluster is not None:
-            print(self._local_cluster.workers)
-            for nanny in self._local_cluster.workers.values():
-                print(f'nanny: {nanny.pid} {repr(nanny)}')
-
-        print(self.client.processing())
-        print(self.client.scheduler_info())
-        # print(self.client.dump_cluster_state(format='yaml'))
 
     @property
     def n_workers(self):
