@@ -1,5 +1,9 @@
-import dask.distributed as distributed
 import pytest
+
+pytest.importorskip('dask')
+pytest.importorskip('pytest.distributed')
+
+import dask.distributed as distributed
 
 from westpa.work_managers import DaskWorkManager
 

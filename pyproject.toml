@@ -50,7 +50,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-tests = ["pytest", "pytest-cov", "pytest-rerunfailures", "pytest-timeout"]
+tests = ["pytest", "pytest-cov", "pytest-rerunfailures", "pytest-timeout", "pytest-forked"]
 mpi = ["mpi4py"]
 dask = ["dask", "distributed"]
 dev = ["westpa[tests]", "pre-commit"]

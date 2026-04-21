@@ -634,12 +634,18 @@ class IsNode:
     def startup(self):
         for process in self.local_worker_processes:
             process.start()
+            print(f'zmq: {process.pid}')
+
+        print(os.getpid())
 
     def shutdown(self):
         try:
             shutdown_timeout = self.shutdown_timeout
         except AttributeError:
             shutdown_timeout = 1.0
+
+        for worker in self.local_workers:
+            worker.shutdown_executor()
 
         for process in self.local_worker_processes:
             shutdown_process(process, shutdown_timeout)

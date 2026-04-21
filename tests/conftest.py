@@ -307,3 +307,14 @@ def nacl_restart_files(request, tmp_path):
 
     for file in request.cls.nacl_restart_files:
         copyfile(os.path.join(REFERENCE_PATH, file), request.cls.return_dir / file)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    rep = outcome.get_result()
+
+    if rep.when == 'teardown':
+        import os
+
+        print(f'teardown: {os.getpid()}')

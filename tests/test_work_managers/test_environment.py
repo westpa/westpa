@@ -1,5 +1,6 @@
 import argparse
 import os
+import pytest
 import unittest
 
 import westpa.work_managers.environment
@@ -9,8 +10,12 @@ from westpa.work_managers import (
     ThreadsWorkManager,
     ProcessWorkManager,
     ZMQWorkManager,
-    DaskWorkManager,
 )
+
+try:
+    from westpa.work_managers import DaskWorkManager
+except ImportError:
+    pass
 
 from .tsupport import will_succeed, will_wait
 
@@ -82,11 +87,13 @@ class TestInstantiations(unittest.TestCase):
             future = work_manager.submit(will_succeed)
             future.get_result()
 
+    @pytest.mark.forked
     def testZeroMQ(self):
         os.environ['WM_WORK_MANAGER'] = 'zmq'
         os.environ['WM_N_WORKERS'] = str(3)
         work_manager = make_work_manager()
         assert isinstance(work_manager, ZMQWorkManager)
+        print(work_manager.__dict__)
         with work_manager:
             # Need to send enough work to start sufficient workers
             for _ in range(3):
@@ -96,13 +103,32 @@ class TestInstantiations(unittest.TestCase):
 
             assert work_manager.n_workers == 3
 
+    @pytest.mark.forked
     def testDask(self):
+        pytest.importorskip('dask')
+        pytest.importorskip('dask.distributed')
+
         os.environ['WM_WORK_MANAGER'] = 'dask'
         os.environ['WM_N_WORKERS'] = str(3)
+        os.environ['WM_DASK_N_THREADS_PER_WORKER'] = str(1)
+        os.environ['WM_DASK_MEMORY_LIMIT'] = '1GiB'
+
         work_manager = make_work_manager()
         assert isinstance(work_manager, DaskWorkManager)
+
+        def get_pid():
+            import os
+
+            return os.getpid()
+
         with work_manager:
-            assert work_manager.n_workers == 3
+            print(work_manager.client.run(get_pid))
             future = work_manager.submit(will_succeed)
-            result = future.get_result()
+            result = future.get_result(discard=True)
             assert result
+
+            print(work_manager.client.processing())
+            del future
+            del result
+
+            assert work_manager.n_workers == 3

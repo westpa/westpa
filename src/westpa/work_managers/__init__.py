@@ -46,7 +46,7 @@ else:
 
 # Import Dask work manager if available
 try:
-    from . import dask  # noqa
+    import dask  # noqa
     from .dask import DaskWorkManager
 except ImportError:
     log.info('Dask work manager not available')
