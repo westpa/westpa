@@ -23,6 +23,7 @@ import uuid
 
 import zmq
 import numpy as np
+from zmq import ContextTerminated
 
 # Every ten seconds the master requests a status report from workers.
 # This also notifies workers that the master is still alive
@@ -454,8 +455,12 @@ class ZMQCore:
                 poll_results = dict(poller.poll(timeout=timeout))
                 if socket in poll_results:
                     message = socket.recv_pyobj(flags)
+                elif socket.closed:
+                    raise ContextTerminated
                 else:
                     raise ZMQWMTimeout('recv timed out')
+            except (KeyboardInterrupt, ContextTerminated):
+                return Message(message=Message.SHUTDOWN)
             finally:
                 poller.unregister(socket)
 
@@ -640,6 +645,9 @@ class IsNode:
             shutdown_timeout = self.shutdown_timeout
         except AttributeError:
             shutdown_timeout = 1.0
+
+        for worker in self.local_workers:
+            worker.shutdown_executor()
 
         for process in self.local_worker_processes:
             shutdown_process(process, shutdown_timeout)
