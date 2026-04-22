@@ -641,11 +641,11 @@ class IsNode:
         except AttributeError:
             shutdown_timeout = 1.0
 
-        for worker in self.local_workers:
-            worker.shutdown_executor()
-
         for process in self.local_worker_processes:
             shutdown_process(process, shutdown_timeout)
+
+        for worker in self.local_workers:
+            worker.shutdown_executor()
 
         for host_info_file in self.host_info_files:
             try:
