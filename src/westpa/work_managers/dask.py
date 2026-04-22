@@ -153,7 +153,7 @@ class DaskWorkManager(WorkManager):
         if self.running:
             self.client.unregister_worker_plugin(name='config_setter')
             self.client.retire_workers(close_workers=True)
-            self.client.scheduler.close()
+            #self.client.scheduler.close()
             self.client.shutdown()
 
             if self._local_cluster is not None:
