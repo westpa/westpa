@@ -101,7 +101,6 @@ class TestInstantiations(unittest.TestCase):
 
             assert work_manager.n_workers == 3
 
-    @pytest.mark.forked
     def testDask(self):
         pytest.importorskip('dask')
         pytest.importorskip('dask.distributed')

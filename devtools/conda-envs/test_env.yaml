@@ -21,7 +21,6 @@ dependencies:
   # testing
   - pytest
   - pytest-cov
-  - pytest-forked
   - pytest-rerunfailures
   - pytest-timeout
   - codecov
