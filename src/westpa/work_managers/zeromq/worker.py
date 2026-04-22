@@ -13,6 +13,7 @@ import threading
 from .core import ZMQCore, Message, ZMQWMTimeout, PassiveMultiTimer, Task, Result, TIMEOUT_MASTER_BEACON
 
 import zmq
+from zmq import ContextTerminated
 
 log = logging.getLogger(__name__)
 
@@ -299,7 +300,7 @@ class ZMQExecutor(ZMQCore):
             while True:
                 try:
                     msg = self.recv_message(task_socket, timeout=100)
-                except KeyboardInterrupt:
+                except (KeyboardInterrupt, ContextTerminated):
                     break
                 except ZMQWMTimeout:
                     continue
@@ -311,8 +312,9 @@ class ZMQExecutor(ZMQCore):
                     elif msg.message == Message.SHUTDOWN:
                         break
         finally:
-            self.context.destroy(linger=0)
-            self.context = None
+            if self.context is not None:
+                self.context.destroy(linger=0)
+                self.context = None
 
     def startup(self, process_index=None):
         if process_index is not None:
