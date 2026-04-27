@@ -1,7 +1,7 @@
 import pytest
 
 pytest.importorskip('dask')
-pytest.importorskip('pytest.distributed')
+pytest.importorskip('dask.distributed')
 
 import dask.distributed as distributed
 
