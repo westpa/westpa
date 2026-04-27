@@ -53,6 +53,8 @@ class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
     def tearDown(self):
         time.sleep(TEARDOWN_WAIT)
 
+        self.test_core.shutdown()
+
         self.test_worker.signal_shutdown()
         self.test_worker.comm_thread.join()
 

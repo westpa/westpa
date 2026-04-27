@@ -240,13 +240,14 @@ class ZMQWorker(ZMQCore):
                 if self.executor_process.is_alive():
                     self.log.warning('sending SIGKILL to worker process {:d}'.format(pid))
                     self.executor_process.kill()
-                self.executor_process.join()
-                self.log.debug('worker process {:d} terminated'.format(pid))
+                # Exiting after timeout so we can shutdown forcefully later
+                self.executor_process.join(self.shutdown_timeout)
+                if self.executor_process.exitcode == 0:
+                    self.log.debug('worker process {:d} terminated'.format(pid))
             else:
                 self.log.debug(
                     'worker process {:d} terminated gracefully with code {:d}'.format(pid, self.executor_process.exitcode)
                 )
-
         except (ValueError, AttributeError):
             pass  # Already closed.
 
@@ -312,9 +313,8 @@ class ZMQExecutor(ZMQCore):
                     elif msg.message == Message.SHUTDOWN:
                         break
         finally:
-            if self.context is not None:
-                self.context.destroy(linger=0)
-                self.context = None
+            self.context.destroy(linger=0)
+            self.context = None
 
     def startup(self, process_index=None):
         if process_index is not None:
