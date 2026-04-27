@@ -127,16 +127,17 @@ class DaskWorkManager(WorkManager):
         """Automatically called when entering a context manager.
         Usually called by each CLI tool."""
         if not self.running:
-            if self.client:
-                if isinstance(self.client, dict):
-                    self.client = distributed.Client(
-                        n_workers=self.supplied_n_workers, threads_per_worker=self.supplied_n_threads, **self.client
-                    )
-                    self._local_cluster = self.client.cluster
-                else:
-                    self._local_cluster = distributed.LocalCluster(n_workers=self.supplied_n_workers, **self.startup_kwargs)
-                    self.client = distributed.Client(self._local_cluster)
+            if isinstance(self.client, distributed.Client):
+                # distributed.Client is already initialized and given by user
+                self._local_cluster = self.client.cluster
+            elif isinstance(self.client, dict):
+                # Start client/cluster based on user-supplied arguments for distributed.client
+                self.client = distributed.Client(
+                    n_workers=self.supplied_n_workers, threads_per_worker=self.supplied_n_threads, **self.client
+                )
+                self._local_cluster = self.client.cluster
             else:
+                # Start local cluster
                 self._local_cluster = distributed.LocalCluster(n_workers=self.supplied_n_workers, **self.startup_kwargs)
                 self.client = distributed.Client(self._local_cluster)
                 log.info(f'Started local Dask cluster with {self.n_workers} workers')
@@ -153,7 +154,6 @@ class DaskWorkManager(WorkManager):
         if self.running:
             self.client.unregister_worker_plugin(name='config_setter')
             self.client.retire_workers(close_workers=True)
-            #self.client.scheduler.close()
             self.client.shutdown()
 
             if self._local_cluster is not None:
