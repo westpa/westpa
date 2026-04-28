@@ -640,7 +640,6 @@ class IsNode:
         except AttributeError:
             shutdown_timeout = 1.0
 
-        # Tidy clean up via signals
         for worker in self.local_workers:
             worker.shutdown_executor()
 

@@ -134,9 +134,13 @@ class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
         self.test_core.send_message(self.ann_socket, Message.SHUTDOWN)
         self.test_worker.join()
 
+        assert self.test_worker.closed
+
     def test_hung_worker_uninterruptible(self):
         task = Task(will_busyhang_uninterruptible, (), {})
         self.send_task(task)
         time.sleep(1.0)
         self.test_core.send_message(self.ann_socket, Message.SHUTDOWN)
         self.test_worker.join()
+
+        assert self.test_worker.closed
