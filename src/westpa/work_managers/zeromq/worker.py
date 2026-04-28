@@ -50,6 +50,13 @@ class ZMQWorker(ZMQCore):
     def is_master(self):
         return False
 
+    @property
+    def is_closed(self):
+        try:
+            return self.context.closed
+        except AttributeError:
+            return True
+
     def update_master_info(self, msg):
         if self.master_id is None:
             self.master_id = msg.master_id
