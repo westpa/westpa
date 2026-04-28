@@ -17,7 +17,7 @@ class TestThreadsWorkManager(unittest.TestCase, CommonWorkManagerTests, CommonPa
 
 class TestThreadsWorkManagerAux:
     def test_shutdown(self):
-        work_manager = ThreadsWorkManager(n_workers=3)
+        work_manager = ThreadsWorkManager(n_workers=5)
         work_manager.startup()
         work_manager.shutdown()
         for worker in work_manager.workers:
