@@ -250,7 +250,7 @@ class ZMQWorker(ZMQCore):
 
                 # Exiting after timeout so we can shutdown forcefully later
                 self.executor_process.join(self.shutdown_timeout)
-                if self.executor_processs.exitcode == 0:
+                if self.executor_process.exitcode == 0:
                     self.log.debug('worker process {:d} terminated'.format(pid))
             else:
                 self.log.debug(
