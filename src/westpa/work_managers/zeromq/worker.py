@@ -247,7 +247,7 @@ class ZMQWorker(ZMQCore):
                 if self.executor_process.is_alive():
                     self.log.warning('sending SIGKILL to worker process {:d}'.format(pid))
                     self.executor_process.kill()
-                    
+
                 # Exiting after timeout so we can shutdown forcefully later
                 self.executor_process.join(self.shutdown_timeout)
                 if self.executor_process.exitcode == 0:
