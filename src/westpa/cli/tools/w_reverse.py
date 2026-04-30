@@ -15,7 +15,7 @@ log = logging.getLogger('w_reverse')
 
 class W_Reverse():
     """
-    w_reverse: a tool for taking a WE simulation facilitated 
+    w_reverse: a tool for taking a WE simulation facilitated
     through WESTPA with successful recycling events and generating
     a new directory with the recycled restart files, which can then
     serve as the bstates for a subsequent WE simulation in the opposite
@@ -40,7 +40,7 @@ class W_Reverse():
         first_iter : int
             By default start at iteration 1.
         last_iter : int
-            Last iteration data to include, default is the last recorded iteration in the west.h5 file. 
+            Last iteration data to include, default is the last recorded iteration in the west.h5 file.
         config_file : str
             Name of the configuration file
 	max_n_bstates : int
@@ -73,7 +73,7 @@ class W_Reverse():
             self.last_iter = self.h5.attrs["west_current_iteration"] - 1
 	# Look at the data_refs from the config file
         data_refs_dic = config['west']['data']['data_refs']
-	# Default to not using HDF5 framework 
+	# Default to not using HDF5 framework
         self.h5_framework = False
         if 'iteration' in data_refs_dic.keys():
             traj_seg_path_list = data_refs_dic['iteration'].split('/')[1:-1]
@@ -100,7 +100,7 @@ class W_Reverse():
         """
         succ = []
 
-        for iter in tqdm(range(self.first_iter, self.last_iter + 1), 
+        for iter in tqdm(range(self.first_iter, self.last_iter + 1),
                          desc="Running w_succ"):
             # if the new_weights group exists in the h5 file
             if f"iterations/iter_{iter:08d}/new_weights" in self.h5:
@@ -140,7 +140,7 @@ class W_Reverse():
         self.create_dir(self.temp_dir)
         # create bstates.txt file
         with open(f"{self.output_bstates_dir}/{self.output_bstates_file}", "w") as bstates_f:
-    
+
             # Number of reverse bstates created
             n_bstates = 0
             # different totals if the max is less than total succ_pairs to loop
@@ -201,9 +201,9 @@ class W_Reverse():
                     # but only use weights if requested, otherwise use equal weights
                     # bstates.txt row format: bstate_n | weight | bstate_filename
                     if self.use_weights:
-                        bstates_f.write(f"{idx} {weight:.3e} {rst_dest_name}\n") 
+                        bstates_f.write(f"{idx} {weight:.3e} {rst_dest_name}\n")
                     else:
-                        bstates_f.write(f"{idx} 1 {rst_dest_name}\n") 
+                        bstates_f.write(f"{idx} 1 {rst_dest_name}\n")
                     n_bstates += 1
                 else:
                     break
@@ -212,7 +212,7 @@ class W_Reverse():
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="w_reverse: a tool for generating bstates for a subsequent " + 
+        description="w_reverse: a tool for generating bstates for a subsequent " +
                     "steady-state WE simulation in the opposite direction."
     )
     parser.add_argument(
@@ -295,6 +295,3 @@ def entry_point():
 
 if __name__ == "__main__":
     entry_point()
-
-
-
