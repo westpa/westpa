@@ -41,13 +41,13 @@ class W_Reverse():
             By default start at iteration 1.
         last_iter : int
             Last iteration data to include, default is the last recorded iteration in the west.h5 file. 
-        traj_segs : str
-            Path to the traj_segs directory. Default current directory.
-        rst_name : str
-            Name of the restart file within each traj_segs/ subdirectory.
-        max_n_bstates : int
+        config_file : str
+            Name of the configuration file
+	max_n_bstates : int
             Max number of bstates to copy over. Adjust this if you prefer only the first
             n bstates found, default 10,000.
+        rst_file : str
+            Name of the restart file within each traj_segs/ subdirectory.
         output_bstates_dir : str
             Output directory for the bstates and output_bstates_file.
             Default './bstates_reverse'.'
@@ -55,10 +55,15 @@ class W_Reverse():
             Name of the output bstates file, default 'bstates.txt'.
         use_weights : bool
             By default, include the recycled event weight when making the bstates.txt file.
+	temp_dir : str
+	    Name of the temporary directory that will be created
         """
+	# Parse config file
         westrc = WESTRC()
         westrc.read_config(config_file)
+	self.config_file = config_file
         config = westrc.config
+	# Read the west.h5 file
         self.h5 = h5py.File(h5, mode="r")
         self.first_iter = int(first_iter)
         # default to last
@@ -66,19 +71,20 @@ class W_Reverse():
             self.last_iter = int(last_iter)
         elif last_iter is None:
             self.last_iter = self.h5.attrs["west_current_iteration"] - 1
+	# Look at the data_refs from the config file
         data_refs_dic = config['west']['data']['data_refs']
+	# Default to not using HDF5 framework 
         self.h5_framework = False
         if 'iteration' in data_refs_dic.keys():
             traj_seg_path_list = data_refs_dic['iteration'].split('/')[1:-1]
             self.h5_framework = True
         else:
             traj_seg_path_list = data_refs_dic['segment'].split('/')[1:]
-        print(traj_seg_path_list)
-        self.traj_segs_path = '/'.join(traj_seg_path_list)
-        print(self.traj_segs_path)
+	self.traj_segs_path = '/'.join(traj_seg_path_list)
         self.max_n_bstates = int(max_n_bstates)
         self.rst_file = str(rst_file)
-        self.rst_extension = self.rst_file.split('.')[-1]
+        # Get the restart file extention being used
+	self.rst_extension = self.rst_file.split('.')[-1]
         self.output_bstates_dir = str(output_bstates_dir)
         self.temp_dir = str(temp_dir)
         self.output_bstates_file = str(output_bstates_file)
@@ -117,13 +123,15 @@ class W_Reverse():
         """
         Main public method for running w_reverse.
         """
+	# Start a new instance of WESTRC to parse the config file
         westrc = WESTRC()
-        westrc.read_config('west.cfg')
+        westrc.read_config(self.config_file)
         config = westrc.config
+	# Get the data from the data_refs
         data_refs_dic = config['west']['data']['data_refs']
-        print(config)
         # first generate list of successful events / iter,seg pairs and weights
         succ_pairs = self.w_succ()
+	# Data I was used for testing
         #succ_pairs = [(73, 130, 5.991585103556223e-13), (74, 132, 7.489481379445279e-14), (74, 150, 7.489481379445279e-14)]
         #succ_pairs = [(73, 130, 5.991585103556223e-13)]
         # make directory for bstates_reverse if it doesn't already exist
@@ -133,7 +141,7 @@ class W_Reverse():
         # create bstates.txt file
         with open(f"{self.output_bstates_dir}/{self.output_bstates_file}", "w") as bstates_f:
     
-            # control max number of reverse bstates created
+            # Number of reverse bstates created
             n_bstates = 0
             # different totals if the max is less than total succ_pairs to loop
             if self.max_n_bstates < len(succ_pairs):
@@ -142,37 +150,44 @@ class W_Reverse():
                 total_pairs = len(succ_pairs)
 
             # then for each pair
-            for idx, (it, wlk, weight) in tqdm(enumerate(succ_pairs), 
-                                               total=total_pairs,
-                                               desc="New bstates"):    
+            for idx, (it, wlk, weight) in tqdm(enumerate(succ_pairs), total=total_pairs, desc="New bstates"):
+		# Make sure you are not over the maximum bstates
                 if n_bstates < self.max_n_bstates:
+		    # Assign new bstate restart file name
                     rst_dest_name = f"{it:06d}_{wlk:06d}.{self.rst_extension}"
+		    # check if using HDF5 framework
                     if self.h5_framework:
+			# Find how the .h5 files for each iteration are named
                         traj_seg_file_name = data_refs_dic["iteration"].split('/')[-1]
+			# Make a path to this iterations .h5 file
                         traj_seg = f'{self.traj_segs_path}/{traj_seg_file_name}'
+			# Extracct the restart data from the .h5 file
                         h5file = WESTIterationFile(traj_seg.format(n_iter=it))
                         restart_data = h5file.read_data('/restart/%d_%d' % (it, wlk), 'data')
                         try:
                             if restart_data is None:
                                 raise ValueError('restart data is not present')
+			    # Extract all restart files into a temporary directory
                             with BytesIO(restart_data[:-1]) as d:
                                 with tarfile.open(fileobj=d, mode='r:gz') as t:
                                     safe_extract(t, path=self.temp_dir)
                         except ValueError as e:
-                            log.warning('could not write HDF5 Framework restart data for iteration {} walker {}: {}'.format(it, wlk, str(e)))
+                            log.warning(f'could not write HDF5 Framework restart data for iteration {it} walker {wlk}: {e}')
                             if segment.n_iter == 1:
-                                log.warning('In iteration 1. Assuming this is a start state and proceeding to skip reading restart from per-iteration HDF5 file for iteration {} walker {}'.format(it, wlk))
+                                log.warning(f'In iteration 1. Assuming this is a start state and proceeding to skip reading restart from per-iteration HDF5 file for iteration {it} walker {wlk}')
                         except Exception as e:
-                            log.warning('could not write HDF5 Framework restart data for iteration {} walker {}: {}'.format(it, wlk, str(e)))
+                            log.warning(f'could not write HDF5 Framework restart data for iteration {it} walker {wlk}: {e}')
+			# Look at all files in the temp directory
                         temp_dir_contents = os.listdir(self.temp_dir)
                         extention_not_found = True
                         for temp_file in temp_dir_contents:
+			    # Move and rename only the restart file with the user specified extension to the bstate directory
                             if temp_file.split('.')[-1]==self.rst_extension:
                                 extention_not_found = False
                                 shutil.move(f"{self.temp_dir}/{temp_file}", f"{self.output_bstates_dir}/{it:06d}_{wlk:06d}.{self.rst_extension}")
                                 break
                         if extention_not_found:
-                            log.warning(f'File with extension {self.rst_extension} is not present in the restart data of {traj_seg}'.format(n_iter=it))
+                            log.warning(f'File with extension {self.rst_extension} is not present in the restart data of {traj_seg.format(n_iter=it)}')
                     else:
                         # find the corresponding restart file
                         seg_path = self.traj_segs_path.replace('segment.n_iter','n_iter').replace('segment.seg_id','seg_id').format(n_iter=it,seg_id=wlk)
@@ -192,6 +207,7 @@ class W_Reverse():
                     n_bstates += 1
                 else:
                     break
+	    # Remove temporary directory
             shutil.rmtree(self.temp_dir)
 
 def parse_arguments():
