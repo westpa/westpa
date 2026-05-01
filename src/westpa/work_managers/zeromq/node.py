@@ -23,11 +23,9 @@ class ZMQNode(ZMQCore, IsNode):
         self.upstream_ann_endpoint = upstream_ann_endpoint
 
     def __enter__(self):
-        self.startup()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_traceback):
-        IsNode.shutdown(self)
         return False
 
     def run(self):
@@ -126,7 +124,7 @@ class ZMQNode(ZMQCore, IsNode):
             self.log.debug('exiting')
             self.context = None
             self.remove_ipc_endpoints()
-            IsNode.shutdown(self)
+            self.shutdown()
 
     def startup(self):
         IsNode.startup(self)
