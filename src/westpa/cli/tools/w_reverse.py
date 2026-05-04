@@ -9,7 +9,11 @@ import tarfile
 from westpa.core.h5io import WESTIterationFile
 from westpa.core.h5io import safe_extract
 from westpa.core._rc import WESTRC
-
+from westpa.tools import (
+    WESTTool,
+    WESTDataReader,
+    IterRangeSelection,
+)
 log = logging.getLogger('w_reverse')
 
 
