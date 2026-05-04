@@ -17,7 +17,7 @@ from westpa.tools import (
 log = logging.getLogger('w_reverse')
 
 
-class W_Reverse:
+class W_Reverse(WESTTool):
     """
     w_reverse: a tool for taking a WE simulation facilitated
     through WESTPA with successful recycling events and generating
