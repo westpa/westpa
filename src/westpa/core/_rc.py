@@ -411,15 +411,15 @@ class WESTRC:
             if use_mab:
                 from .binning.mab_driver import MABDriver
 
-                we_driver = MABDriver()
+                we_driver = MABDriver(rc=self)
             elif use_binless:
                 from .binning.binless_driver import BinlessDriver
 
-                we_driver = BinlessDriver()
+                we_driver = BinlessDriver(rc=self)
             else:
                 from .we_driver import WEDriver
 
-                we_driver = WEDriver()
+                we_driver = WEDriver(rc=self)
         else:
             we_driver = extloader.get_object(drivername)(rc=self)
 
