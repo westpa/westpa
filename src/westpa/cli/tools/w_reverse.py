@@ -14,6 +14,7 @@ from westpa.tools import (
     WESTDataReader,
     IterRangeSelection,
 )
+
 log = logging.getLogger('w_reverse')
 
 
