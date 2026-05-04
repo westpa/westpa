@@ -1,7 +1,6 @@
 import os
 import shutil
 from h5diff import H5Diff
-import unittest
 import pytest
 import argparse
 from unittest import mock
@@ -9,13 +8,15 @@ from unittest import mock
 from westpa.cli.tools.w_ipa import entry_point
 
 
-class Test_W_IPA(unittest.TestCase):
+class Test_W_IPA:
     test_name = 'W_IPA'
 
-    def test_run_w_ipa(self):
+    def test_run_w_ipa(self, tmp_path):
         '''Testing if w_ipa runs as expected and the h5 files looks good.'''
 
         ref_dir = os.path.join(os.path.dirname(__file__), '../refs')
+
+        os.chdir(tmp_path)
         shutil.copy2(os.path.join(ref_dir, 'west_ref.cfg'), './west.cfg')
         shutil.copy2(os.path.join(ref_dir, 'west_ref.h5'), './west.h5')
         os.system('w_ipa -ao -d')
@@ -25,9 +26,6 @@ class Test_W_IPA(unittest.TestCase):
         #       TODO: this is broken
         #       diff = H5Diff('../refs/direct_ipa_ref.h5', './ANALYSIS/TEST/direct.h5')
         diff.check()
-        shutil.rmtree('ANALYSIS')
-        os.remove('west.h5')
-        os.remove('west.cfg')
 
 
 @pytest.mark.skip(reason="work-in-progress test that uses entry point")
