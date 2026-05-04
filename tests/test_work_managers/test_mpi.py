@@ -1,4 +1,7 @@
+import pytest
 import unittest
+
+pytest.importorskip('mpi4py')
 
 from westpa.work_managers.mpi import MPIWorkManager
 
