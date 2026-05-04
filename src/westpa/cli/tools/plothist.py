@@ -205,7 +205,7 @@ class PlotHistBase(WESTSubcommand):
         if not match:
             raise ValueError('invalid dimension specification {!r}'.format(dimspec))
 
-        (idim_txt, lb_txt, ub_txt, label) = match.groups()
+        idim_txt, lb_txt, ub_txt, label = match.groups()
         try:
             dimdata['idim'] = int(idim_txt)
             if lb_txt:
@@ -222,7 +222,7 @@ class PlotHistBase(WESTSubcommand):
 
     def parse_range(self, rangespec):
         try:
-            (lbt, ubt) = rangespec.split(',')
+            lbt, ubt = rangespec.split(',')
             return float(lbt), float(ubt)
         except (ValueError, TypeError) as e:
             raise ValueError('invalid range specification {!r}: {!r}'.format(rangespec, e))

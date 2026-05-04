@@ -20,5 +20,4 @@ from ._kinetics import (  # noqa
 )
 from .events import WKinetics  # noqa
 
-
 log = logging.getLogger(__name__)

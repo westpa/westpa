@@ -1,6 +1,6 @@
 import sys
 
-from setuptools import setup, Extension, find_packages
+from setuptools import setup, Extension
 
 import versioneer
 
@@ -70,6 +70,7 @@ console_scripts_core = [
     'w_succ = westpa.cli.core.w_succ:entry_point',
 ]
 
+
 console_scripts_tools = [
     'w_direct = westpa.cli.tools.w_direct:entry_point',
     'w_dumpsegs = westpa.cli.tools.w_dumpsegs:entry_point',
@@ -93,63 +94,18 @@ console_scripts_tools = [
     'plothist = westpa.cli.tools.plothist:entry_point',
     'w_multi_west = westpa.cli.tools.w_multi_west:entry_point',
     'w_red = westpa.cli.tools.w_red:entry_point',
+    'w_timings = westpa.cli.tools.w_timings:entry_point',
 ]
+
 
 console_scripts = console_scripts_core + console_scripts_tools
 
-CLASSIFIERS = [
-    "Development Status :: 5 - Production/Stable",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Cython",
-]
-
-INSTALL_REQUIRES = [
-    "numpy >= 1.25.0, <3; python_version >='3.10'",
-    "numpy >= 1.25.0, <2; python_version <'3.10'",  # pytables is broken for numpy2/py3.9
-    "scipy >= 0.19.1",
-    "h5py >= 2.10",
-    "mdtraj >= 1.9.5",
-    "pyyaml",
-    "pyzmq",
-    "matplotlib",
-    "blessings",
-    "ipykernel",
-    "tqdm",
-    "pandas",
-    "tables",
-]
-
-EXTRAS_REQUIRE = {
-    "tests": ["pytest", "pytest-cov", "pytest-rerunfailures", "pytest-timeout", "pytest-xdist"],
-    "mpi": ["mpi4py"],
-}
-
-EXTRAS_REQUIRE["dev"] = EXTRAS_REQUIRE["tests"] + ["pre-commit"]
-
 
 metadata = dict(
-    name='westpa',
-    url='http://github.com/westpa/westpa',
-    license='MIT',
-    long_description=open('README.rst', encoding='utf8').read(),
     version=versioneer.get_version(),
-    keywords='',
     cmdclass=versioneer.get_cmdclass(),
-    python_requires=">=3.9",
     zip_safe=False,
-    classifiers=CLASSIFIERS,
     entry_points={'console_scripts': console_scripts},
-    install_requires=INSTALL_REQUIRES,
-    extras_require=EXTRAS_REQUIRE,
-    package_data={},
-    packages=find_packages(where='src'),
-    package_dir={"": "src"},
-    description='WESTPA is a package for constructing and running stochastic simulations using the "weighted ensemble" approach of Huber and Kim (1996).',
 )
 
 

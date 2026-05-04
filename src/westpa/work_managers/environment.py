@@ -96,9 +96,7 @@ class WMEnvironment:
             choices=self.valid_work_managers,
             help='''use the given work manager for parallel task distribution. Available
                                    work managers are {!r}; default is {!r}
-                                   '''.format(
-                tuple(self.valid_work_managers), self.default_work_manager
-            ),
+                                   '''.format(tuple(self.valid_work_managers), self.default_work_manager),
         )
 
         wm_group.add_argument(

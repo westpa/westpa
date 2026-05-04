@@ -9,6 +9,8 @@ import numpy as np
 
 import westpa
 from westpa.core.binning.assign import RectilinearBinMapper
+from westpa.core.binning.binless_manager import BinlessSimManager
+from westpa.core.binning.mab_manager import MABSimManager
 from westpa.core.segment import Segment
 from westpa.core.states import BasisState
 from westpa.core.sim_manager import PropagationError
@@ -44,6 +46,9 @@ class TestSimManager(TestCase):
         self.sim_manager.current_iter_istates = self.sim_manager.segments
         self.sim_manager.completed_segments = self.sim_manager.segments
         self.sim_manager.report_bin_statistics = MagicMock(return_value=True)
+
+        self.work_manager = westpa.rc.get_work_manager()
+        self.work_manager.running = True
 
         data = self.sim_manager.we_driver.rc.get_data_manager()
         data.we_h5filename = self.hdf5
@@ -205,7 +210,7 @@ class TestMABSimManager(TestSimManager):
         config_file_name = os.path.join(here, 'refs', 'odld', 'west_mab.cfg')
         args = parser.parse_args(['-r={}'.format(config_file_name)])
         westpa.rc.process_args(args)
-        self.sim_manager = westpa.rc.get_sim_manager()
+        self.sim_manager = MABSimManager()
         self.test_dir = tempfile.mkdtemp()
         self.hdf5 = os.path.join(self.test_dir, "west.h5")
         self.basis_states = [BasisState(label="label", probability=1.0)]
@@ -250,7 +255,7 @@ class TestBinlessSimManager(TestSimManager):
         config_file_name = os.path.join(here, 'refs', 'odld', 'west_binless.cfg')
         args = parser.parse_args(['-r={}'.format(config_file_name)])
         westpa.rc.process_args(args)
-        self.sim_manager = westpa.rc.get_sim_manager()
+        self.sim_manager = BinlessSimManager()
         self.test_dir = tempfile.mkdtemp()
         self.hdf5 = os.path.join(self.test_dir, "west.h5")
         self.basis_states = [BasisState(label="label", probability=1.0)]

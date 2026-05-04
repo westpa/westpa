@@ -27,25 +27,26 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ["ubuntu-latest", "macos-13", "macos-latest"]  # macos-13 is x86_64, macos-latest is arm64
-        python-version: [9, 10, 11, 12, 13] # sub-versions of Python
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]  # macos-latest is arm64
+        python-version: [10, 11, 12, 13, 14] # sub-versions of Python
+    
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: "Install HDF5 with brew"
-        if: ${{ matrix.os == 'macos-latest' }}
+      - name: Install HDF5 with brew
+        if: matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel'
         run: "brew install hdf5"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.2
+        uses: pypa/cibuildwheel@v3.4.1
         env:
-          CIBW_SKIP: "pp* *-musllinux*"
+          CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
-          CIBW_ARCHS_MACOS: "auto64" # x86_64 and arm64, depending on the os
-          CIBW_ARCHS_LINUX: "auto64" # x86_64 only
-          CIBW_DEPENDENCY_VERSIONS: "latest"
-          CIBW_TEST_COMMAND: > 
-            python -c "import westpa; print(westpa.__version__)" && 
+          CIBW_ARCHS_MACOS: "universal2" # universal2 wheel for macos
+          CIBW_ARCHS_LINUX: "auto64" # x86_64 and arm64, depending on the os
+          CIBW_DEPENDENCY_VERSIONS: "pinned" # default
+          CIBW_TEST_COMMAND: >
+            python -c "import westpa; print(westpa.__version__)" &&
             python -c "import westpa.core.propagators" &&
             python -c "import westpa.core.binning" &&
             python -c "import westpa.core.kinetics" &&
@@ -62,7 +63,7 @@ jobs:
           output-dir: wheelhouse
           config-file: "{package}/pyproject.toml"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: artifact-wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: ./wheelhouse/*.whl
@@ -72,11 +73,11 @@ jobs:
     name: Build source distribution
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: '3.13'
 
       - name: Build sdist
         run: pipx run build --sdist
@@ -96,7 +97,7 @@ jobs:
           echo "All done with the import tests!"
           # Currently blocked by https://github.com/westpa/westpa/issues/70
           # python -c "import westpa.trajtree"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: artifact-sdist
           path: dist/*.tar.gz
@@ -118,7 +119,7 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
@@ -146,7 +147,7 @@ jobs:
       github.repository == 'westpa/westpa' &&
       (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           # unpacks default artifact into dist/
           # if `name: artifact` is omitted, the action will create extra parent dir
@@ -165,7 +166,7 @@ jobs:
     # Assuming that since it has sucessfully uploaded to PyPI, this release is safe.
     # We will now automatically update the tags for develop.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: pulling tags

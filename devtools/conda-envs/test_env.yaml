@@ -1,7 +1,6 @@
 name: test_env
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - python
   - cython
@@ -16,6 +15,7 @@ dependencies:
   - mpi4py
   - tqdm
   - mdtraj
+  - mdanalysis
   # testing
   - pytest
   - pytest-cov

@@ -28,7 +28,6 @@ from ._kinetics import (
     _reduce_labeled_rate_matrix_to_macro,
 )  # @UnresolvedImport
 
-
 log = logging.getLogger(__name__)
 
 

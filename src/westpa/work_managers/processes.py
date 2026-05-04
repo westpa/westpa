@@ -27,11 +27,12 @@ class ProcessWorkManager(WorkManager):
     -----
 
     On MacOS, as of Python 3.8 the default start method for multiprocessing launching new processes was changed from fork to spawn.
+    On Linux, as of Python 3.14, the default start method for multiprocessing launching new processes was changed from fork to spawn.
     In general, spawn is more robust and efficient, however it requires serializability of everything being passed to the child process.
     In contrast, fork is much less memory efficient, as it makes a full copy of everything in the parent process.
     However, it does not require picklability.
 
-    So, on MacOS, the method for launching new processes is explicitly changed to fork from the (MacOS-specific) default of spawn.
+    So, on MacOS and Linux, the method for launching new processes is explicitly changed to fork from the (UNIX-specific) default of spawn.
     Unix should default to fork.
 
     See https://docs.python.org/3/library/multiprocessing.html#contexts-and-start-methods and
@@ -48,7 +49,7 @@ class ProcessWorkManager(WorkManager):
         super().__init__()
 
         try:
-            if sys.platform == 'darwin':  # MacOS
+            if sys.platform in ['darwin', 'linux']:  # UNIX Platforms
                 multiprocessing.set_start_method('fork')
                 log.debug('setting multiprocessing start method to fork')
         except RuntimeError:
@@ -108,6 +109,7 @@ class ProcessWorkManager(WorkManager):
                     raise AssertionError('unknown message {!r}'.format((message, task_id, payload)))
 
         log.debug('exiting results_loop')
+        return
 
     def submit(self, fn, args=None, kwargs=None):
         ft = WMFuture()
@@ -147,25 +149,30 @@ class ProcessWorkManager(WorkManager):
         try:
             while True:
                 self.task_queue.get_nowait()
-        except Empty:
-            pass
+        except (Empty, ValueError):
+            log.debug('Empty task_queue')
 
         try:
             while True:
                 self.result_queue.get_nowait()
-        except Empty:
-            pass
+        except (Empty, ValueError):
+            log.debug('Empty result_queue')
 
     def shutdown(self):
         while self.running:
             log.debug('shutting down {!r}'.format(self))
+
+            # Empty queues
+            self._empty_queues()
+            for _i in range(self.n_workers):
+                self.task_queue.put_nowait(task_shutdown_sentinel)
+            self.result_queue.put_nowait(result_shutdown_sentinel)
+
+            # Signal shutdown Event to stop queue loops
             self.shutdown_received.set()
             self._empty_queues()
 
-            # Send shutdown signal
-            for _i in range(self.n_workers):
-                self.task_queue.put_nowait(task_shutdown_sentinel)
-
+            # Terminating all workers
             for worker in self.workers:
                 worker.join(self.shutdown_timeout)
                 if worker.is_alive():
@@ -190,7 +197,5 @@ class ProcessWorkManager(WorkManager):
                     except ValueError:
                         pass  # Already closed.
 
-            self._empty_queues()
-            self.result_queue.put(result_shutdown_sentinel)
-
             self.running = False
+            log.debug('Done shutting down the processes work manager')

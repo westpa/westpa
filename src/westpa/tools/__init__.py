@@ -9,7 +9,6 @@ from .progress import ProgressIndicatorComponent
 from .plot import Plotter
 from .wipi import WIPIDataset, KineticsIteration, __get_data_for_iteration__, WIPIScheme
 
-
 __all__ = [
     'WESTTool',
     'WESTParallelTool',

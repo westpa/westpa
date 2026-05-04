@@ -268,8 +268,7 @@ class WTTimesBase:
 
         outfile = open(filename, 'wt')
         if headers:
-            outfile.write(
-                '''\
+            outfile.write('''\
 # {title:} statistics
 # confidence interval = {confidence}%
 # ----
@@ -281,10 +280,7 @@ class WTTimesBase:
 # column 5: relative width of confidence interval [abs(width/average)]
 # column 6: symmetrized error [max(upper-average, average-lower)]
 # ----
-'''.format(
-                    title=title, confidence=confidence
-                )
-            )
+'''.format(title=title, confidence=confidence))
             if labels:
                 self.write_bin_labels(outfile)
                 outfile.write('----\n')

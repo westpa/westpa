@@ -13,7 +13,6 @@ from .plotting import PlottingMixin
 from .trajwalker import TrajWalker
 from .transitions import TransitionAnalysisMixin, TransitionEventAccumulator, BFTransitionAnalysisMixin
 
-
 __all__ = [
     'atool',
     'AnalysisMixin',

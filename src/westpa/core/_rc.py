@@ -16,7 +16,7 @@ import westpa.core.data_manager
 from westpa.core.binning.assign import BinMapper
 from westpa.core.binning import RectilinearBinMapper, RecursiveBinMapper, MABBinMapper, BinlessMapper
 from .yamlcfg import YAMLConfig
-from .yamlcfg import YAMLSystem
+from .systems import WESTSystem
 from . import extloader
 from ..work_managers import SerialWorkManager
 
@@ -274,15 +274,13 @@ class WESTRC:
             'incremental': False,
             'formatters': {
                 'standard': {'format': '-- %(levelname)-8s [%(name)s] -- %(message)s'},
-                'debug': {
-                    'format': '''\
+                'debug': {'format': '''\
 -- %(levelname)-8s %(asctime)24s PID %(process)-12d TID %(thread)-20d
    from logger "%(name)s"
    at location %(pathname)s:%(lineno)d [%(funcName)s()]
    ::
    %(message)s
-'''
-                },
+'''},
             },
             'handlers': {'console': {'class': 'logging.StreamHandler', 'stream': 'ext://sys.stdout', 'formatter': 'standard'}},
             'loggers': {
@@ -548,7 +546,7 @@ class WESTRC:
           the parsed settings from the config file.
         """
 
-        yamlSystem = YAMLSystem()
+        yamlSystem = WESTSystem()
         print("System building only off of the configuration file")
         # Now for the building of the system from YAML we need to use
         # require for these settings since they are musts.

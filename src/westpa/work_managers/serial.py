@@ -3,7 +3,6 @@ import sys
 
 from .core import WorkManager, WMFuture
 
-
 log = logging.getLogger(__name__)
 
 

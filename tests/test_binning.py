@@ -5,6 +5,7 @@ import h5py
 import numpy as np
 from scipy.spatial.distance import cdist
 
+import westpa
 from westpa.core.binning.assign import (
     RectilinearBinMapper,
     PiecewiseBinMapper,
@@ -14,8 +15,7 @@ from westpa.core.binning.assign import (
     RecursiveBinMapper,
 )
 from westpa.core.binning.assign import coord_dtype
-from westpa.core.binning.mab import MABBinMapper, map_mab
-
+from westpa.core.binning.mab import MABBinMapper, map_mab, log_bin_boundaries
 
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
 
@@ -27,31 +27,36 @@ class TestRectilinearBinMapper:
 
         assigner = RectilinearBinMapper([bounds])
         assert (assigner.assign(coords) == [0, 0, 1, 1, 2, 2, 2]).all()
+        assert list(assigner.labels) == ['[(0.0, 1.0)]', '[(1.0, 2.0)]', '[(2.0, 3.0)]']
 
     def test2dAssign(self):
+        """bin structure: [(a,b), (c,d)] => x in [a,b), y in [c, d)"""
+
         boundaries = [(-1, -0.5, 0, 0.5, 1), (-1, -0.5, 0, 0.5, 1)]
         coords = np.array([(-0.75, -0.75), (-0.25, -0.25), (0, 0), (0.25, 0.25), (0.75, 0.75), (-0.25, 0.75), (0.25, -0.75)])
         assigner = RectilinearBinMapper(boundaries)
 
-        """bin structure: [(a,b), (c,d)] => x in [a,b), y in [c, d)
-        0:[(-1, -0.5), (-1, -0.5)]
-        1:[(-1, -0.5), (-0.5, 0)]
-        2:[(-1, -0.5), (0, 0.5)]
-        3:[(-1, -0.5), (0.5, 1)]
-        4:[(-0.5, 0), (-1, -0.5)]
-        5:[(-0.5, 0), (-0.5, 0)]
-        6:[(-0.5, 0), (0, 0.5)]
-        7:[(-0.5, 0), (0.5, 1)]
-        8:[(0, 0.5), (-1, -0.5)]
-        9:[(0, 0.5), (-0.5, 0)]
-        10:[(0, 0.5), (0, 0.5)]
-        11:[(0, 0.5), (0.5, 1)]
-        12:[(0.5, 1), (-1, -0.5)]
-        13:[(0.5, 1), (-0.5, 0)]
-        14:[(0.5, 1), (0, 0.5)]
-        15:[(0.5, 1), (0.5, 1)]"""
+        expected_labels = [
+            '[(-1.0, -0.5), (-1.0, -0.5)]',
+            '[(-1.0, -0.5), (-0.5, 0.0)]',
+            '[(-1.0, -0.5), (0.0, 0.5)]',
+            '[(-1.0, -0.5), (0.5, 1.0)]',
+            '[(-0.5, 0.0), (-1.0, -0.5)]',
+            '[(-0.5, 0.0), (-0.5, 0.0)]',
+            '[(-0.5, 0.0), (0.0, 0.5)]',
+            '[(-0.5, 0.0), (0.5, 1.0)]',
+            '[(0.0, 0.5), (-1.0, -0.5)]',
+            '[(0.0, 0.5), (-0.5, 0.0)]',
+            '[(0.0, 0.5), (0.0, 0.5)]',
+            '[(0.0, 0.5), (0.5, 1.0)]',
+            '[(0.5, 1.0), (-1.0, -0.5)]',
+            '[(0.5, 1.0), (-0.5, 0.0)]',
+            '[(0.5, 1.0), (0.0, 0.5)]',
+            '[(0.5, 1.0), (0.5, 1.0)]',
+        ]
 
         assert (assigner.assign(coords) == [0, 5, 10, 10, 15, 7, 8]).all()
+        assert list(assigner.labels) == expected_labels
 
 
 class TestPiecewiseBinMapper:
@@ -286,8 +291,6 @@ class TestNestingBinMapper:
         output = rmapper.assign(coords)
         assert list(output) == [1, 1, 2, 2, 0, 3, 4]
 
-    # TODO: Fix this test
-    @pytest.mark.xfail(reason="known error in assign")
     def test2dRectilinearRecursion(self):
         '''
          0                            1                      2
@@ -295,7 +298,7 @@ class TestNestingBinMapper:
          |                            |         1.5          |
          |                            | +--------+---------+ |
          |                            | |        |         | |
-         |             0              | |   3    |   4     | |
+         |             0              | |   4    |   5     | |
          |                            | |        |         | |
          |                            | |        |         | |
          |                            | +--------+---------+ |
@@ -303,7 +306,7 @@ class TestNestingBinMapper:
          |            0.5             |                      |
          | +-----------+------------+ |                      |
          | |           |            | |                      |
-         | |    1      |     2      | |           5          |
+         | |    2      |     3      | |           1          |
          | |           |            | |                      |
          | |           |            | |                      |
          | +-----------+------------+ |                      |
@@ -324,12 +327,23 @@ class TestNestingBinMapper:
 
         assert rmapper.nbins == 6
         assignments = rmapper.assign(pairs)
-        expected = [0, 3, 4, 1, 2, 5]
+        labels = list(rmapper.labels)
+        expected = [0, 4, 5, 2, 3, 1]
+        expected_labels = [
+            '[(0.0, 1.0), (0.0, 1.0)]',
+            '[(1.0, 2.0), (1.0, 2.0)]',
+            '[(0.0, 0.5), (1.0, 2.0)]',
+            '[(0.5, 1.0), (1.0, 2.0)]',
+            '[(1.0, 1.5), (0.0, 1.0)]',
+            '[(1.5, 2.0), (0.0, 1.0)]',
+        ]
+
         print('PAIRS', pairs)
-        print('LABELS', list(rmapper.labels))
+        print('LABELS', labels)
         print('EXPECTED', expected)
         print('OUTPUT  ', assignments)
         assert (assignments == expected).all()
+        assert labels == expected_labels
 
 
 # Following section is for MAB Testing
@@ -564,6 +578,76 @@ class TestMABBinMapper:
         assert np.all(
             output == self.ref_mab_results['2d_gauss'][ref_index]
         ), f"Unexpected 2D Gaussian MAB bin assignments with direction={direction}, bottleneck={bottleneck}, and skip={skip}"
+
+    @pytest.mark.parametrize(
+        "skip, bottleneck, direction, minlist, maxlist, nbins_per_dim, n_bottleneck_filled, bottlenecks_forward, bottlenecks_reverse",
+        [
+            ([0, 0], True, [0, -1], [0.0, 0.0], [1.0, 1.0], [2, 2], 0, [None, None], [None, None]),
+            ([0, 0], True, [0, -1], [0.0, 0.0], [1.0, 1.0], [2, 2], 2, [1.0, 1.0], [0.0, 0.0]),
+            ([0, 0], False, [0, -1], [0.0, 0.0], [1.0, 1.0], [2, 2], 2, [], []),
+        ],
+        ids=[
+            'None as bottlenecks',
+            'With bottlenecks',
+            'No bottlenecks',
+        ],
+    )
+    def test_log_bin_boundaries(
+        self,
+        ref_mab,
+        monkeypatch,
+        skip,
+        bottleneck,
+        direction,
+        minlist,
+        maxlist,
+        nbins_per_dim,
+        n_bottleneck_filled,
+        bottlenecks_forward,
+        bottlenecks_reverse,
+    ):
+        '''Test MAB logging with various situations'''
+
+        temp_file_path = f'{self.tmpdir}/log_output.txt'
+
+        with monkeypatch.context() as m:
+            m.setattr(westpa, 'rc', westpa.core._rc.WESTRC())
+            westpa.rc.read_config(filename='west.cfg')
+            m.setattr(westpa.rc.sim_manager, 'n_iter', 24)
+
+            log_bin_boundaries(
+                skip=skip,
+                bottleneck=bottleneck,
+                direction=direction,
+                bin_log_path=temp_file_path,
+                minlist=minlist,
+                maxlist=maxlist,
+                nbins_per_dim=nbins_per_dim,
+                n_bottleneck_filled=n_bottleneck_filled,
+                bottlenecks_forward=bottlenecks_forward,
+                bottlenecks_reverse=bottlenecks_reverse,
+            )
+
+        # Correct outputs for comparison.
+        template_output = '''Iteration: 24
+MAB linear bin boundaries: [0.  0.5 1. ]\t[0.  0.5 1. ]\t
+Lagging pcoord in each dimension: [0.0, 0.0]
+Leading pcoord in each dimension: [1.0, 1.0]
+'''
+
+        if bottleneck:
+            template_output += f'''Number of bottleneck bins filled: {n_bottleneck_filled} / 3
+Dimension 0 forward bottleneck walker at: [{bottlenecks_forward[0]}]
+Dimension 0 backward bottleneck walker at: [{bottlenecks_reverse[0]}]
+Dimension 1 backward bottleneck walker at: [{bottlenecks_reverse[1]}]
+
+'''
+        else:
+            template_output += '\n'
+
+        # Do the actual comparison...
+        with open(temp_file_path, 'r') as f:
+            assert template_output == f.read()
 
 
 def output_mab_reference():

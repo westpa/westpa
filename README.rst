@@ -4,7 +4,7 @@ WESTPA 2.0
 
 |ghactions| |anaconda| |tutorial| 
 
-|docs| |usersgroup| |develgroup| 
+|docs| |usersgroup|
 
 .. |ghactions| image:: https://github.com/westpa/westpa/actions/workflows/test.yaml/badge.svg?branch=westpa2
               :target: https://github.com/westpa/westpa/actions/workflows/test.yaml
@@ -21,10 +21,6 @@ WESTPA 2.0
 .. |usersgroup| image:: https://img.shields.io/badge/Google%20Group-Users-lightgrey.svg
         :target: http://groups.google.com/group/westpa-users 
         :alt: Users Google Group
-
-.. |develgroup| image:: https://img.shields.io/badge/Google%20Group-Developers-lightgrey.svg
-        :target: https://groups.google.com/g/westpa-devel 
-        :alt: Developers Google Group
 
 .. |anaconda| image:: https://anaconda.org/conda-forge/westpa/badges/version.svg
    :alt: Anaconda
@@ -62,7 +58,7 @@ WESTPA is free software, licensed under the terms of the MIT License. See the fi
 Requirements
 ------------
 
-WESTPA is written in Python and requires version 3.9 or later. WESTPA also requires a number of Python scientific software packages.
+WESTPA is written in Python and requires version 3.10 or later. WESTPA also requires a number of Python scientific software packages.
 The simplest way to meet these requirements is to download the
 Anaconda Python distribution from www.anaconda.com (free for all users).
 
@@ -78,7 +74,7 @@ WESTPA is developed and tested on Unix-like operating systems, including Linux a
 
 Regardless of the chosen method of installation, before installing WESTPA, we recommend you to first install the Python 3 version provided by the latest free `Anaconda Python distribution`_. After installing Anaconda, create a new python environment for the WESTPA install with the following::
 
-    conda create -n westpa python=3.11
+    conda create -n westpa python=3.13
     conda activate westpa
 
 Then, we recommend installing WESTPA through conda or pip. Execute either of the following::
@@ -94,7 +90,7 @@ See the install instructions on our `wiki`_ for more detailed information.
 
 To install from source (**not recommended**), start by downloading the corresponding tar.gz file from the `releases page`_. After downloading the file, unpack the file and install WESTPA by executing the following::
 
-    tar xvzf westpa-2022.11.tar.gz
+    tar xvzf westpa-2022.14.tar.gz
     cd westpa
     python -m pip install -e .
 
@@ -137,4 +133,6 @@ to sign up or search archived messages.
 Developers
 ----------
 
-Search archived messages or post to the westpa-devel Google group: https://groups.google.com/group/westpa-devel.
+Get started by reading the `developer's guide`_.
+
+.. _`developer's guide`: https://github.com/westpa/westpa/wiki/WESTPA-Developer%27s-Guide

@@ -8,7 +8,6 @@ except ImportError:
 
 import numpy as np
 
-
 try:
     import scipy
     import scipy.interpolate
@@ -19,7 +18,6 @@ except Exception:
     SCIPY_FLAG = False
 
 from .fourier_fitting import FourierFit
-
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +85,7 @@ class DefaultStringMethod(WESTStringMethod):
         fourier_P=2,
         fourier_maxiters=100,
         fourier_tol=1.0e-6,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(centers, **kwargs)
 
