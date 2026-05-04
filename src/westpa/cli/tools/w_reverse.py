@@ -73,7 +73,7 @@ class W_Reverse(WESTTool):
             temp_dir : str
         Name of the temporary directory that will be created
         """
-        # Parse config file
+        self.config_required = True
         westrc = rc or westpa.rc
         westrc.read_config(config_file)
         self.config_file = config_file
