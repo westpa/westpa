@@ -389,7 +389,7 @@ class WESTRC:
 
         drivername = self.config.get(['west', 'drivers', 'data_manager'], 'hdf5')
         if drivername.lower() in ('hdf5', 'default'):
-            data_manager = westpa.core.data_manager.WESTDataManager()
+            data_manager = westpa.core.data_manager.WESTDataManager(rc=self)
         else:
             data_manager = extloader.get_object(drivername)(rc=self)
         log.debug('loaded data manager: {!r}'.format(data_manager))
