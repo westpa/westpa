@@ -453,7 +453,7 @@ class WESTRC:
         if drivername.lower() == 'executable':
             from westpa.core.propagators.executable import ExecutablePropagator
 
-            propagator = ExecutablePropagator()
+            propagator = ExecutablePropagator(rc=self)
         else:
             propagator = extloader.get_object(drivername)(rc=self)
         log.debug('loaded propagator {!r}'.format(propagator))
