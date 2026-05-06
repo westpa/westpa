@@ -20,9 +20,8 @@ def map_binless(coords, mask, output, *args, **kwargs):
     n_groups = kwargs.get("n_groups")
     n_dims = kwargs.get("n_dims")
 
-    group_function_kwarg = kwargs.get('group_function', None)
     try:
-        group_function = get_object(group_function_kwarg)
+        group_function = get_object(kwargs.get('group_function'))
     except (ValueError, ModuleNotFoundError):
         group_function = _binless_group_walkers_identity
         log.warning('Unable to load group function. Defaulting to `_binless_group_walkers_identity()`.')
