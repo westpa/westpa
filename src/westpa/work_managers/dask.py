@@ -103,7 +103,7 @@ class DaskWorkManager(WorkManager):
     Parameters
     ----------
     client : dask.distributed.Client or dict, optional
-        Connection to a Dask cluster or a dictionary to the keyword arguments
+        Connection to a Dask cluster or a dictionary of keyword arguments
         to be passed to ``dask.distributed.Client``. If not provided, a ``LocalCluster``
         will be created.
     n_workers : int, optional
