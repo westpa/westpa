@@ -23,7 +23,7 @@ def map_binless(coords, mask, output, *args, **kwargs):
 
     try:
         group_function = get_object(kwargs.get("group_function"))
-    except ValueError:
+    except (ValueError, ModuleNotFoundError):
         group_function = _binless_group_walkers_identity
         log.warning('Unable to load group function. Defaulting to `_binless_group_walkers_identity()`.')
 
