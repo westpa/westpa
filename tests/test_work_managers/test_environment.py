@@ -83,8 +83,9 @@ class TestInstantiations(unittest.TestCase):
         assert isinstance(work_manager, ZMQWorkManager)
         with work_manager:
             # Need to send enough work to start sufficient workers
-            for _ in range(2):
+            for _ in range(3):
                 future = work_manager.submit(will_wait)
-                future.get_result()
+                result = future.get_result()
+                assert result
 
             assert work_manager.n_workers == 3

@@ -53,6 +53,8 @@ class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
     def tearDown(self):
         time.sleep(TEARDOWN_WAIT)
 
+        self.test_core.shutdown()
+
         self.test_worker.signal_shutdown()
         self.test_worker.comm_thread.join()
 
@@ -83,12 +85,20 @@ class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
 
     def test_executor_shuts_down_immediately(self):
         self.test_worker.shutdown_executor()
-        assert not self.test_worker.executor_process.is_alive()
+        try:
+            assert not self.test_worker.executor_process.is_alive()
+        except ValueError:
+            # Closed processes will return ValueError instead
+            pass
 
     def test_shutdown_on_announcement(self):
         self.test_core.send_message(self.ann_socket, Message.SHUTDOWN)
         self.test_worker.join()
-        assert not self.test_worker.executor_process.is_alive()
+        try:
+            assert not self.test_worker.executor_process.is_alive()
+        except ValueError:
+            # Closed processes will return ValueError instead
+            pass
 
     def test_responds_to_task_avail(self):
         self.test_core.send_message(self.ann_socket, Message.TASKS_AVAILABLE)
@@ -100,7 +110,11 @@ class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
         self.test_core.send_message(self.ann_socket, Message.RECONFIGURE_TIMEOUT, (TIMEOUT_MASTER_BEACON, 0.01))
         time.sleep(0.02)
         self.test_worker.join()
-        assert not self.test_worker.executor_process.is_alive()
+        try:
+            assert not self.test_worker.executor_process.is_alive()
+        except ValueError:
+            # Closed processes will return ValueError instead
+            pass
 
     def test_worker_processes_task(self):
         r = random_int()
@@ -120,9 +134,13 @@ class TestZMQWorkerBasic(ZMQTestBase, unittest.TestCase):
         self.test_core.send_message(self.ann_socket, Message.SHUTDOWN)
         self.test_worker.join()
 
+        assert self.test_worker.is_closed
+
     def test_hung_worker_uninterruptible(self):
         task = Task(will_busyhang_uninterruptible, (), {})
         self.send_task(task)
         time.sleep(1.0)
         self.test_core.send_message(self.ann_socket, Message.SHUTDOWN)
         self.test_worker.join()
+
+        assert self.test_worker.is_closed

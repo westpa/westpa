@@ -245,11 +245,10 @@ class TestWEDriver(TestCase):
         self.we_driver.populate_initial([istate], [prob], system=self.system)
         assert len(self.we_driver.next_iter_binning[0]) == target_counts
 
-    @pytest.mark.skip
     def test_populate_initial(self):
         for prob in [0.1, 1.0 / 3.0, 0.9999999999970001, 1.0]:
             for tcount in range(30, 60):
-                yield self.check_populate_initial, prob, tcount
+                self.check_populate_initial(prob, tcount)
 
     def test_merge_by_threshold(self):
         # Create the segments

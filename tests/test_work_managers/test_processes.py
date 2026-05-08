@@ -9,18 +9,20 @@ from .tsupport import will_busyhang, will_busyhang_uninterruptible, get_process_
 
 
 class TestProcessWorkManager(unittest.TestCase, CommonParallelTests, CommonWorkManagerTests):
-    def setUp(self):
-        self.work_manager = ProcessWorkManager()
-        self.work_manager.startup()
+    @classmethod
+    def setUpClass(cls):
+        cls.work_manager = ProcessWorkManager(n_workers=5)
+        cls.work_manager.startup()
 
-    def tearDown(self):
-        self.work_manager.shutdown()
+    @classmethod
+    def tearDownClass(cls):
+        cls.work_manager.shutdown()
 
 
 class TestProcessWorkManagerAux:
     @pytest.mark.timeout(10)
     def test_shutdown(self):
-        work_manager = ProcessWorkManager()
+        work_manager = ProcessWorkManager(n_workers=5)
         work_manager.startup()
         work_manager.shutdown()
         for worker in work_manager.workers:
@@ -31,7 +33,7 @@ class TestProcessWorkManagerAux:
 
     @pytest.mark.timeout(10)
     def test_hang_shutdown(self):
-        work_manager = ProcessWorkManager()
+        work_manager = ProcessWorkManager(n_workers=5)
         work_manager.shutdown_timeout = 0.1
         work_manager.startup()
         for _ in range(5):
@@ -45,7 +47,7 @@ class TestProcessWorkManagerAux:
 
     @pytest.mark.timeout(10)
     def test_hang_shutdown_ignoring_sigint(self):
-        work_manager = ProcessWorkManager()
+        work_manager = ProcessWorkManager(n_workers=5)
         work_manager.shutdown_timeout = 0.1
         work_manager.startup()
         for _ in range(5):
@@ -59,7 +61,7 @@ class TestProcessWorkManagerAux:
 
     @pytest.mark.timeout(10)
     def test_sigint_shutdown(self):
-        work_manager = ProcessWorkManager()
+        work_manager = ProcessWorkManager(n_workers=5)
         work_manager.install_sigint_handler()
         work_manager.shutdown_timeout = 0.1
         work_manager.startup()
@@ -77,9 +79,11 @@ class TestProcessWorkManagerAux:
                         pass  # probably closed already
                 raise
 
+        work_manager.shutdown()
+
     @pytest.mark.timeout(10)
     def test_worker_close_fail(self, monkeypatch):
-        work_manager = ProcessWorkManager()
+        work_manager = ProcessWorkManager(n_workers=5)
         work_manager.install_sigint_handler()
         work_manager.shutdown_timeout = 0.1
         work_manager.startup()
@@ -98,7 +102,7 @@ class TestProcessWorkManagerAux:
 
     @pytest.mark.timeout(10)
     def test_worker_ids(self):
-        work_manager = ProcessWorkManager()
+        work_manager = ProcessWorkManager(n_workers=5)
         with work_manager:
             futures = work_manager.submit_many([(get_process_index, (), {})] * work_manager.n_workers)
             work_manager.wait_all(futures)
