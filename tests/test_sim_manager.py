@@ -102,7 +102,13 @@ def sim_manager_setup(request, tmp_path):
     del os.environ['WEST_SIM_ROOT']
 
 
-class BaseTestSimManager:
+@pytest.mark.parametrize(
+    "sim_manager_setup",
+    ['west.cfg', 'west_mab.cfg', 'west_binless.cfg'],
+    indirect=['sim_manager_setup'],
+    ids=['default', 'MABSimManager', 'BinlessSimManager'],
+)
+class TestSimManager:
     def dummy_callback_one(self):
         system = self.sim_manager.system
         bounds = [0.0, 1.0, 2.0, 3.0]
@@ -232,13 +238,3 @@ class BaseTestSimManager:
 
     def test_post_we(self):
         self.sim_manager.post_we()
-
-
-@pytest.mark.parametrize(
-    "sim_manager_setup",
-    ['west.cfg', 'west_mab.cfg', 'west_binless.cfg'],
-    indirect=['sim_manager_setup'],
-    ids=['default', 'MABSimManager', 'BinlessSimManager'],
-)
-class TestSimManager(BaseTestSimManager):
-    pass
