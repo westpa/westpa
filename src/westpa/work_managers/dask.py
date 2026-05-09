@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from collections.abc import Mapping
 from itertools import islice
 
 import westpa
@@ -14,7 +15,7 @@ if sys.platform in ['darwin', 'linux']:
     dask.config.set({'distributed.work.multiprocessing-method': 'fork'})
 import dask.distributed as distributed
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class _DaskFutureWrapper:
@@ -102,45 +103,41 @@ class DaskWorkManager(WorkManager):
 
     Parameters
     ----------
-    client : dask.distributed.Client or dict, optional
-        Connection to a Dask cluster or a dictionary of keyword arguments
-        to be passed to ``dask.distributed.Client``. If not provided, a ``LocalCluster``
-        will be created.
-    n_workers : int, optional
-        Number of workers to use when creating a ``LocalCluster``.
-        Ignored when connecting to an existing scheduler.
-    kwargs : dict, optional
-        A dictionary with keyword arguments to be passed to ``LocalCluster``.
-        ``kwargs`` should be of the following format::
-            {'cluster': {'scheduler_file': '/path/to/file', 'address': 'localhost:12345'}}
+    client : dask.distributed.Client or dict[str, Any], optional
+        Connection to a Dask cluster, or a dictionary of keyword arguments
+        to be passed to ``Client``. If not provided, or if a dictionary
+        without ``'address'`` or ``'scheduler_file'`` values is passed, a new
+        ``LocalCluster`` will be created and managed by the work manager.
+    **kwargs
+        Keyword arguments to use when creating a ``LocalCluster``.
+        Ignored if `client` specifies the cluster to use.
+
     """
 
-    def __init__(self, client=None, n_workers=None, threads_per_worker=None, **kwargs):
+    def __init__(self, client=None, **kwargs):
         super().__init__()
 
-        self.client = client
-        self.supplied_n_workers = n_workers
-        self.supplied_n_threads = threads_per_worker or 1
-        self.startup_kwargs = kwargs['cluster'] if 'cluster' in kwargs else kwargs
+        self.client = client or {}
+        self.kwargs = kwargs
+
+        self._local_cluster = None
 
     def startup(self):
-        """Automatically called when entering a context manager.
-        Usually called by each CLI tool."""
         if not self.running:
-            if isinstance(self.client, distributed.Client):
-                # distributed.Client is already initialized and given by user
-                self._local_cluster = self.client.cluster
-            elif isinstance(self.client, dict):
-                # Start client/cluster based on user-supplied arguments for distributed.client
-                self.client = distributed.Client(
-                    n_workers=self.supplied_n_workers, threads_per_worker=self.supplied_n_threads, **self.client
-                )
-                self._local_cluster = self.client.cluster
-            else:
-                # Start local cluster
-                self._local_cluster = distributed.LocalCluster(n_workers=self.supplied_n_workers, **self.startup_kwargs)
-                self.client = distributed.Client(self._local_cluster)
-                log.info(f'Started local Dask cluster with {self.n_workers} workers')
+            if isinstance(self.client, Mapping):
+                address = self.client.pop('address', None)
+                scheduler_file = self.client.pop('scheduler_file', None)
+                if address or scheduler_file:
+                    # cluster created and managed by the user
+                    self.client = distributed.Client(address=address, scheduler_file=scheduler_file, **self.client)
+                else:
+                    # cluster created and managed by the work manager
+                    self._local_cluster = distributed.LocalCluster(**self.kwargs)
+                    self.client = distributed.Client(self._local_cluster, **self.client)
+                    logger.info(f'Started local Dask cluster with {self.n_workers} workers')
+
+            elif not isinstance(self.client, distributed.Client):
+                raise TypeError("'client' must be a distributed.Client or a dictionary of keyword arguments")
 
             self.client.register_plugin(_ConfigSetter(), name='config_setter')
             self.running = True
@@ -150,20 +147,15 @@ class DaskWorkManager(WorkManager):
         return len(self.client.scheduler_info()['workers'])
 
     def shutdown(self):
-        """Automatically called when exiting context manager."""
         if self.running:
             self.client.unregister_worker_plugin(name='config_setter')
-            self.client.retire_workers(close_workers=True)
-            self.client.shutdown()
+            self.client.close(timeout=5)
 
             if self._local_cluster is not None:
-                for nanny in self._local_cluster.workers.values():
-                    nanny.close(timeout=5, nanny=True)
-                self._local_cluster.close()
+                self._local_cluster.close(timeout=5)
                 self._local_cluster = None
 
             super().shutdown()
-            self.running = False
 
     def submit(self, fn, args=None, kwargs=None):
         args = args or ()
@@ -191,39 +183,31 @@ class DaskWorkManager(WorkManager):
         completed, pending = distributed.wait(list(fmap), return_when='FIRST_COMPLETED')
         return fmap[completed.pop()]
 
-    def gather(self, futures):
-        """Return all results associated to the current client for the given futures."""
-        if isinstance(futures, distributed.Future):
-            futures = [futures]
-
-        fmap = {future.to_dask(): future for future in futures}
-        return self.client.gather(fmap.keys())
-
     @classmethod
     def add_wm_args(cls, parser, wmenv=None):
         wmenv = wmenv or work_managers.environment.default_env
         group = parser.add_argument_group('options for Dask work manager')
         group.add_argument(
             wmenv.arg_flag('dask_scheduler_address'),
-            metavar='DASK_SCHEDULER_ADDRESS',
-            help="Address of a dask scheduler (e.g., '127.0.0.1:8786').",
+            metavar='SCHEDULER_ADDRESS',
+            help="Address of a Dask scheduler (e.g., '127.0.0.1:8786').",
         )
         group.add_argument(
             wmenv.arg_flag('dask_scheduler_file'),
-            metavar='DASK_SCHEDULER_FILE',
-            help="Path to a JSON file containing dask scheduler information.",
+            metavar='SCHEDULER_FILE',
+            help="Path to a JSON file containing Dask scheduler information.",
         )
         group.add_argument(
-            wmenv.arg_flag('dask_n_threads_per_worker'),
-            metavar='THREADS_PER_DASK_WORKER',
+            wmenv.arg_flag('dask_threads_per_worker'),
+            metavar='THREADS_PER_WORKER',
             type=int,
-            help="Number of threads per dask worker.",
+            help="Number of threads per Dask worker. Ignored if SCHEDULER_ADDRESS or SCHEDULER_FILE is provided.",
         )
         group.add_argument(
             wmenv.arg_flag('dask_memory_limit'),
             metavar='MEMORY_LIMIT',
             type=int,
-            help="Memory limit per dask worker.",
+            help="Memory limit (in bytes) per Dask worker. Ignored if SCHEDULER_ADDRESS or SCHEDULER_FILE is provided.",
         )
 
     @classmethod
@@ -232,17 +216,13 @@ class DaskWorkManager(WorkManager):
         # created automatically. The number of workers can be controlled with the
         # ``--n-workers`` CLI flag or the ``WM_N_WORKERS`` environment variable.
         wmenv = wmenv or work_managers.environment.default_env
-
-        # These are arguments passed to dask
-        kwargs = {'client': {}, 'cluster': {}}
-        kwargs['client']['address'] = wmenv.get_val('dask_scheduler_address')
-        kwargs['client']['scheduler_file'] = wmenv.get_val('dask_scheduler_file')
-
-        n_workers_val = wmenv.get_val('n_workers')
-        kwargs['n_workers'] = int(n_workers_val) if n_workers_val is not None else None
-        n_threads_val = wmenv.get_val('dask_n_threads_per_worker')
-        kwargs['threads_per_worker'] = int(n_threads_val) if n_threads_val is not None else None
-        memory_limit_val = wmenv.get_val('dask_memory_limit')
-        kwargs['client']['memory_limit'] = memory_limit_val if memory_limit_val is not None else 'auto'
-
-        return cls(**kwargs)
+        client = {
+            'address': wmenv.get_val('dask_scheduler_address'),
+            'scheduler_file': wmenv.get_val('dask_scheduler_file'),
+        }
+        kwargs = {
+            'n_workers': wmenv.get_val('n_workers'),
+            'threads_per_worker': wmenv.get_val('dask_threads_per_worker', 1),
+            'memory_limit': wmenv.get_val('dask_memory_limit', 'auto'),
+        }
+        return cls(client, **kwargs)
