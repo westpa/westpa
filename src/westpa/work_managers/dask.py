@@ -206,8 +206,8 @@ class DaskWorkManager(WorkManager):
         group.add_argument(
             wmenv.arg_flag('dask_memory_limit'),
             metavar='MEMORY_LIMIT',
-            type=int,
-            help="Memory limit (in bytes) per Dask worker. Ignored if SCHEDULER_ADDRESS or SCHEDULER_FILE is provided.",
+            type=str,
+            help="Memory limit per Dask worker (e.g., '1GiB'). Ignored if SCHEDULER_ADDRESS or SCHEDULER_FILE is provided.",
         )
 
     @classmethod
@@ -221,8 +221,8 @@ class DaskWorkManager(WorkManager):
             'scheduler_file': wmenv.get_val('dask_scheduler_file'),
         }
         kwargs = {
-            'n_workers': wmenv.get_val('n_workers'),
-            'threads_per_worker': wmenv.get_val('dask_threads_per_worker', 1),
+            'n_workers': wmenv.get_val('n_workers', type_=int),
+            'threads_per_worker': wmenv.get_val('dask_threads_per_worker', 1, type_=int),
             'memory_limit': wmenv.get_val('dask_memory_limit', 'auto'),
         }
         return cls(client, **kwargs)
