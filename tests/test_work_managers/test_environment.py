@@ -107,11 +107,15 @@ class TestInstantiations(unittest.TestCase):
 
         os.environ['WM_WORK_MANAGER'] = 'dask'
         os.environ['WM_N_WORKERS'] = str(3)
-        os.environ['WM_DASK_N_THREADS_PER_WORKER'] = str(1)
+        os.environ['WM_DASK_THREADS_PER_WORKER'] = str(1)
         os.environ['WM_DASK_MEMORY_LIMIT'] = '1GiB'
 
         work_manager = make_work_manager()
         assert isinstance(work_manager, DaskWorkManager)
+
+        assert work_manager.kwargs['n_workers'] == 3
+        assert work_manager.kwargs['threads_per_worker'] == 1
+        assert work_manager.kwargs['memory_limit'] == '1GiB'
 
         with work_manager:
             future = work_manager.submit(will_succeed)
