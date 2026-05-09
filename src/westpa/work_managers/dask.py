@@ -1,7 +1,6 @@
 import logging
 import os
 import sys
-from collections.abc import Mapping
 from itertools import islice
 
 import westpa
@@ -120,13 +119,19 @@ class DaskWorkManager(WorkManager):
         self.client = client or {}
         self.kwargs = kwargs
 
+        self._own_client = not isinstance(self.client, distributed.Client)
         self._local_cluster = None
+
+    @property
+    def n_workers(self):
+        return len(self.client.scheduler_info()['workers'])
 
     def startup(self):
         if not self.running:
-            if isinstance(self.client, Mapping):
+            if self._own_client:
                 address = self.client.pop('address', None)
                 scheduler_file = self.client.pop('scheduler_file', None)
+
                 if address or scheduler_file:
                     # cluster created and managed by the user
                     self.client = distributed.Client(address=address, scheduler_file=scheduler_file, **self.client)
@@ -136,20 +141,15 @@ class DaskWorkManager(WorkManager):
                     self.client = distributed.Client(self._local_cluster, **self.client)
                     logger.info(f'Started local Dask cluster with {self.n_workers} workers')
 
-            elif not isinstance(self.client, distributed.Client):
-                raise TypeError("'client' must be a distributed.Client or a dictionary of keyword arguments")
-
             self.client.register_plugin(_ConfigSetter(), name='config_setter')
             self.running = True
-
-    @property
-    def n_workers(self):
-        return len(self.client.scheduler_info()['workers'])
 
     def shutdown(self):
         if self.running:
             self.client.unregister_worker_plugin(name='config_setter')
-            self.client.close(timeout=5)
+
+            if self._own_client:
+                self.client.close(timeout=5)
 
             if self._local_cluster is not None:
                 self._local_cluster.close(timeout=5)
