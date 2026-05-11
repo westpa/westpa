@@ -133,9 +133,10 @@ class DaskWorkManager(WorkManager):
                 scheduler_file = self.client.pop('scheduler_file', None)
 
                 if address or scheduler_file:
-                    # cluster created and managed by the user
+                    # cluster created and managed by the user, could be supplied in CLI
                     self.client = distributed.Client(address=address, scheduler_file=scheduler_file, **self.client)
                     self._local_cluster = self.client.cluster
+                    self._own_client = False
                 else:
                     # cluster created and managed by the work manager
                     self._local_cluster = distributed.LocalCluster(**self.kwargs)
@@ -159,7 +160,7 @@ class DaskWorkManager(WorkManager):
                     self._local_cluster.close()
                     self._local_cluster = None
             else:
-                self.client.retire_workers(close_workers=False)
+                self.client.restart_workers(close_workers=False, remove=False)
 
             super().shutdown()
 
