@@ -22,6 +22,7 @@ class TestDaskWorkManager:
             yield work_manager
 
         # Cleanup done during fixture teardown
+        work_manager.shutdown(force=True)
         client.close()
         cluster.close()
 

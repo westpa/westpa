@@ -120,7 +120,7 @@ class DaskWorkManager(WorkManager):
         self.kwargs = kwargs
 
         self._own_client = not isinstance(self.client, distributed.Client)
-        self._local_cluster = None
+        self._local_cluster = None if self._own_client else self.client.cluster
 
     @property
     def n_workers(self):
@@ -135,6 +135,7 @@ class DaskWorkManager(WorkManager):
                 if address or scheduler_file:
                     # cluster created and managed by the user
                     self.client = distributed.Client(address=address, scheduler_file=scheduler_file, **self.client)
+                    self._local_cluster = self.client.cluster
                 else:
                     # cluster created and managed by the work manager
                     self._local_cluster = distributed.LocalCluster(**self.kwargs)
@@ -144,16 +145,21 @@ class DaskWorkManager(WorkManager):
             self.client.register_plugin(_ConfigSetter(), name='config_setter')
             self.running = True
 
-    def shutdown(self):
+    def shutdown(self, force=False):
         if self.running:
             self.client.unregister_worker_plugin(name='config_setter')
 
-            if self._own_client:
-                self.client.close(timeout=5)
+            if self._own_client or force:
+                self.client.retire_workers(close_workers=True)
+                self.client.shutdown()
 
-            if self._local_cluster is not None:
-                self._local_cluster.close(timeout=5)
-                self._local_cluster = None
+                if self._local_cluster is not None:
+                    for nanny in self._local_cluster.workers.values():
+                        nanny.close(timeout=5, nanny=True)
+                    self._local_cluster.close()
+                    self._local_cluster = None
+            else:
+                self.client.retire_workers(close_workers=False)
 
             super().shutdown()
 
