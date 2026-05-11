@@ -55,3 +55,12 @@ class TestDaskWorkManager:
             _ = future.result
         assert isinstance(future.exception, ValueError)
         assert future.done
+
+    def test_assert_work_manager(self, work_manager):
+        '''Check to see if work manager is actually running after'''
+        with work_manager:
+            work_manager.shutdown()
+
+        assert work_manager.running is False  # We exited the work_manager context manager
+        assert work_manager.client.status == 'running'  # Client should be running
+        assert work_manager._local_cluster is not None  # Cluster should be running
