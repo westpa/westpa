@@ -154,16 +154,13 @@ class DaskWorkManager(WorkManager):
                 pass  # Already unregistered
 
             if self._own_client or force:
-                self.client.retire_workers(close_workers=True)
-                self.client.shutdown()
+                self.client.close()
 
                 if self._local_cluster is not None:
-                    for nanny in self._local_cluster.workers.values():
-                        nanny.close(timeout=5, nanny=True)
                     self._local_cluster.close()
                     self._local_cluster = None
             else:
-                self.client.restart(timeout=5)
+                self.client.restart(timeout=5, wait_for_workers=False)
 
             super().shutdown()
 
