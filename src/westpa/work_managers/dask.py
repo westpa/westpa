@@ -148,7 +148,10 @@ class DaskWorkManager(WorkManager):
 
     def shutdown(self, force=False):
         if self.running:
-            self.client.unregister_worker_plugin(name='config_setter')
+            try:
+                self.client.unregister_worker_plugin(name='config_setter')
+            except ValueError:
+                pass  # Already unregistered
 
             if self._own_client or force:
                 self.client.retire_workers(close_workers=True)
@@ -160,7 +163,7 @@ class DaskWorkManager(WorkManager):
                     self._local_cluster.close()
                     self._local_cluster = None
             else:
-                self.client.restart_workers(close_workers=False, remove=False)
+                self.client.restart(timeout=5)
 
             super().shutdown()
 
