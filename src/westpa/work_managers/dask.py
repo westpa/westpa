@@ -120,7 +120,10 @@ class DaskWorkManager(WorkManager):
         self.kwargs = kwargs
 
         self._own_client = not isinstance(self.client, distributed.Client)
-        self._local_cluster = None if self._own_client else self.client.cluster
+
+        # None => value will be determined in startup() method
+        self._cluster = None if self._own_client else self.client.cluster
+        self._own_cluster = None if self._own_client else False
 
     @property
     def n_workers(self):
@@ -135,12 +138,13 @@ class DaskWorkManager(WorkManager):
                 if address or scheduler_file:
                     # cluster created and managed by the user, could be supplied from CLI
                     self.client = distributed.Client(address=address, scheduler_file=scheduler_file, **self.client)
-                    self._local_cluster = self.client.cluster
-                    self._own_client = False
+                    self._cluster = self.client.cluster
+                    self._own_cluster = False
                 else:
                     # cluster created and managed by the work manager
-                    self._local_cluster = distributed.LocalCluster(**self.kwargs)
-                    self.client = distributed.Client(self._local_cluster, **self.client)
+                    self._cluster = distributed.LocalCluster(**self.kwargs)
+                    self._own_cluster = True
+                    self.client = distributed.Client(self._cluster, **self.client)
                     logger.info(f'Started local Dask cluster with {self.n_workers} workers')
 
             self.client.register_plugin(_ConfigSetter(), name='config_setter')
@@ -151,16 +155,16 @@ class DaskWorkManager(WorkManager):
             try:
                 self.client.unregister_worker_plugin(name='config_setter')
             except ValueError:
-                pass  # Already unregistered
+                pass  # already unregistered
 
             if self._own_client or force:
                 self.client.close()
-
-                if self._local_cluster is not None:
-                    self._local_cluster.close()
-                    self._local_cluster = None
             else:
                 self.client.restart(wait_for_workers=False)
+
+            if self._own_cluster or force:
+                self._cluster.close()
+                self._cluster = None
 
             super().shutdown()
 
