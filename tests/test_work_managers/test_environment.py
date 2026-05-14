@@ -127,4 +127,4 @@ class TestInstantiations(unittest.TestCase):
 
         assert work_manager.running is False
         assert work_manager.client.status == 'closed'
-        assert work_manager._local_cluster is None
+        assert work_manager.cluster is None

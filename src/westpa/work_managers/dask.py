@@ -122,7 +122,7 @@ class DaskWorkManager(WorkManager):
         self._own_client = not isinstance(self.client, distributed.Client)
 
         # None => value will be determined in startup() method
-        self._cluster = None if self._own_client else self.client.cluster
+        self.cluster = None if self._own_client else self.client.cluster
         self._own_cluster = None if self._own_client else False
 
     @property
@@ -138,13 +138,13 @@ class DaskWorkManager(WorkManager):
                 if address or scheduler_file:
                     # cluster created and managed by the user, could be supplied from CLI
                     self.client = distributed.Client(address=address, scheduler_file=scheduler_file, **self.client)
-                    self._cluster = self.client.cluster
+                    self.cluster = self.client.cluster
                     self._own_cluster = False
                 else:
                     # cluster created and managed by the work manager
-                    self._cluster = distributed.LocalCluster(**self.kwargs)
+                    self.cluster = distributed.LocalCluster(**self.kwargs)
+                    self.client = distributed.Client(self.cluster, **self.client)
                     self._own_cluster = True
-                    self.client = distributed.Client(self._cluster, **self.client)
                     logger.info(f'Started local Dask cluster with {self.n_workers} workers')
 
             self.client.register_plugin(_ConfigSetter(), name='config_setter')
@@ -163,8 +163,8 @@ class DaskWorkManager(WorkManager):
                 self.client.restart(wait_for_workers=False)
 
             if self._own_cluster or force:
-                self._cluster.close()
-                self._cluster = None
+                self.cluster.close()
+                self.cluster = None
 
             super().shutdown()
 

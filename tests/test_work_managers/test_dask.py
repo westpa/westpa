@@ -64,4 +64,4 @@ class TestDaskWorkManager:
 
         assert work_manager.running is False  # We exited the work_manager context manager
         assert work_manager.client.status == 'running'  # Client should be running
-        assert work_manager._local_cluster is not None  # Cluster should be running
+        assert work_manager.cluster is not None  # Cluster should be running
