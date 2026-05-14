@@ -122,4 +122,9 @@ class TestInstantiations(unittest.TestCase):
             result = future.get_result(discard=True)
             assert result
 
+            assert work_manager.running
             assert work_manager.n_workers == 3
+
+        assert work_manager.running is False
+        assert work_manager.client.status == 'closed'
+        assert work_manager._local_cluster is None
