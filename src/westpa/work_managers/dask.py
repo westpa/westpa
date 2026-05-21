@@ -118,6 +118,7 @@ class DaskWorkManager(WorkManager):
 
         self.client = client or {}
         self.kwargs = kwargs
+        self.force_shutdown = kwargs.pop('force_shutdown', False)
 
         self._own_client = not isinstance(self.client, distributed.Client)
 
@@ -140,6 +141,12 @@ class DaskWorkManager(WorkManager):
                     self.client = distributed.Client(address=address, scheduler_file=scheduler_file, **self.client)
                     self.cluster = self.client.cluster
                     self._own_cluster = False
+
+                    if self.client.scheduler.n_workers == 0:
+                        logger.warning(
+                            'Inherited a cluster with no workers. Please connect your own workers to the scheduler (e.g. `dask worker <schedulerip:port> --nworkers 3`).'
+                        )
+
                 else:
                     # cluster created and managed by the work manager
                     self.cluster = distributed.LocalCluster(**self.kwargs)
@@ -150,19 +157,35 @@ class DaskWorkManager(WorkManager):
             self.client.register_plugin(_ConfigSetter(), name='config_setter')
             self.running = True
 
-    def shutdown(self, force=False):
+    def shutdown(self, force=None):
+        """Method to shutdown the dask work manager. Called by a context manager upon exit
+        but can be called directly to shutdown the DaskWorkManager.
+
+        Parameters
+        ----------
+        force : bool or None, default None
+            `True` to shut down client and cluster at work manager deconstruction, `False`
+            to shutdown only if the work manager started those components (as indicated by
+            `self._own_cluster`/`self._own_client`). If `None`, the cluster/client will
+            shut down based on `self.force_shutdown` attribute (from WENV CLI Argparser,
+            default false). Otherwise, what is provided under `force` will respected.
+
+        """
         if self.running:
+            force = self.force_shutdown if force is None else force
+
             try:
                 self.client.unregister_worker_plugin(name='config_setter')
             except ValueError:
                 pass  # already unregistered
 
             if self._own_client or force:
-                self.client.close()
+                self.client.shutdown()
             else:
                 self.client.restart(wait_for_workers=False)
 
-            if self._own_cluster or force:
+            if (self._own_cluster or force) and self.cluster:
+                # self.cluster could be None if workers are started manually
                 self.cluster.close()
                 self.cluster = None
 
@@ -220,6 +243,11 @@ class DaskWorkManager(WorkManager):
             type=str,
             help="Memory limit per Dask worker (e.g., '1GiB'). Ignored if SCHEDULER_ADDRESS or SCHEDULER_FILE is provided.",
         )
+        group.add_argument(
+            wmenv.arg_flag('dask_shutdown_completely'),
+            action='store_true',
+            help="Shutdown the scheduler and clients after work_manager shutdown.",
+        )
 
     @classmethod
     def from_environ(cls, wmenv=None):
@@ -235,5 +263,6 @@ class DaskWorkManager(WorkManager):
             'n_workers': wmenv.get_val('n_workers', type_=int),
             'threads_per_worker': wmenv.get_val('dask_threads_per_worker', 1, type_=int),
             'memory_limit': wmenv.get_val('dask_memory_limit', 'auto'),
+            'force_shutdown': wmenv.get_val('dask_shutdown_completely'),
         }
         return cls(client, **kwargs)
