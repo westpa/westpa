@@ -10,6 +10,7 @@ Command Line Tool Index
     w_init       <command_line_tools/w_init>
     w_bins       <command_line_tools/w_bins>
     w_run        <command_line_tools/w_run>
+    w_progress   <command_line_tools/w_progress>
     w_truncate   <command_line_tools/w_truncate>
     w_fork       <command_line_tools/w_fork>
 
