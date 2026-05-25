@@ -34,6 +34,11 @@ By default, information about simulation progress is stored in
 **west-JOBID.log** (where JOBID refers to the job ID given by the submission
 engine); any errors will be logged here.
 
+The :ref:`w_progress` command can also be used to monitor a running or recently
+updated simulation. It reports the current iteration, segment
+completion counts, recent iteration timings, and an estimated time to
+completion when available.
+
 - The error "could not read pcoord from 'tempfile': progress coordinate has
   incorrect shape" may come about from multiple causes; it is possible that the
   progress coordinate length is incorrectly specified in system.py
