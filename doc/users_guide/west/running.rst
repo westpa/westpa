@@ -36,8 +36,9 @@ engine); any errors will be logged here.
 
 The :ref:`w_progress` command can also be used to monitor a running or recently
 updated simulation. It reports the current iteration, segment
-completion counts, recent iteration timings, and an estimated time to
-completion when available.
+prepared and failed counts, recent iteration timings, and an estimated time to
+completion when available. During active runs, ``w_progress`` reads the
+``west.h5.progress.json`` status file written by ``w_run``
 
 - The error "could not read pcoord from 'tempfile': progress coordinate has
   incorrect shape" may come about from multiple causes; it is possible that the
