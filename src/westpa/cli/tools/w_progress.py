@@ -103,3 +103,23 @@ class WProgress(WESTTool):
 
         return render_progress(snapshot, refresh_interval=self.refresh_interval, include_hint=include_hint)
 
+    def go(self):
+        try:
+            while True:
+                if self.should_clear:
+                    sys.stdout.write('\033[H\033[J')
+                sys.stdout.write(self.render_once())
+                sys.stdout.flush()
+                time.sleep(self.refresh_interval)
+        except KeyboardInterrupt:
+            if self.should_clear:
+                sys.stdout.write('\n')
+                sys.stdout.flush()
+
+
+def entry_point():
+    WProgress().main()
+
+
+if __name__ == '__main__':
+    entry_point()
