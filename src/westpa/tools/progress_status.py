@@ -135,3 +135,45 @@ def _eta_seconds(requested_total_iterations, latest_completed_iteration, average
     return remaining_iterations * average_recent_walltime
 
 
+def read_progress_snapshot(we_h5filename, requested_total_iterations=None, recent=5, now=None):
+    now = time.time() if now is None else now
+    snapshot = ProgressSnapshot(
+        we_h5filename=we_h5filename,
+        requested_total_iterations=requested_total_iterations,
+        updated_at=now,
+    )
+
+    try:
+        snapshot.h5_mtime = os.path.getmtime(we_h5filename)
+        with WESTPAH5File(we_h5filename, 'r') as h5file:
+            current_iteration = _current_iteration(h5file)
+            snapshot.current_iteration = current_iteration
+
+            status_counts = SegmentStatusCounts()
+            if current_iteration is not None and current_iteration > 0:
+                try:
+                    status_counts = _segment_status_counts(_h5_iter_group(h5file, current_iteration))
+                except KeyError:
+                    status_counts = SegmentStatusCounts()
+            snapshot.current_status_counts = status_counts
+
+            latest_completed = _latest_completed_iteration(current_iteration, status_counts)
+            snapshot.latest_completed_iteration = latest_completed
+
+            rows = _summary_rows(h5file, latest_completed)
+            snapshot.recent_walltimes = _walltimes(rows, recent)
+            if snapshot.recent_walltimes:
+                snapshot.average_recent_walltime = float(sum(snapshot.recent_walltimes) / len(snapshot.recent_walltimes))
+            snapshot.completed_walltime = _completed_walltime(rows)
+            snapshot.completed_segments = _completed_segments(rows)
+            snapshot.eta_seconds = _eta_seconds(
+                requested_total_iterations,
+                latest_completed,
+                snapshot.average_recent_walltime,
+            )
+    except Exception as exc:
+        snapshot.error = str(exc)
+
+    return snapshot
+
+
