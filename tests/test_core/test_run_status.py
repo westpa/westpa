@@ -49,3 +49,14 @@ class Test_Run_Status:
         assert result.error is not None
         assert 'Could not read live status file' in result.error
 
+    def test_unsupported_schema_status(self, tmp_path):
+        h5file = tmp_path / 'west.h5'
+        status_path = status_path_for_h5(str(h5file))
+        with open(status_path, 'w', encoding='utf-8') as status_file:
+            json.dump({'schema_version': 999}, status_file)
+
+        result = read_run_status(str(h5file))
+
+        assert result.status is None
+        assert result.error is not None
+        assert 'unsupported schema version' in result.error
