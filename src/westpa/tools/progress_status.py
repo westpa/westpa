@@ -177,3 +177,75 @@ def read_progress_snapshot(we_h5filename, requested_total_iterations=None, recen
     return snapshot
 
 
+def progress_snapshot_from_run_status(status, requested_total_iterations=None, now=None):
+    now = time.time() if now is None else now
+    west_h5file = status.get('west_h5file', 'unknown')
+    status_updated_at = status.get('updated_at')
+    h5_mtime = None
+    if west_h5file != 'unknown':
+        try:
+            h5_mtime = os.path.getmtime(west_h5file)
+        except OSError:
+            h5_mtime = None
+
+    segment_total = int(status.get('segment_total') or 0)
+    segment_prepared = int(status.get('segment_prepared') or 0)
+    segment_failed = int(status.get('segment_failed') or 0)
+    recent_walltimes = []
+    for value in status.get('recent_walltimes', []):
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            continue
+        if _finite_positive(value):
+            recent_walltimes.append(value)
+    average_recent_walltime = None
+    if recent_walltimes:
+        average_recent_walltime = float(sum(recent_walltimes) / len(recent_walltimes))
+
+    requested_total = status.get('requested_total_iterations', requested_total_iterations)
+    if requested_total is not None:
+        requested_total = int(requested_total)
+
+    latest_completed = status.get('latest_completed_iteration')
+    if latest_completed is not None:
+        latest_completed = int(latest_completed)
+
+    current_iteration = status.get('current_iteration')
+    if current_iteration is not None:
+        current_iteration = int(current_iteration)
+
+    iteration_started_at = status.get('iteration_started_at')
+    current_iteration_elapsed = None
+    if iteration_started_at is not None:
+        current_iteration_elapsed = max(now - float(iteration_started_at), 0.0)
+
+    eta_seconds = _eta_seconds(requested_total, latest_completed, average_recent_walltime)
+    if status.get('run_state') == RUN_STATE_COMPLETE:
+        eta_seconds = 0
+
+    return ProgressSnapshot(
+        we_h5filename=west_h5file,
+        updated_at=now,
+        h5_mtime=h5_mtime,
+        current_iteration=current_iteration,
+        latest_completed_iteration=latest_completed,
+        requested_total_iterations=requested_total,
+        current_status_counts=SegmentStatusCounts(
+            total=segment_total,
+            prepared=segment_prepared,
+            failed=segment_failed,
+        ),
+        recent_walltimes=recent_walltimes,
+        average_recent_walltime=average_recent_walltime,
+        eta_seconds=eta_seconds,
+        completed_walltime=status.get('completed_walltime'),
+        completed_segments=status.get('completed_segments'),
+        run_state=status.get('run_state'),
+        phase=status.get('phase'),
+        status_updated_at=float(status_updated_at) if status_updated_at is not None else None,
+        current_iteration_elapsed=current_iteration_elapsed,
+        message=status.get('message'),
+    )
+
+
