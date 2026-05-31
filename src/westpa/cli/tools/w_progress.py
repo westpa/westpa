@@ -76,3 +76,30 @@ class WProgress(WESTTool):
             status_result,
         )
 
+    def render_once(self, include_hint=True):
+        sidecar_snapshot, sidecar_status = self.sidecar_snapshot()
+        if sidecar_snapshot is not None and sidecar_snapshot.run_state in ACTIVE_RUN_STATES:
+            return render_progress(sidecar_snapshot, refresh_interval=self.refresh_interval, include_hint=include_hint)
+
+        snapshot = self.snapshot()
+        if snapshot.error is None:
+            return render_progress(snapshot, refresh_interval=self.refresh_interval, include_hint=include_hint)
+
+        if sidecar_snapshot is not None and sidecar_snapshot.run_state == RUN_STATE_COMPLETE:
+            return render_progress(
+                sidecar_snapshot,
+                refresh_interval=self.refresh_interval,
+                include_hint=include_hint,
+                status_message=f'Could not read west.h5 ({snapshot.error}); showing the last live status snapshot instead.',
+            )
+
+        if sidecar_status.error:
+            return render_progress(
+                snapshot,
+                refresh_interval=self.refresh_interval,
+                include_hint=include_hint,
+                status_message=sidecar_status.error,
+            )
+
+        return render_progress(snapshot, refresh_interval=self.refresh_interval, include_hint=include_hint)
+
