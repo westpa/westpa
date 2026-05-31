@@ -10,3 +10,14 @@ from westpa.tools.progress_status import (
     render_progress,
 )
 
+
+class WProgress(WESTTool):
+    prog = 'w_progress'
+    description = 'Show a live progress dashboard for a WESTPA simulation.'
+
+    def __init__(self):
+        super().__init__()
+        self.we_h5filename = None
+        self.refresh_interval = 1.0
+        self.requested_total_iterations = None
+
