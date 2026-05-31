@@ -93,3 +93,18 @@ def write_run_status(we_h5filename, status):
                 pass
 
 
+class RunStatusWriter:
+    def __init__(self, we_h5filename, min_interval=1.0):
+        self.we_h5filename = we_h5filename
+        self.min_interval = float(min_interval)
+        self.last_write = 0.0
+
+    def write(self, status, force=False):
+        now = time.time()
+        if not force and now - self.last_write < self.min_interval:
+            return False
+        payload = dict(status)
+        payload['updated_at'] = now
+        write_run_status(self.we_h5filename, payload)
+        self.last_write = now
+        return True
