@@ -668,6 +668,7 @@ class WESimManager:
     def propagate(self):
         segments = list(self.incomplete_segments.values())
         log.debug('iteration {:d}: propagating {:d} segments'.format(self.n_iter, len(segments)))
+        self.write_run_status('propagating', force=True)
 
         # all futures dispatched for this iteration
         futures = set()
@@ -707,6 +708,7 @@ class WESimManager:
 
                 with self.data_manager.expiring_flushing_lock():
                     self.data_manager.update_segments(self.n_iter, incoming)
+                self.write_run_status('propagating')
 
             elif future in istate_gen_futures:
                 istate_gen_futures.remove(future)
@@ -832,6 +834,12 @@ class WESimManager:
 
         self.n_iter = self.data_manager.current_iteration
         max_iter = self.max_total_iterations or self.n_iter + 1
+        (
+            self.run_status_recent_walltimes,
+            self.run_status_completed_walltime,
+            self.run_status_completed_segments,
+        ) = self._summary_progress()
+        self.write_run_status('starting', force=True)
 
         iter_elapsed = 0
         while self.n_iter <= max_iter:
