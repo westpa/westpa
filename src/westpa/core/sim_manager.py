@@ -96,6 +96,7 @@ class WESimManager:
         # Tracking of binning
         self.bin_mapper_hash = None  # Hash of bin mapper from most recently-run WE, for use by post-WE analysis plugins
 
+        # Live status sidecar used by w_progress while west.h5 is locked by w_run.
         # Pseudo Random Number Generator
         self.rng = Generator(MT19937())
 
