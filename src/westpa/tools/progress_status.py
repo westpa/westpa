@@ -296,3 +296,81 @@ def _progress_text(latest_completed_iteration, requested_total_iterations):
     return f'{latest_completed_iteration} / {requested_total_iterations} iterations ({percent:.1f}%)'
 
 
+def render_progress(snapshot, refresh_interval=None, include_hint=True, status_message=None):
+    lines = [
+        'WESTPA Progress',
+        f'Data file: {snapshot.we_h5filename}',
+        f'Updated: {_format_timestamp(snapshot.updated_at)}    west.h5 modified: {_format_timestamp(snapshot.h5_mtime)}',
+        '',
+    ]
+
+    if status_message:
+        lines.extend(
+            [
+                'Status',
+                status_message,
+                '',
+            ]
+        )
+
+    if snapshot.run_state or snapshot.phase or snapshot.message:
+        lines.append('Run Status')
+        if snapshot.run_state:
+            lines.append(_line('Run state:', _format_status_value(snapshot.run_state)))
+        if snapshot.phase:
+            lines.append(_line('Phase:', _format_status_value(snapshot.phase)))
+        if snapshot.status_updated_at is not None:
+            lines.append(_line('Live status updated:', _format_timestamp(snapshot.status_updated_at)))
+        if snapshot.message:
+            lines.append(_line('Message:', snapshot.message))
+        lines.append('')
+
+    if snapshot.error:
+        lines.extend(
+            [
+                'Status',
+                _line('Error:', snapshot.error),
+                '',
+            ]
+        )
+    else:
+        counts = snapshot.current_status_counts
+        lines.extend(
+            [
+                'Iterations',
+                _line('Current iteration:', _format_value(snapshot.current_iteration)),
+                _line('Latest completed:', _format_value(snapshot.latest_completed_iteration)),
+                _line('Requested total:', _format_value(snapshot.requested_total_iterations)),
+                _line('Progress:', _progress_text(snapshot.latest_completed_iteration, snapshot.requested_total_iterations)),
+                '',
+                'Current Iteration Segments',
+                _line('Prepared:', f'{counts.prepared} / {counts.total}'),
+                _line('Failed:', f'{counts.failed} / {counts.total}'),
+            ]
+        )
+
+        if snapshot.recent_walltimes:
+            recent_walltimes = ', '.join(format_duration(value) for value in snapshot.recent_walltimes)
+        else:
+            recent_walltimes = 'unknown'
+
+        lines.extend(
+            [
+                '',
+                'Timing',
+                _line('Recent walltimes:', recent_walltimes),
+                _line('Current iter elapsed:', format_duration(snapshot.current_iteration_elapsed)),
+                _line('Avg iteration time:', format_duration(snapshot.average_recent_walltime)),
+                _line('Completed walltime:', format_duration(snapshot.completed_walltime)),
+                _line('ETA:', format_duration(snapshot.eta_seconds)),
+                '',
+                _line('Completed segments:', _format_value(snapshot.completed_segments)),
+            ]
+        )
+
+    if refresh_interval is not None:
+        lines.append(_line('Refresh Rate:', format_duration(refresh_interval)))
+    if include_hint:
+        lines.append('Press Ctrl-C to close')
+
+    return '\n'.join(lines) + '\n'
