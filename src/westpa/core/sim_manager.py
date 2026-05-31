@@ -12,6 +12,7 @@ from numpy.random import Generator, MT19937
 
 import westpa
 from .data_manager import weight_dtype
+from .run_status import RUN_STATE_COMPLETE, RUN_STATE_INTERRUPTED, RUN_STATE_RUNNING, RunStatusWriter
 from .segment import Segment
 from .states import InitialState
 from . import extloader
