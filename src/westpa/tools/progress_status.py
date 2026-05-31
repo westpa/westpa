@@ -249,3 +249,23 @@ def progress_snapshot_from_run_status(status, requested_total_iterations=None, n
     )
 
 
+def format_duration(seconds):
+    if seconds is None or not np.isfinite(seconds):
+        return 'unknown'
+    seconds = float(seconds)
+    if seconds < 60:
+        return f'{seconds:.1f}s'
+
+    seconds = int(round(seconds))
+    minutes, seconds = divmod(seconds, 60)
+    if minutes < 60:
+        return f'{minutes}m {seconds:02d}s'
+
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f'{hours}h {minutes:02d}m {seconds:02d}s'
+
+    days, hours = divmod(hours, 24)
+    return f'{days}d {hours:02d}h {minutes:02d}m'
+
+
