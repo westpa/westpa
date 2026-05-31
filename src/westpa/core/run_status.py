@@ -55,3 +55,9 @@ def read_run_status(we_h5filename):
     return RunStatusReadResult(path=path, status=status)
 
 
+def _json_default(value):
+    if hasattr(value, 'item'):
+        return value.item()
+    raise TypeError(f'Object of type {value.__class__.__name__} is not JSON serializable')
+
+
