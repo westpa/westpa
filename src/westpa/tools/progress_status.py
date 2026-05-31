@@ -287,3 +287,12 @@ def _line(label, value, width=28):
     return f'{label:<{width}}{value}'
 
 
+def _progress_text(latest_completed_iteration, requested_total_iterations):
+    if latest_completed_iteration is None:
+        return 'unknown'
+    if requested_total_iterations is None or requested_total_iterations <= 0:
+        return f'{latest_completed_iteration} completed'
+    percent = 100.0 * latest_completed_iteration / requested_total_iterations
+    return f'{latest_completed_iteration} / {requested_total_iterations} iterations ({percent:.1f}%)'
+
+
