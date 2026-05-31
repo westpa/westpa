@@ -39,3 +39,17 @@ class WProgress(WESTTool):
             help='Refresh the dashboard every SECONDS seconds (default: 1.0).',
         )
 
+    def process_args(self, args):
+        if args.refresh_interval <= 0:
+            self.parser.error('--refresh must be greater than 0')
+
+        data_manager = westpa.rc.get_data_manager()
+        if args.we_h5filename:
+            data_manager.we_h5filename = args.we_h5filename
+
+        self.we_h5filename = data_manager.we_h5filename
+        self.refresh_interval = args.refresh_interval
+
+        requested_total = westpa.rc.config.get(['west', 'propagation', 'max_total_iterations'], None)
+        self.requested_total_iterations = int(requested_total) if requested_total is not None else None
+
