@@ -137,6 +137,48 @@ class WESimManager:
                 failed += 1
         return total, prepared, failed
 
+    def write_run_status(self, phase, run_state=RUN_STATE_RUNNING, force=False, message=None):
+        if self.run_status_writer is None:
+            try:
+                self.run_status_writer = RunStatusWriter(self.data_manager.we_h5filename)
+            except Exception:
+                return False
+
+        current_iteration = self.n_iter
+        if current_iteration is None:
+            try:
+                current_iteration = self.data_manager.current_iteration
+            except Exception:
+                current_iteration = None
+
+        latest_completed_iteration = None
+        if current_iteration is not None:
+            latest_completed_iteration = max(int(current_iteration) - 1, 0)
+
+        segment_total, segment_prepared, segment_failed = self._status_segment_counts()
+        try:
+            return self.run_status_writer.write(
+                {
+                    'run_state': run_state,
+                    'phase': phase,
+                    'current_iteration': current_iteration,
+                    'latest_completed_iteration': latest_completed_iteration,
+                    'requested_total_iterations': self.max_total_iterations,
+                    'segment_total': segment_total,
+                    'segment_prepared': segment_prepared,
+                    'segment_failed': segment_failed,
+                    'iteration_started_at': self.iteration_started_at,
+                    'recent_walltimes': self.run_status_recent_walltimes[-5:],
+                    'completed_walltime': self.run_status_completed_walltime,
+                    'completed_segments': self.run_status_completed_segments,
+                    'message': message,
+                },
+                force=force,
+            )
+        except Exception:
+            log.debug('could not write live run status', exc_info=True)
+            return False
+
     def register_callback(self, hook, function, priority=0):
         '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
         priority is used to order when the function is called relative to other registered callbacks.'''
