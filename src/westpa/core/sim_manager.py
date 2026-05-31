@@ -98,6 +98,7 @@ class WESimManager:
 
         # Live status sidecar used by w_progress while west.h5 is locked by w_run.
         self.run_status_writer = None
+        self.run_status_recent_walltimes = []
         # Pseudo Random Number Generator
         self.rng = Generator(MT19937())
 
