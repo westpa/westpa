@@ -125,6 +125,18 @@ class WESimManager:
         completed_segments = int(rows['n_particles'].sum()) if 'n_particles' in rows.dtype.names else 0
         return walltimes[-recent:], completed_walltime, completed_segments
 
+    def _status_segment_counts(self):
+        segments = self.segments or {}
+        total = len(segments)
+        prepared = 0
+        failed = 0
+        for segment in segments.values():
+            if segment.status == Segment.SEG_STATUS_PREPARED:
+                prepared += 1
+            elif segment.status == Segment.SEG_STATUS_FAILED:
+                failed += 1
+        return total, prepared, failed
+
     def register_callback(self, hook, function, priority=0):
         '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
         priority is used to order when the function is called relative to other registered callbacks.'''
