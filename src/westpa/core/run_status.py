@@ -32,3 +32,26 @@ def status_path_for_h5(we_h5filename):
     return os.path.abspath(we_h5filename) + '.progress.json'
 
 
+def read_run_status(we_h5filename):
+    path = status_path_for_h5(we_h5filename)
+    try:
+        with open(path, 'r', encoding='utf-8') as status_file:
+            status = json.load(status_file)
+    except FileNotFoundError:
+        return RunStatusReadResult(path=path, missing=True)
+    except Exception as exc:
+        return RunStatusReadResult(path=path, error=f'Could not read live status file {path}: {exc}')
+
+    if not isinstance(status, dict):
+        return RunStatusReadResult(path=path, error=f'Live status file {path} does not contain a JSON object')
+
+    schema_version = status.get('schema_version')
+    if schema_version != SCHEMA_VERSION:
+        return RunStatusReadResult(
+            path=path,
+            error=f'Live status file {path} has unsupported schema version {schema_version!r}',
+        )
+
+    return RunStatusReadResult(path=path, status=status)
+
+
