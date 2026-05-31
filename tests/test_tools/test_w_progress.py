@@ -48,3 +48,23 @@ class Test_W_Progress:
         assert snapshot.average_recent_walltime > 0
         assert snapshot.eta_seconds == 0
 
+    def test_snapshot_initialized_run(self, ref_initialized):
+        snapshot = read_progress_snapshot(self.h5_filepath, requested_total_iterations=2, recent=5)
+
+        assert snapshot.error is None
+        assert snapshot.current_iteration == 1
+        assert snapshot.latest_completed_iteration == 0
+        assert snapshot.current_status_counts.total > 0
+        assert snapshot.current_status_counts.complete == 0
+        assert snapshot.current_status_counts.prepared == snapshot.current_status_counts.total
+        assert snapshot.completed_segments is None
+        assert snapshot.eta_seconds is None
+
+    def test_missing_file_is_error_snapshot(self, ref_50iter):
+        snapshot = read_progress_snapshot('missing-west.h5', requested_total_iterations=50, recent=5)
+        output = render_progress(snapshot, refresh_interval=1.0)
+
+        assert snapshot.error is not None
+        assert 'Error:' in output
+        assert 'missing-west.h5' in output
+
