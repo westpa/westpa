@@ -106,3 +106,23 @@ def _summary_rows(h5file, latest_completed_iteration):
     return summary[:stop]
 
 
+def _walltimes(rows, recent):
+    if rows is None or 'walltime' not in rows.dtype.names:
+        return []
+    values = [float(value) for value in rows['walltime'] if _finite_positive(float(value))]
+    return values[-recent:]
+
+
+def _completed_walltime(rows):
+    if rows is None or 'walltime' not in rows.dtype.names:
+        return None
+    values = [float(value) for value in rows['walltime'] if np.isfinite(float(value))]
+    return float(sum(values))
+
+
+def _completed_segments(rows):
+    if rows is None or 'n_particles' not in rows.dtype.names:
+        return None
+    return int(rows['n_particles'].sum())
+
+
