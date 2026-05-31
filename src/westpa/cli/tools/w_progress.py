@@ -21,3 +21,21 @@ class WProgress(WESTTool):
         self.refresh_interval = 1.0
         self.requested_total_iterations = None
 
+    def add_args(self, parser):
+        group = parser.add_argument_group('WEST input data options')
+        group.add_argument(
+            '-W',
+            '--west-data',
+            dest='we_h5filename',
+            metavar='WEST_H5FILE',
+            help='Take WEST data from WEST_H5FILE (default: read from the HDF5 file specified in west.cfg).',
+        )
+        group.add_argument(
+            '--refresh',
+            dest='refresh_interval',
+            type=float,
+            default=1.0,
+            metavar='SECONDS',
+            help='Refresh the dashboard every SECONDS seconds (default: 1.0).',
+        )
+
