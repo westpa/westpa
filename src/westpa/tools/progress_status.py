@@ -269,3 +269,21 @@ def format_duration(seconds):
     return f'{days}d {hours:02d}h {minutes:02d}m'
 
 
+def _format_timestamp(timestamp):
+    if timestamp is None:
+        return 'unknown'
+    return datetime.fromtimestamp(timestamp).strftime('%H:%M:%S')
+
+
+def _format_value(value):
+    return 'unknown' if value is None else str(value)
+
+
+def _format_status_value(value):
+    return 'unknown' if value is None else str(value).replace('_', ' ').title()
+
+
+def _line(label, value, width=28):
+    return f'{label:<{width}}{value}'
+
+
