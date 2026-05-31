@@ -85,3 +85,24 @@ def _segment_status_counts(iter_group):
     )
 
 
+def _latest_completed_iteration(current_iteration, status_counts):
+    if current_iteration is None:
+        return None
+    if status_counts.total and status_counts.complete == status_counts.total:
+        return current_iteration
+    return max(current_iteration - 1, 0)
+
+
+def _summary_rows(h5file, latest_completed_iteration):
+    if latest_completed_iteration is None or latest_completed_iteration <= 0:
+        return None
+    try:
+        summary = h5file['summary']
+    except KeyError:
+        return None
+    stop = min(latest_completed_iteration, len(summary))
+    if stop <= 0:
+        return None
+    return summary[:stop]
+
+
