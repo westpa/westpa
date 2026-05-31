@@ -855,16 +855,20 @@ class WESimManager:
 
             try:
                 iter_start_time = time.time()
+                self.iteration_started_at = iter_start_time
 
                 self.rc.pstatus('\n%s' % time.asctime())
                 self.rc.pstatus('Iteration %d (%d requested)' % (self.n_iter, max_iter))
 
+                self.write_run_status('preparing iteration', force=True)
                 self.prepare_iteration()
                 self.rc.pflush()
 
+                self.write_run_status('propagating', force=True)
                 self.pre_propagation()
                 self.propagate()
                 self.rc.pflush()
+                self.write_run_status('checking propagation', force=True)
                 self.check_propagation()
                 self.rc.pflush()
                 self.post_propagation()
@@ -872,13 +876,16 @@ class WESimManager:
                 cputime = sum(segment.cputime for segment in self.segments.values())
 
                 self.rc.pflush()
+                self.write_run_status('weighted ensemble', force=True)
                 self.pre_we()
                 self.run_we()
                 self.post_we()
                 self.rc.pflush()
 
+                self.write_run_status('preparing next iteration', force=True)
                 self.prepare_new_iteration()
 
+                self.write_run_status('finalizing iteration', force=True)
                 self.finalize_iteration()
 
                 iter_elapsed = time.time() - iter_start_time
