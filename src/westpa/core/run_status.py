@@ -20,3 +20,15 @@ RUN_STATE_ERROR = 'error'
 ACTIVE_RUN_STATES = {RUN_STATE_RUNNING, RUN_STATE_INTERRUPTED, RUN_STATE_ERROR}
 
 
+@dataclass
+class RunStatusReadResult:
+    path: str
+    status: dict | None = None
+    error: str | None = None
+    missing: bool = False
+
+
+def status_path_for_h5(we_h5filename):
+    return os.path.abspath(we_h5filename) + '.progress.json'
+
+
