@@ -35,3 +35,16 @@ def live_status(**overrides):
     return status
 
 
+class Test_W_Progress:
+    def test_snapshot_completed_run(self, ref_50iter):
+        snapshot = read_progress_snapshot(self.h5_filepath, requested_total_iterations=50, recent=5)
+
+        assert snapshot.error is None
+        assert snapshot.current_iteration == 51
+        assert snapshot.latest_completed_iteration == 50
+        assert snapshot.requested_total_iterations == 50
+        assert snapshot.completed_segments == 9985
+        assert snapshot.completed_walltime > 0
+        assert snapshot.average_recent_walltime > 0
+        assert snapshot.eta_seconds == 0
+
