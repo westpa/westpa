@@ -53,3 +53,26 @@ class WProgress(WESTTool):
         requested_total = westpa.rc.config.get(['west', 'propagation', 'max_total_iterations'], None)
         self.requested_total_iterations = int(requested_total) if requested_total is not None else None
 
+    @property
+    def should_clear(self):
+        return sys.stdout.isatty()
+
+    def snapshot(self):
+        return read_progress_snapshot(
+            self.we_h5filename,
+            requested_total_iterations=self.requested_total_iterations,
+            recent=5,
+        )
+
+    def sidecar_snapshot(self):
+        status_result = read_run_status(self.we_h5filename)
+        if status_result.status is None:
+            return None, status_result
+        return (
+            progress_snapshot_from_run_status(
+                status_result.status,
+                requested_total_iterations=self.requested_total_iterations,
+            ),
+            status_result,
+        )
+
