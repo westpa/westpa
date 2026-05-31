@@ -893,9 +893,14 @@ class WESimManager:
                 iter_summary['walltime'] += iter_elapsed
                 iter_summary['cputime'] = cputime
                 self.data_manager.update_iter_summary(iter_summary)
+                self.run_status_recent_walltimes.append(float(iter_elapsed))
+                self.run_status_recent_walltimes = self.run_status_recent_walltimes[-5:]
+                self.run_status_completed_walltime += float(iter_elapsed)
+                self.run_status_completed_segments += int(iter_summary['n_particles'])
 
                 self.n_iter += 1
                 self.data_manager.current_iteration += 1
+                self.write_run_status('iteration complete', force=True)
 
                 try:
                     # This may give NaN if starting a truncated simulation
@@ -915,6 +920,7 @@ class WESimManager:
 
         self.rc.pstatus('\n%s' % time.asctime())
         self.rc.pstatus('WEST run complete.')
+        self.write_run_status('complete', run_state=RUN_STATE_COMPLETE, force=True)
 
     def prepare_run(self):
         '''Prepare a new run.'''
