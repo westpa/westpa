@@ -126,3 +126,12 @@ def _completed_segments(rows):
     return int(rows['n_particles'].sum())
 
 
+def _eta_seconds(requested_total_iterations, latest_completed_iteration, average_recent_walltime):
+    if requested_total_iterations is None or latest_completed_iteration is None:
+        return None
+    if not _finite_positive(average_recent_walltime):
+        return None
+    remaining_iterations = max(requested_total_iterations - latest_completed_iteration, 0)
+    return remaining_iterations * average_recent_walltime
+
+
