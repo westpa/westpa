@@ -101,6 +101,7 @@ class WESimManager:
         self.run_status_recent_walltimes = []
         self.run_status_completed_walltime = 0.0
         self.run_status_completed_segments = 0
+        self.iteration_started_at = None
         # Pseudo Random Number Generator
         self.rng = Generator(MT19937())
 
