@@ -42,6 +42,15 @@ class ProgressSnapshot:
     message: str | None = None
 
 
+def _finite_positive(value):
+    return value is not None and np.isfinite(value) and value > 0
+
+
+def _h5_iter_group(h5file, n_iter):
+    try:
+        return h5file.get_iter_group(n_iter)
+    except KeyError:
+        return h5file[f'/iter_{int(n_iter):0{h5file.iter_prec}d}']
 
 
 def _current_iteration(h5file):
