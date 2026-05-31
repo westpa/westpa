@@ -106,6 +106,25 @@ class WESimManager:
         # Pseudo Random Number Generator
         self.rng = Generator(MT19937())
 
+    def _summary_progress(self, recent=5):
+        try:
+            current_iteration = self.data_manager.current_iteration
+            if current_iteration <= 1:
+                return [], 0.0, 0
+            rows = self.data_manager.we_h5file['summary'][: current_iteration - 1]
+        except Exception:
+            return [], 0.0, 0
+
+        walltimes = []
+        for value in rows['walltime']:
+            value = float(value)
+            if math.isfinite(value) and value > 0:
+                walltimes.append(value)
+
+        completed_walltime = sum(float(value) for value in rows['walltime'] if math.isfinite(float(value)))
+        completed_segments = int(rows['n_particles'].sum()) if 'n_particles' in rows.dtype.names else 0
+        return walltimes[-recent:], completed_walltime, completed_segments
+
     def register_callback(self, hook, function, priority=0):
         '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
         priority is used to order when the function is called relative to other registered callbacks.'''
