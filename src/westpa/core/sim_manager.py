@@ -846,6 +846,11 @@ class WESimManager:
             if max_walltime and time.time() + 1.1 * iter_elapsed >= run_killtime:
                 self.rc.pstatus('Iteration {:d} would require more than the allotted time. Ending run.'.format(self.n_iter))
                 self.write_run_status(
+                    'stopping',
+                    run_state=RUN_STATE_INTERRUPTED,
+                    force=True,
+                    message='Iteration would require more than the allotted time.',
+                )
                 return
 
             try:
