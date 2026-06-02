@@ -157,37 +157,20 @@ class DaskWorkManager(WorkManager):
             self.client.register_plugin(_ConfigSetter(), name='config_setter')
             self.running = True
 
-    def shutdown(self, force=None):
-        """Method to shutdown the dask work manager. Called by a context manager upon exit
-        but can be called directly to shutdown the DaskWorkManager.
-
-        Parameters
-        ----------
-        force : bool or None, default None
-            `True` to shut down client and cluster at work manager deconstruction, `False`
-            to shutdown only if the work manager started those components (as indicated by
-            `self._own_cluster`/`self._own_client`). If `None`, the cluster/client will
-            shut down based on `self.force_shutdown` attribute (from WENV CLI Argparser,
-            default false). Otherwise, what is provided under `force` will respected.
-
-        """
+    def shutdown(self):
         if self.running:
-            force = self.force_shutdown if force is None else force
-
             try:
                 self.client.unregister_worker_plugin(name='config_setter')
             except ValueError:
                 pass  # already unregistered
 
-            if self._own_client or force:
+            if self.force_shutdown:
                 self.client.shutdown()
-            else:
-                self.client.restart(wait_for_workers=False)
-
-            if (self._own_cluster or force) and self.cluster:
-                # self.cluster could be None if workers are started manually
-                self.cluster.close()
-                self.cluster = None
+            elif self._own_client:
+                self.client.close()
+                if self._own_cluster:
+                    self.cluster.close()
+                    self.cluster = None
 
             super().shutdown()
 
@@ -244,9 +227,9 @@ class DaskWorkManager(WorkManager):
             help="Memory limit per Dask worker (e.g., '1GiB'). Ignored if SCHEDULER_ADDRESS or SCHEDULER_FILE is provided.",
         )
         group.add_argument(
-            wmenv.arg_flag('dask_shutdown_completely'),
+            wmenv.arg_flag('dask_shutdown_on_exit'),
             action='store_true',
-            help="Shutdown the scheduler and clients after work_manager shutdown.",
+            help="Shut down the Dask scheduler and all workers when the program exits. By default, the cluster is left running.",
         )
 
     @classmethod
@@ -263,6 +246,6 @@ class DaskWorkManager(WorkManager):
             'n_workers': wmenv.get_val('n_workers', type_=int),
             'threads_per_worker': wmenv.get_val('dask_threads_per_worker', 1, type_=int),
             'memory_limit': wmenv.get_val('dask_memory_limit', 'auto'),
-            'force_shutdown': wmenv.get_val('dask_shutdown_completely'),
+            'force_shutdown': wmenv.get_val('dask_shutdown_on_exit'),
         }
         return cls(client, **kwargs)
