@@ -5,13 +5,15 @@ import json
 import h5py
 import numpy as np
 
-from MDAnalysis.topology.base import TopologyReaderBase
-from MDAnalysis.core.topology import Topology
-from MDAnalysis.core.topologyattrs import Atomnames, Atomids, Resids, Resnames, Elements, Segids, Masses, Bonds
-from MDAnalysis.guesser.tables import masses as mass_table
+try:
+    from MDAnalysis.topology.base import TopologyReaderBase
+
+    TopologyBase = TopologyReaderBase
+except ImportError:
+    TopologyBase = object
 
 
-class WESTPAParser(TopologyReaderBase):
+class WESTPAParser(TopologyBase):
     format = 'WESTPA'
 
     def parse(self, **kwargs):
@@ -42,6 +44,10 @@ class WESTPAParser(TopologyReaderBase):
             raise ValueError("Unknown topology format inside HDF5.")
 
     def _parse_json(self, topo_str):
+        from MDAnalysis.core.topology import Topology
+        from MDAnalysis.core.topologyattrs import Atomnames, Atomids, Resids, Resnames, Elements, Segids, Masses, Bonds
+        from MDAnalysis.guesser.tables import masses as mass_table
+
         data = json.loads(topo_str)
         atom_names = []
         elements = []
