@@ -137,3 +137,25 @@ class Test_W_Progress:
         assert 'Completed walltime:         10m 42s' in output
         assert 'Completed segments:         9985' in output
 
+    def test_parser(self, ref_50iter):
+        tool = WProgress()
+        tool.make_parser_and_process(args=['-W', self.h5_filepath, '--refresh', '2.5'])
+
+        assert tool.we_h5filename == self.h5_filepath
+        assert tool.refresh_interval == 2.5
+        assert tool.requested_total_iterations == 50
+
+    def test_render_once_running_sidecar_does_not_open_hdf5(self, ref_50iter):
+        tool = WProgress()
+        tool.we_h5filename = self.h5_filepath
+        live_snapshot = progress_snapshot_from_run_status(
+            live_status(west_h5file=self.h5_filepath)
+        )
+
+        with mock.patch.object(tool, 'sidecar_snapshot', return_value=(live_snapshot, RunStatusReadResult(path='status'))):
+            with mock.patch.object(tool, 'snapshot', side_effect=AssertionError('west.h5 should not be opened')):
+                output = tool.render_once(include_hint=False)
+
+        assert 'Run state:                  Running' in output
+        assert 'Current iteration:          37' in output
+
