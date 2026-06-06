@@ -97,3 +97,23 @@ class Test_W_Progress:
         assert 'ETA:' in output
         assert '2m 54s' in output
 
+    def test_format_duration(self):
+        assert format_duration(None) == 'unknown'
+        assert format_duration(12.4) == '12.4s'
+        assert format_duration(174.0) == '2m 54s'
+        assert format_duration(3723.0) == '1h 02m 03s'
+
+    def test_render_status_message(self):
+        snapshot = ProgressSnapshot(
+            we_h5filename='west.h5',
+            updated_at=0,
+            h5_mtime=0,
+            current_iteration=1,
+            latest_completed_iteration=0,
+        )
+
+        output = render_progress(snapshot, status_message='Using live status data.')
+
+        assert 'Status' in output
+        assert 'Using live status data.' in output
+
