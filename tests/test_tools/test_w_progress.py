@@ -159,3 +159,24 @@ class Test_W_Progress:
         assert 'Run state:                  Running' in output
         assert 'Current iteration:          37' in output
 
+    def test_render_once_complete_sidecar_prefers_readable_hdf5(self, ref_50iter):
+        tool = WProgress()
+        tool.we_h5filename = self.h5_filepath
+        sidecar_snapshot = progress_snapshot_from_run_status(
+            live_status(west_h5file=self.h5_filepath, run_state=RUN_STATE_COMPLETE, phase='complete', segment_prepared=0)
+        )
+        hdf5_snapshot = ProgressSnapshot(
+            we_h5filename=self.h5_filepath,
+            updated_at=1,
+            current_iteration=51,
+            latest_completed_iteration=50,
+            requested_total_iterations=50,
+        )
+
+        with mock.patch.object(tool, 'sidecar_snapshot', return_value=(sidecar_snapshot, RunStatusReadResult(path='status'))):
+            with mock.patch.object(tool, 'snapshot', return_value=hdf5_snapshot):
+                output = tool.render_once(include_hint=False)
+
+        assert 'Current iteration:          51' in output
+        assert 'Run state:' not in output
+
