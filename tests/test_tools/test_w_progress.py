@@ -117,3 +117,23 @@ class Test_W_Progress:
         assert 'Status' in output
         assert 'Using live status data.' in output
 
+    def test_render_live_status_snapshot(self):
+        snapshot = progress_snapshot_from_run_status(
+            live_status(iteration_started_at=0, recent_walltimes=[12.4, 11.8, 13.1]),
+            now=20,
+        )
+
+        assert snapshot.updated_at == 20
+        assert snapshot.status_updated_at == 0
+        output = render_progress(snapshot, refresh_interval=1.0)
+
+        assert 'Run state:                  Running' in output
+        assert 'Phase:                      Propagating' in output
+        assert 'Live status updated:' in output
+        assert 'Current iteration:          37' in output
+        assert 'Prepared:                   18 / 100' in output
+        assert 'Failed:                     0 / 100' in output
+        assert 'Current iter elapsed:       20.0s' in output
+        assert 'Completed walltime:         10m 42s' in output
+        assert 'Completed segments:         9985' in output
+
