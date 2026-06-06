@@ -68,3 +68,32 @@ class Test_W_Progress:
         assert 'Error:' in output
         assert 'missing-west.h5' in output
 
+    def test_render_progress(self):
+        snapshot = ProgressSnapshot(
+            we_h5filename='west.h5',
+            updated_at=0,
+            h5_mtime=0,
+            current_iteration=37,
+            latest_completed_iteration=36,
+            requested_total_iterations=50,
+            current_status_counts=SegmentStatusCounts(total=100, prepared=18, failed=2),
+            recent_walltimes=[12.4, 11.8, 13.1],
+            average_recent_walltime=12.433333333333334,
+            eta_seconds=174.06666666666666,
+            completed_walltime=642,
+            completed_segments=9985,
+        )
+
+        output = render_progress(snapshot, refresh_interval=1.0)
+
+        assert 'WESTPA Progress' in output
+        assert 'Current iteration:' in output
+        assert '37' in output
+        assert '36 / 50 iterations (72.0%)' in output
+        assert '18 / 100' in output
+        assert '2 / 100' in output
+        assert 'Recent walltimes:' in output
+        assert '12.4s, 11.8s, 13.1s' in output
+        assert 'ETA:' in output
+        assert '2m 54s' in output
+
