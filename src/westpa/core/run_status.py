@@ -11,7 +11,6 @@ import tempfile
 import time
 from dataclasses import dataclass
 
-
 SCHEMA_VERSION = 1
 RUN_STATE_RUNNING = 'running'
 RUN_STATE_COMPLETE = 'complete'
