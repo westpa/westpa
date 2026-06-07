@@ -180,3 +180,31 @@ class Test_W_Progress:
         assert 'Current iteration:          51' in output
         assert 'Run state:' not in output
 
+    def test_render_once_complete_sidecar_fallback_when_hdf5_unreadable(self, ref_50iter):
+        tool = WProgress()
+        tool.we_h5filename = self.h5_filepath
+        sidecar_snapshot = progress_snapshot_from_run_status(
+            live_status(
+                west_h5file=self.h5_filepath,
+                run_state=RUN_STATE_COMPLETE,
+                phase='complete',
+                current_iteration=51,
+                latest_completed_iteration=50,
+                segment_prepared=0,
+                recent_walltimes=[12.0],
+            )
+        )
+        unreadable_hdf5_snapshot = ProgressSnapshot(
+            we_h5filename=self.h5_filepath,
+            updated_at=1,
+            error='Unable to open west.h5',
+        )
+
+        with mock.patch.object(tool, 'sidecar_snapshot', return_value=(sidecar_snapshot, RunStatusReadResult(path='status'))):
+            with mock.patch.object(tool, 'snapshot', return_value=unreadable_hdf5_snapshot):
+                output = tool.render_once(include_hint=False)
+
+        assert 'Could not read west.h5' in output
+        assert 'Run state:                  Complete' in output
+        assert 'Error:' not in output
+
