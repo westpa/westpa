@@ -208,3 +208,29 @@ class Test_W_Progress:
         assert 'Run state:                  Complete' in output
         assert 'Error:' not in output
 
+    def test_render_once_hdf5_error_renders_error(self, ref_50iter):
+        tool = WProgress()
+        tool.we_h5filename = self.h5_filepath
+        error_snapshot = ProgressSnapshot(we_h5filename='missing-west.h5', updated_at=1, error='No such file or directory')
+
+        with mock.patch.object(tool, 'snapshot', return_value=error_snapshot):
+            output = tool.render_once(include_hint=False)
+
+        assert 'No such file or directory' in output
+        assert 'Current iteration:          37' not in output
+
+    def test_entry_point_renders_once(self, ref_50iter, capsys):
+        args = argparse.Namespace(
+            verbosity='quiet',
+            rcfile=self.cfg_filepath,
+            we_h5filename=self.h5_filepath,
+            refresh_interval=1.0,
+        )
+
+        with mock.patch('argparse.ArgumentParser.parse_args', return_value=args):
+            with mock.patch('time.sleep', side_effect=KeyboardInterrupt):
+                entry_point()
+
+        captured = capsys.readouterr()
+        assert 'WESTPA Progress' in captured.out
+        assert self.h5_filepath in captured.out
