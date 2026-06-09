@@ -18,6 +18,9 @@ class Test_WESTPAParser:
         u = mda.Universe(hdf5_file, format='WESTPA')
         yield u
 
+        if hasattr(u, 'trajectory'):
+            u.trajectory.close()
+
     def test_parser_atom_count(self, mda_universe):
         """Parser extracts the correct number of atoms from Tutorial 7.5"""
 
