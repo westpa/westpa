@@ -27,7 +27,6 @@ class Test_WESTPAParser:
         expected_atoms = 4010  # Known value
 
         assert len(mda_universe.atoms) == expected_atoms, f"Expected {expected_atoms} atoms, got {len(mda_universe.atoms)}"
-
         assert mda_universe.atoms.ids[-1] == expected_atoms - 1, "Atom IDs were not indexed properly"
 
     def test_parser_residue_names(self, mda_universe):
@@ -47,3 +46,24 @@ class Test_WESTPAParser:
         # Testing internal search
         water_selection = mda_universe.select_atoms("resname HOH")
         assert len(water_selection) > 0, "Parser failed to map HOH residues correctly."
+
+    def test_parser_masses(self, mda_universe):
+        """Parser has correct mass values from mass dictionary"""
+
+        masses = mda_universe.atoms.masses
+
+        assert np.isclose(masses[0], 22.98977), "Sodium mass is mapped incorrectly"
+        assert np.isclose(masses[1], 35.45), "Chlorine mass is mapped incorrectly"
+        assert np.all(masses > 0.0), "One or more atoms failed mass mapping and defaulted to 0.0"
+
+    def test_parser_bonds(self, mda_universe):
+        """Parser converts JSON bond arrays to MDAnalysis bonds correctly"""
+
+        expected_bonds = 2672  # Known value
+        assert len(mda_universe.bonds) == expected_bonds, "Number of bonds did not match"
+
+    def test_parser_segments(self, mda_universe):
+        """Parser correctly populates segments"""
+
+        assert len(mda_universe.segments) >= 1, "No segments were found in the topology"
+        assert len(mda_universe.segments[0].atoms) > 0, "The generated segment is empty"
