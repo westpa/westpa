@@ -117,6 +117,7 @@ class WESTPAReader(MDAReaderBase):
         self.filename = filename
 
         self._h5 = h5py.File(filename, 'r')
+        # Will be used for caching later
         self._current_h5 = None
         self._current_path = None
 
@@ -130,7 +131,9 @@ class WESTPAReader(MDAReaderBase):
             iter_group = self._h5[f'iterations/{iter_name}']
 
             if 'trajectories' not in iter_group:
-                warnings.warn(f"No trajectory group found in {iter_name}")
+                warnings.warn(
+                    f"No trajectory group found in {iter_name}"
+                )  # Sometimes the simulation ends before the trajectory file is written
                 break
 
             seg_idx = iter_group['seg_index'][:]
