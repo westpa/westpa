@@ -1,6 +1,7 @@
 '''Parser and Reader to expose WESTPA simulation data as MDAnalysis Universe'''
 
 import json
+import warnings
 
 import h5py
 import numpy as np
@@ -111,6 +112,7 @@ class WESTPAReader(MDAReaderBase):
     format = 'WESTPA'
 
     def __init__(self, filename, n_atoms=None, **kwargs):
+        self._n_atoms = n_atoms
         super().__init__(filename, **kwargs)
         self.filename = filename
 
@@ -126,6 +128,10 @@ class WESTPAReader(MDAReaderBase):
         for i in range(1, n_iters + 1):
             iter_name = f'iter_{i:0{self.iter_prec}d}'
             iter_group = self._h5[f'iterations/{iter_name}']
+
+            if 'trajectories' not in iter_group:
+                warnings.warn(f"No trajectory group found in {iter_name}")
+                break
 
             seg_idx = iter_group['seg_index'][:]
             n_segs = len(seg_idx)
