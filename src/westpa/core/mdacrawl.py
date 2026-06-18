@@ -8,12 +8,12 @@ import numpy as np
 try:
     from MDAnalysis.topology.base import TopologyReaderBase
 
-    TopologyBase = TopologyReaderBase
+    MDATopologyBase = TopologyReaderBase
 except ImportError:
-    TopologyBase = object
+    MDATopologyBase = object
 
 
-class WESTPAParser(TopologyBase):
+class WESTPAParser(MDATopologyBase):
     format = 'WESTPA'
 
     def parse(self, **kwargs):
@@ -97,3 +97,48 @@ class WESTPAParser(TopologyBase):
             atom_resindex=np.array(atom_resindex, dtype=np.int32),
             residue_segindex=np.array(residue_segindex, dtype=np.int32),
         )
+
+
+try:
+    from MDAnalysis.coordinates.base import ReaderBase
+
+    MDAReaderBase = ReaderBase
+except ImportError:
+    MDAReaderBase = object
+
+
+class WESTPAReader(MDAReaderBase):
+    format = 'WESTPA'
+
+    def __init__(self, filename, n_atoms=None, **kwargs):
+        super().__init__(filename, **kwargs)
+        self.filename = filename
+
+        self._h5 = h5py.File(filename, 'r')
+        self._current_h5 = None
+        self._current_path = None
+
+        self.iter_prec = self._h5.attrs['west_iter_prec']
+
+        self.frame_index = []
+        n_iters = self._h5['summary'].shape[0]
+
+        for i in range(1, n_iters + 1):
+            iter_name = f'iter_{i:0{self.iter_prec}d}'
+            iter_group = self._h5[f'iterations/{iter_name}']
+
+            seg_idx = iter_group['seg_index'][:]
+            n_segs = len(seg_idx)
+
+            traj_file = iter_group['trajectories']
+
+            ptr = traj_file['pointer'][:]
+
+            for seg_id in range(n_segs):
+                valid = ptr[:, 0] > 0
+                seg_mask = ptr[:, 1] == seg_id
+                actual_positions = np.where(valid & seg_mask)[0]
+                for actual_pos in actual_positions:
+                    self.frame_index.append((i, seg_id, actual_pos, traj_file.file.filename))
+
+            self.ts = self._Timestep(self.n_atoms)
