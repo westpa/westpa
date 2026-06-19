@@ -144,6 +144,7 @@ class WESTPAReader(MDAReaderBase):
             ptr = traj_file['pointer'][:]
 
             for seg_id in range(n_segs):
+                # Filter using pointer dataset
                 valid = ptr[:, 0] > 0
                 seg_mask = ptr[:, 1] == seg_id
                 actual_positions = np.where(valid & seg_mask)[0]
@@ -151,3 +152,11 @@ class WESTPAReader(MDAReaderBase):
                     self.frame_index.append((i, seg_id, actual_pos, traj_file.file.filename))
 
             self.ts = self._Timestep(self.n_atoms)
+
+    @property
+    def n_atoms(self):
+        return self._n_atoms
+
+    @property
+    def n_frames(self):
+        return len(self.frame_index)
