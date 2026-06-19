@@ -160,3 +160,9 @@ class WESTPAReader(MDAReaderBase):
     @property
     def n_frames(self):
         return len(self.frame_index)
+
+    def _read_next_timestep(self):
+        pass
+
+    def _reopen(self):
+        pass
