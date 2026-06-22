@@ -546,7 +546,7 @@ class WESTRC:
           the parsed settings from the config file.
         """
 
-        yamlSystem = WESTSystem()
+        yamlSystem = WESTSystem(rc=self)
         print("System building only off of the configuration file")
         # Now for the building of the system from YAML we need to use
         # require for these settings since they are musts.
