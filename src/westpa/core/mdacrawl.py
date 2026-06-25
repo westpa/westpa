@@ -161,6 +161,34 @@ class WESTPAReader(MDAReaderBase):
     def n_frames(self):
         return len(self.frame_index)
 
+    def _read_frame(self, i):
+        iter_num, seg_idx, actual_pos, path = self.frame_index[i]
+
+        # Cache file handles to prevent massive file open/close OS overhead
+        if self._current_path != path:
+            if self._current_h5:
+                self._current_h5.close()
+            self._current_h5 = h5py.File(path, 'r')
+            self._current_path = path
+
+        coords = self._current_h5['coordinates'][actual_pos] * 10.0  # Temporary scaling -> nm to angstrom for now
+        self.ts.positions = coords.astype(np.float32)
+        self.ts.frame = i
+
+        # WESTPA specific metadata
+        try:
+            iter_name = f'iter_{iter_num:0{self.iter_prec}d}'
+            si = self._h5[f'iterations/{iter_name}/seg_index'][seg_idx]
+            self.ts.data['weight'] = si['weight']
+            self.ts.data['parent_id'] = si['parent_id']
+            self.ts.data['iteration'] = iter_num
+            self.ts.data['endpoint_type'] = si['endpoint_type']
+            self.ts.data['walker'] = seg_idx
+        except ValueError:
+            warnings.warn(f"One of the metadata parameters did not exist in {iter_name}")
+
+        return self.ts
+
     def _read_next_timestep(self):
         pass
 
