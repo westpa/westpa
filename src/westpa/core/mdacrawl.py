@@ -186,8 +186,10 @@ class WESTPAReader(MDAReaderBase):
 
         return self.ts
 
-    def _read_next_timestep(self):
+    def _read_next_timestep(self, ts=None):
+        if ts is None:
+            ts = self.ts
         return self._read_frame(self.ts.frame + 1)
 
     def _reopen(self):
-        pass
+        self.ts.frame = -1
