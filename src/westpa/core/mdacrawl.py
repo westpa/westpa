@@ -171,21 +171,18 @@ class WESTPAReader(MDAReaderBase):
             self._current_h5 = h5py.File(path, 'r')
             self._current_path = path
 
-        coords = self._current_h5['coordinates'][actual_pos] * 10.0  # Temporary scaling -> nm to angstrom for now
+        coords = self._current_h5['coordinates'][actual_pos] * 10.0  # MDTraj normalizes units to nm but MDAnalysis uses Ångströms
         self.ts.positions = coords.astype(np.float32)
         self.ts.frame = i
+        self.ts.data.clear()  # Prevents bleeding of ts.data to each frame
 
         # WESTPA specific metadata
-        try:
-            iter_name = f'iter_{iter_num:0{self.iter_prec}d}'
-            si = self._h5[f'iterations/{iter_name}/seg_index'][seg_idx]
-            self.ts.data['weight'] = si['weight']
-            self.ts.data['parent_id'] = si['parent_id']
-            self.ts.data['iteration'] = iter_num
-            self.ts.data['endpoint_type'] = si['endpoint_type']
-            self.ts.data['walker'] = seg_idx
-        except ValueError:
-            warnings.warn(f"One of the metadata parameters did not exist in {iter_name}")
+        iter_name = f'iter_{iter_num:0{self.iter_prec}d}'
+        si = self._h5[f'iterations/{iter_name}/seg_index'][seg_idx]
+        self.ts.data['iteration'] = iter_num
+        for name in si.dtype.names:
+            if name not in self.ts.data:
+                self.ts.data[name] = si[name]
 
         return self.ts
 
