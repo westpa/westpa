@@ -164,7 +164,7 @@ class WESTPAReader(MDAReaderBase):
     def _read_frame(self, i):
         iter_num, seg_idx, actual_pos, path = self.frame_index[i]
 
-        # Cache file handles to prevent massive file open/close OS overhead
+        # Cache file handles to prevent massive file open/close
         if self._current_path != path:
             if self._current_h5:
                 self._current_h5.close()
@@ -187,7 +187,7 @@ class WESTPAReader(MDAReaderBase):
         return self.ts
 
     def _read_next_timestep(self):
-        pass
+        return self._read_frame(self.ts.frame + 1)
 
     def _reopen(self):
         pass
