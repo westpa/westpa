@@ -119,10 +119,8 @@ def parsePCV(pc_str):
     namespace = {'math': math, 'numpy': np, 'np': np, 'inf': float('inf')}
 
     arr = np.array(eval(pc_str, namespace))
-    if arr.ndim == 0:
-        arr.shape = (1, 1)
-    elif arr.ndim == 1:
-        arr.shape = (1,) + arr.shape
+    if arr.ndim <= 1:
+        arr = np.atleast_2d(arr)
     else:
         raise ValueError('too many dimensions')
     # return list(arr[...])
