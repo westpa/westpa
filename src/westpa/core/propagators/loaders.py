@@ -31,7 +31,7 @@ def pcoord_loader(fieldname, pcoord_return_filename, destobj, single_point):
     else:
         expected_shape = (system.pcoord_len, system.pcoord_ndim)
         if pcoord.ndim < 2:
-            pcoord = np.atleast_2d(pcoord)
+            pcoord = np.reshape(pcoord, expected_shape, copy=False)
     if pcoord.shape != expected_shape:
         raise ValueError(
             'progress coordinate data has incorrect shape {!r} [expected {!r}] Check pcoord.err or seg_logs for more '
