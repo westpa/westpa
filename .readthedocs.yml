@@ -5,7 +5,7 @@ version: 2
 formats: all
 
 build:
-  os: ubuntu-24.04
+  os: ubuntu-lts-latest
   tools:
     python: miniforge3-latest
 
