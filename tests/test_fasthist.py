@@ -110,7 +110,7 @@ def test_uint(npts=1024 * 1024, ndim=3, loops=3):
     print('theirs, best of {}: {}'.format(loops, min(theirs_times)))
 
     if (np.__version__ >= '2.5.0' and platform.system() == 'Linux') and (
-        (platform.machine() == 'x86_64') or (platform.machine() == 'arm64' and platform.python_version_tuple()[1] >= '14')
+        (platform.machine() == 'x86_64') or (platform.machine() == 'aarch64' and platform.python_version_tuple()[1] >= '14')
     ):
         assert min(mine_times) > min(theirs_times)
     else:
