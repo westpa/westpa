@@ -67,3 +67,26 @@ class Test_WESTPAParser:
 
         assert len(mda_universe.segments) >= 1, "No segments were found in the topology"
         assert len(mda_universe.segments[0].atoms) > 0, "The generated segment is empty"
+
+    def test_parser_elements(self, mda_universe):
+        """Parser correctly maps atomic elements"""
+
+        elements = mda_universe.atoms.elements
+
+        assert len(elements) == len(mda_universe.atoms), "Elements array length mismatch"
+
+        water_oxygens = mda_universe.select_atoms("resname HOH and name O")
+        if len(water_oxygens) > 0:
+            assert np.all(water_oxygens.elements == 'O'), "Water oxygen element is not 'O'"
+
+    def test_parser_bond_connectivity(self, mda_universe):
+        """Parser maps bonds to the correct atom indices"""
+
+        water = mda_universe.select_atoms("resname HOH").residues[0]
+        assert len(water.atoms.bonds) == 2, "Water molecule does not have exactly 2 bonds"
+
+        # Check that the oxygen is bonded to hydrogens
+        oxygen = water.atoms.select_atoms("name O")
+        if len(oxygen) == 1:
+            bonded_atoms = oxygen[0].bonded_atoms
+            assert np.all(np.isin(bonded_atoms.names, ['H1', 'H2', 'HW1', 'HW2'])), "Oxygen bonded to non-hydrogen atom"
