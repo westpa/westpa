@@ -193,3 +193,11 @@ class WESTPAReader(MDAReaderBase):
 
     def _reopen(self):
         self.ts.frame = -1
+
+    def close(self):
+        if self._current_h5 is not None:
+            self._current_h5.close()
+            self._current_h5 = None
+        if hasattr(self, '_h5') and self._h5 is not None:
+            self._h5.close()
+            self._h5 = None
