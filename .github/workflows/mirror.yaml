@@ -19,7 +19,7 @@ jobs:
         with:
           client-id: ${{ vars.BRANCH_MIRROR_APPID }}
           private-key: ${{ secrets.BRANCH_MIRROR_SECRET }}
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
