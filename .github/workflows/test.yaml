@@ -87,7 +87,7 @@ jobs:
           pytest -v --cov=westpa --cov-report=xml --color=yes tests
   
       - name: CodeCov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: ./coverage.xml
           flags: unittests
