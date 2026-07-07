@@ -2,6 +2,7 @@ import pytest
 import os
 
 import numpy as np
+import h5py
 
 mda = pytest.importorskip("MDAnalysis")
 from westpa.core import mdacrawl  # noqa
@@ -90,3 +91,49 @@ class Test_WESTPAParser:
         if len(oxygen) == 1:
             bonded_atoms = oxygen[0].bonded_atoms
             assert np.all(np.isin(bonded_atoms.names, ['H1', 'H2', 'HW1', 'HW2'])), "Oxygen bonded to non-hydrogen atom"
+
+
+class Test_WESTPAReader:
+    """Class to test the WESTPAReader dynamic trajectory reading module"""
+
+    @pytest.fixture(scope="class")
+    def mda_universe(self):
+        u = mda.Universe(hdf5_file, format='WESTPA')
+        yield u
+
+        if hasattr(u, 'trajectory'):
+            u.trajectory.close()
+
+    def test_reader_frame_count(self, mda_universe):
+        """Reader reads correct frame count"""
+        frames = mda_universe.trajectory
+        assert len(frames) > 0, "Trajectory should not be empty"
+        assert len(frames) == 100, "Frame count does not match"
+
+    def test_reader_coordinates(self, mda_universe):
+        """Ensure coordinates are correctly extracted and scaled to Ångströms"""
+        ts = mda_universe.trajectory[0]
+        iter_num, seg_idx, actual_pos, path = mda_universe.trajectory.frame_index[0]
+
+        with h5py.File(path, 'r') as f:
+            coords = f['coordinates'][actual_pos] * 10
+
+        assert ts.positions is not None
+        assert ts.positions.dtype == np.float32
+        assert ts.positions.shape == (mda_universe.atoms.n_atoms, 3)
+        np.testing.assert_allclose(ts.positions, coords, atol=1e-3, err_msg="Coordinates do not match the expected values")
+
+    def test_reader_metadata(self, mda_universe):
+        """Ensure ts.data is correctly populated and no bleeding between frames happen"""
+        frame_0 = mda_universe.trajectory[0]
+        assert 'iteration' in frame_0.data
+        assert 'weight' in frame_0.data
+        cputime_0 = frame_0.data['cputime']
+
+        frame_last = mda_universe.trajectory[-1]
+        assert 'weight' in frame_last.data
+        assert 'parent_id' in frame_last.data
+        cputime_last = frame_last.data['cputime']
+
+        # Check bleeding using cputime since if more than 1 walker exists, the cputime should be different
+        assert cputime_0 != cputime_last, "Data bleed occurred, cputime did not update"
