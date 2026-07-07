@@ -121,10 +121,17 @@ class WESTPAReader(MDAReaderBase):
         self._current_h5 = None
         self._current_path = None
 
+        try:
+            self._build_frame_index()
+        except Exception:
+            self._h5.close()
+            raise
+
+    def _build_frame_index(self):
         self.iter_prec = self._h5.attrs['west_iter_prec']
 
         self.frame_index = []
-        n_iters = self._h5['summary'].shape[0]
+        n_iters = np.count_nonzero([self._h5['summary']['walltime'][:] > 0])
 
         for i in range(1, n_iters + 1):
             iter_name = f'iter_{i:0{self.iter_prec}d}'
