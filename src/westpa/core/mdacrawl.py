@@ -224,3 +224,23 @@ class WESTPAReader(MDAReaderBase):
         if hasattr(self, '_h5') and self._h5 is not None:
             self._h5.close()
             self._h5 = None
+
+    # Parallelization support
+    def __getstate__(self):
+        if self._current_h5 is not None:
+            self._current_h5.close()
+        if self._h5 is not None:
+            self._h5.close()
+
+        state = self.__dict__.copy()
+        state['_h5'] = None
+        state['_current_h5'] = None
+        state['_current_path'] = None
+        return state
+
+
+def __setstate__(self, state):
+    self.__dict__.update(state)
+    self._h5 = h5py.File(self.filename, 'r')
+    self._current_h5 = None
+    self._current_path = None
