@@ -137,3 +137,30 @@ class Test_WESTPAReader:
 
         # Check bleeding using cputime since if more than 1 walker exists, the cputime should be different
         assert cputime_0 != cputime_last, "Data bleed occurred, cputime did not update"
+
+    def test_reader_is_picklable(self, mda_universe):
+        """Ensure Reader can be pickled and unpickled, which is required for MDAnalysis parallel backends"""
+        import pickle
+
+        reader = mda_universe.trajectory
+        reader_copy = pickle.loads(pickle.dumps(reader))
+        assert reader_copy.n_frames == reader.n_frames, "Unpickled reader has wrong frame count"
+        assert reader_copy.n_atoms == reader.n_atoms, "Unpickled reader has wrong atom count"
+
+    def test_parallel_rmsd_matches_serial(self):
+        """Check RMSD computed with multiprocessing backend is numerically identical to serial"""
+        from MDAnalysis.analysis import rms
+
+        u1 = mda.Universe(hdf5_file, format='WESTPA')
+        R_serial = rms.RMSD(u1, u1, select="index 0:50")
+        R_serial.run(backend='serial')
+        u1.trajectory.close()
+
+        u2 = mda.Universe(hdf5_file, format='WESTPA')
+        R_par = rms.RMSD(u2, u2, select="index 0:50")
+        R_par.run(backend='multiprocessing', n_workers=2)
+        u2.trajectory.close()
+
+        np.testing.assert_allclose(
+            R_serial.results.rmsd, R_par.results.rmsd, atol=1e-5, err_msg="Serial and parallel RMSD results differ"
+        )
