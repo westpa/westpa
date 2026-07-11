@@ -183,6 +183,16 @@ class WESTPAReader(MDAReaderBase):
         self.ts.frame = i
         self.ts.data.clear()  # Prevents bleeding of ts.data to each frame
 
+        # Periodic boundary box info
+        if 'cell_lengths' in self._current_h5 and 'cell_angles' in self._current_h5:
+            lengths = self._current_h5['cell_lengths'][actual_pos] * 10.0
+            angles = self._current_h5['cell_angles'][actual_pos]
+
+            self.ts.dimensions = np.array([lengths[0], lengths[1], lengths[2], angles[0], angles[1], angles[2]], dtype=np.float32)
+        else:
+            # Fallback if no PBC data exists
+            self.ts.dimensions = np.zeros(6, dtype=np.float32)
+
         # WESTPA specific metadata
         iter_name = f'iter_{iter_num:0{self.iter_prec}d}'
         si = self._h5[f'iterations/{iter_name}/seg_index'][seg_idx]
