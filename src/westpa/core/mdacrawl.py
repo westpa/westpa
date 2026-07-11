@@ -113,6 +113,7 @@ class WESTPAReader(MDAReaderBase):
 
     def __init__(self, filename, n_atoms=None, **kwargs):
         self._n_atoms = n_atoms
+        self._reader_dt = kwargs.get('dt', 1.0)
         super().__init__(filename, **kwargs)
         self.filename = filename
 
@@ -128,6 +129,7 @@ class WESTPAReader(MDAReaderBase):
             raise
 
         self.ts = self._Timestep(self.n_atoms)
+        self.ts.dt = self._reader_dt
 
     def _build_frame_index(self):
         self.iter_prec = self._h5.attrs['west_iter_prec']
@@ -247,3 +249,5 @@ class WESTPAReader(MDAReaderBase):
         self._h5 = h5py.File(self.filename, 'r')
         self._current_h5 = None
         self._current_path = None
+        if hasattr(self, 'ts') and hasattr(self, '_reader_dt'):
+            self.ts.dt = self._reader_dt
