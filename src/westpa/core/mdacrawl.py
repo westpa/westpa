@@ -127,11 +127,13 @@ class WESTPAReader(MDAReaderBase):
             self._h5.close()
             raise
 
+        self.ts = self._Timestep(self.n_atoms)
+
     def _build_frame_index(self):
         self.iter_prec = self._h5.attrs['west_iter_prec']
 
         self.frame_index = []
-        n_iters = np.count_nonzero([self._h5['summary']['walltime'][:] > 0])
+        n_iters = np.count_nonzero(self._h5['summary']['walltime'][:] > 0)
 
         for i in range(1, n_iters + 1):
             iter_name = f'iter_{i:0{self.iter_prec}d}'
@@ -157,8 +159,6 @@ class WESTPAReader(MDAReaderBase):
                 actual_positions = np.where(valid & seg_mask)[0]
                 for actual_pos in actual_positions:
                     self.frame_index.append((i, seg_id, actual_pos, traj_file.file.filename))
-
-            self.ts = self._Timestep(self.n_atoms)
 
     @property
     def n_atoms(self):
