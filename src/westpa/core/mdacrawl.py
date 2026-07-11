@@ -242,9 +242,8 @@ class WESTPAReader(MDAReaderBase):
         state['_current_path'] = None
         return state
 
-
-def __setstate__(self, state):
-    self.__dict__.update(state)
-    self._h5 = h5py.File(self.filename, 'r')
-    self._current_h5 = None
-    self._current_path = None
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._h5 = h5py.File(self.filename, 'r')
+        self._current_h5 = None
+        self._current_path = None
