@@ -193,6 +193,12 @@ class WESTPAReader(MDAReaderBase):
             # Fallback if no PBC data exists
             self.ts.dimensions = np.zeros(6, dtype=np.float32)
 
+        # Energies
+        if 'kineticEnergy' in self._current_h5:
+            self.ts.data['kinetic_energy'] = self._current_h5['kineticEnergy'][actual_pos]
+        if 'potentialEnergy' in self._current_h5:
+            self.ts.data['potential_energy'] = self._current_h5['potentialEnergy'][actual_pos]
+
         # WESTPA specific metadata
         iter_name = f'iter_{iter_num:0{self.iter_prec}d}'
         si = self._h5[f'iterations/{iter_name}/seg_index'][seg_idx]
