@@ -164,3 +164,55 @@ class Test_WESTPAReader:
         np.testing.assert_allclose(
             R_serial.results.rmsd, R_par.results.rmsd, atol=1e-5, err_msg="Serial and parallel RMSD results differ"
         )
+
+    def test_reader_pbc_dimensions(self, mda_universe):
+        """Ensures that periodic boundary conditions (cell dimensions and angles) are correctly extracted, scaled (nm to Å) and usable by MDAnalysis tools"""
+        import h5py
+        import numpy as np
+        from MDAnalysis.lib.distances import distance_array
+
+        ts = mda_universe.trajectory[0]
+        iter_num, seg_idx, actual_pos, path = mda_universe.trajectory.frame_index[0]
+
+        # Read raw data
+        with h5py.File(path, 'r') as f:
+            if 'cell_lengths' in f and 'cell_angles' in f:
+                raw_lengths = f['cell_lengths'][actual_pos]
+                raw_angles = f['cell_angles'][actual_pos]
+
+                # Expected
+                expected_dimensions = np.array(
+                    [
+                        raw_lengths[0] * 10.0,
+                        raw_lengths[1] * 10.0,
+                        raw_lengths[2] * 10.0,
+                        raw_angles[0],
+                        raw_angles[1],
+                        raw_angles[2],
+                    ],
+                    dtype=np.float32,
+                )
+            else:
+                expected_dimensions = np.zeros(6, dtype=np.float32)
+
+        assert ts.dimensions is not None
+        assert ts.dimensions.shape == (6,)
+        assert ts.dimensions.dtype == np.float32
+
+        np.testing.assert_allclose(
+            ts.dimensions,
+            expected_dimensions,
+            atol=1e-4,
+            err_msg="Box dimensions do not match expected",
+        )
+
+        if expected_dimensions[0] > 0:
+
+            assert ts.volume > 0
+
+            positions = mda_universe.atoms.positions
+            pbc_distances = distance_array(positions, positions, box=ts.dimensions)
+
+            # Verify the distance array computed successfully
+            assert pbc_distances.shape == (mda_universe.atoms.n_atoms, mda_universe.atoms.n_atoms)
+            assert np.min(pbc_distances) >= 0.0
