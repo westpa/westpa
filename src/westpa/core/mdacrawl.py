@@ -46,7 +46,7 @@ class WESTPAParser(MDATopologyBase):
 
     def _parse_json(self, topo_str):
         from MDAnalysis.core.topology import Topology
-        from MDAnalysis.core.topologyattrs import Atomnames, Atomids, Resids, Resnames, Elements, Segids, Masses, Bonds
+        from MDAnalysis.core.topologyattrs import Atomnames, Atomids, Resids, Resnames, Elements, Segids, Masses, Bonds, Charges
         from MDAnalysis.guesser.tables import masses as mass_table
 
         data = json.loads(topo_str)
@@ -57,6 +57,9 @@ class WESTPAParser(MDATopologyBase):
         atom_resindex = []
         residue_segindex = []
         bonds = []
+
+        charge_values = []
+        has_charges = False
 
         res_idx = 0
         seg_idx = 0
@@ -69,6 +72,11 @@ class WESTPAParser(MDATopologyBase):
                     atom_names.append(atom['name'])
                     elements.append(atom['element'])
                     atom_resindex.append(res_idx)
+                    if 'charge' in atom:
+                        has_charges = True
+                        charge_values.append(atom['charge'])  # Extract charge values if exists
+                    else:
+                        charge_values.append(0.0)
                 res_idx += 1
             seg_idx += 1
 
@@ -81,20 +89,25 @@ class WESTPAParser(MDATopologyBase):
         # Try both uppercase and capitalized since MDAnalysis's internal dictionary could be inconsistent (checked)
         mass_values = np.array([mass_table.get(e.upper(), mass_table.get(e.capitalize(), 0.0)) for e in elements], dtype=np.float64)
 
+        topology_attrs = [
+            Atomnames(np.array(atom_names, dtype=object)),
+            Atomids(np.arange(n_atoms, dtype=np.int32)),
+            Resids(np.array(resids, dtype=np.int32)),
+            Resnames(np.array(resnames, dtype=object)),
+            Elements(np.array(elements, dtype=object)),
+            Segids(np.array([str(i) for i in range(n_seg)], dtype=object)),
+            Masses(mass_values),
+            Bonds(bonds),
+        ]
+
+        if has_charges:
+            topology_attrs.append(Charges(np.array(charge_values, dtype=np.float32)))
+
         return Topology(
             n_atoms=n_atoms,
             n_res=n_res,
             n_seg=n_seg,
-            attrs=[
-                Atomnames(np.array(atom_names, dtype=object)),
-                Atomids(np.arange(n_atoms, dtype=np.int32)),
-                Resids(np.array(resids, dtype=np.int32)),
-                Resnames(np.array(resnames, dtype=object)),
-                Elements(np.array(elements, dtype=object)),
-                Segids(np.array([str(i) for i in range(n_seg)], dtype=object)),
-                Masses(mass_values),
-                Bonds(bonds),
-            ],
+            attrs=topology_attrs,
             atom_resindex=np.array(atom_resindex, dtype=np.int32),
             residue_segindex=np.array(residue_segindex, dtype=np.int32),
         )
