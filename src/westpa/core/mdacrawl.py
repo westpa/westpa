@@ -173,12 +173,15 @@ class WESTPAReader(MDAReaderBase):
     def _read_frame(self, i):
         iter_num, seg_idx, actual_pos, path = self.frame_index[i]
 
+        if not self._h5:
+            self._h5 = h5py.File(self.filename, 'r')
+
         # Needed for parallelization as file handles get stripped off the workers
         if self._h5 is None:
             self._h5 = h5py.File(self.filename, 'r')
 
         # Cache file handles to prevent massive file open/close
-        if self._current_path != path:
+        if self._current_path != path or not self._current_h5:
             if self._current_h5:
                 self._current_h5.close()
             self._current_h5 = h5py.File(path, 'r')
