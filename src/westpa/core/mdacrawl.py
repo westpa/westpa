@@ -172,8 +172,8 @@ class WESTPAReader(MDAReaderBase):
                 valid = ptr[:, 0] > 0
                 seg_mask = ptr[:, 1] == seg_id
                 actual_positions = np.where(valid & seg_mask)[0]
-                for actual_pos in actual_positions:
-                    self.frame_index.append((i, seg_id, actual_pos, traj_file.file.filename))
+                for local_frame, actual_pos in enumerate(actual_positions):
+                    self.frame_index.append((i, seg_id, actual_pos, traj_file.file.filename, local_frame))
 
     @property
     def n_atoms(self):
@@ -184,7 +184,7 @@ class WESTPAReader(MDAReaderBase):
         return len(self.frame_index)
 
     def _read_frame(self, i):
-        iter_num, seg_idx, actual_pos, path = self.frame_index[i]
+        iter_num, seg_idx, actual_pos, path, local_frame = self.frame_index[i]
 
         if not self._h5:
             self._h5 = h5py.File(self.filename, 'r')
@@ -223,11 +223,24 @@ class WESTPAReader(MDAReaderBase):
 
         # WESTPA specific metadata
         iter_name = f'iter_{iter_num:0{self.iter_prec}d}'
+        iter_group = self._h5[f'iterations/{iter_name}']
+
         si = self._h5[f'iterations/{iter_name}/seg_index'][seg_idx]
         self.ts.data['iteration'] = iter_num
         for name in si.dtype.names:
             if name not in self.ts.data:
                 self.ts.data[name] = si[name]
+
+        # Pcoord and auxdata mapping per frame
+        if 'pcoord' in iter_group:
+            pcoord_len = iter_group['pcoord'].shape[1]
+            if local_frame < pcoord_len:
+                self.ts.data['pcoord'] = iter_group['pcoord'][seg_idx, local_frame]
+        if 'auxdata' in iter_group:
+            for aux_name, aux_dataset in iter_group['auxdata'].items():
+                aux_len = aux_dataset.shape[1]
+                if local_frame < aux_len:
+                    self.ts.data[aux_name] = aux_dataset[seg_idx, local_frame]
 
         return self.ts
 

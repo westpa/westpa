@@ -113,7 +113,7 @@ class Test_WESTPAReader:
     def test_reader_coordinates(self, mda_universe):
         """Ensure coordinates are correctly extracted and scaled to Ångströms"""
         ts = mda_universe.trajectory[0]
-        iter_num, seg_idx, actual_pos, path = mda_universe.trajectory.frame_index[0]
+        iter_num, seg_idx, actual_pos, path, local_frame = mda_universe.trajectory.frame_index[0]
 
         with h5py.File(path, 'r') as f:
             coords = f['coordinates'][actual_pos] * 10
@@ -126,6 +126,10 @@ class Test_WESTPAReader:
     def test_reader_metadata(self, mda_universe):
         """Ensure ts.data is correctly populated and no bleeding between frames happen"""
         frame_0 = mda_universe.trajectory[0]
+
+        assert 'pcoord' in frame_0.data
+        assert 'coord' in frame_0.data
+
         assert 'iteration' in frame_0.data
         assert 'weight' in frame_0.data
         cputime_0 = frame_0.data['cputime']
@@ -172,7 +176,7 @@ class Test_WESTPAReader:
         from MDAnalysis.lib.distances import distance_array
 
         ts = mda_universe.trajectory[0]
-        iter_num, seg_idx, actual_pos, path = mda_universe.trajectory.frame_index[0]
+        iter_num, seg_idx, actual_pos, path, local_frame = mda_universe.trajectory.frame_index[0]
 
         # Read raw data
         with h5py.File(path, 'r') as f:
