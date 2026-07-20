@@ -203,7 +203,10 @@ class WESTPAReader(MDAReaderBase):
         coords = self._current_h5['coordinates'][actual_pos] * 10.0  # MDTraj normalizes units to nm but MDAnalysis uses Ångströms
         self.ts.positions = coords.astype(np.float32)
         self.ts.frame = i
+        _saved_dt = self.ts.data.get('dt')
         self.ts.data.clear()  # Prevents bleeding of ts.data to each frame
+        if _saved_dt is not None:
+            self.ts.data['dt'] = _saved_dt
 
         # Periodic boundary box info
         if 'cell_lengths' in self._current_h5 and 'cell_angles' in self._current_h5:
