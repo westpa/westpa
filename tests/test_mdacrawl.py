@@ -171,8 +171,6 @@ class Test_WESTPAReader:
 
     def test_reader_pbc_dimensions(self, mda_universe):
         """Ensures that periodic boundary conditions (cell dimensions and angles) are correctly extracted, scaled (nm to Å) and usable by MDAnalysis tools"""
-        import h5py
-        import numpy as np
         from MDAnalysis.lib.distances import distance_array
 
         ts = mda_universe.trajectory[0]
@@ -220,3 +218,45 @@ class Test_WESTPAReader:
             # Verify the distance array computed successfully
             assert pbc_distances.shape == (mda_universe.atoms.n_atoms, mda_universe.atoms.n_atoms)
             assert np.min(pbc_distances) >= 0.0
+
+    def test_save_auxdata_roundtrip(self, mda_universe, tmp_path):
+        """Ensures that analysis data can be generated from the universe, saved back to a WESTPA HDF5 file as auxdata"""
+        import shutil
+        from MDAnalysis.analysis import rms
+        from westpa.core.mdacrawl import save_to_west_h5
+
+        # Temp file in order to not change the actual ref file
+        test_h5 = tmp_path / "test_west_mdacrawl.h5"
+        shutil.copy(hdf5_file, test_h5)
+
+        R = rms.RMSD(mda_universe, mda_universe, select="resname Na+ or resname Cl-", ref_frame=0)
+        R.run()
+
+        flat_results = R.results.rmsd[:, 2]
+
+        dataset_name = "test_rmsd"
+        save_to_west_h5(mda_universe, flat_results, dataset_name, west_h5_path=str(test_h5), overwrite=True)
+
+        with h5py.File(test_h5, 'r+') as f:
+            iter_prec = getattr(mda_universe.trajectory, 'iter_prec', 8)
+            first_iter = list(mda_universe.trajectory.frame_index)[0][0]
+            iter_name = f'iter_{first_iter:0{iter_prec}d}'
+            iter_group = f[f'iterations/{iter_name}']
+
+            # Verify the dataset was created in the correct place
+            assert 'auxdata' in iter_group, "auxdata group was not created!"
+            assert dataset_name in iter_group['auxdata'], f"{dataset_name} was not saved!"
+
+            saved_data = iter_group['auxdata'][dataset_name][:]
+            assert len(saved_data.shape) == 2, "Data was not reshaped to 2D for WESTPA!"
+
+            # Verify the values map correctly for the very first frame
+            flat_idx = 0
+            test_iter, test_seg, actual_pos, test_path, test_local_frame = mda_universe.trajectory.frame_index[flat_idx]
+            expected_val = flat_results[flat_idx]
+            actual_val = iter_group['auxdata'][dataset_name][test_seg, test_local_frame]
+
+            assert np.isclose(expected_val, actual_val, equal_nan=True), "Saved HDF5 data does not match the results!"
+
+            del iter_group['auxdata'][dataset_name]
+            assert dataset_name not in iter_group['auxdata'], "Dataset was not successfully deleted!"

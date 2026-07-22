@@ -283,3 +283,101 @@ class WESTPAReader(MDAReaderBase):
         self._current_path = None
         if hasattr(self, 'ts') and hasattr(self, '_reader_dt'):
             self.ts.dt = self._reader_dt
+
+
+def save_to_west_h5(universe, results, dataset_name, west_h5_path=None, overwrite=False):
+    """
+    Takes flat analysis results mapped 1-to-1 with the Universe trajectory and reshapes
+    and writes it back into the WESTPA HDF5 file under the auxdata group.
+
+    Parameters
+    ----------
+    universe: MDAnalysis.Universe
+        The universe used for the analysis (must be loaded with format='WESTPA').
+    results: array-like
+        Flat array of results. Length must match `len(universe.trajectory)`.
+    dataset_name: str
+        The name of the dataset to be created under auxdata (e.g., 'RMSD').
+    west_h5_path: str, optional
+        Path to the west.h5 file. If None is given, retrieves it from the universe filename.
+    overwrite: bool, optional
+        If True, overwrites the dataset if it already exists. If False, raises a RuntimeError.
+    """
+    import h5py
+    import numpy as np
+
+    if west_h5_path is None:
+        if not hasattr(universe.trajectory, 'filename'):
+            raise ValueError("west_h5_path must be provided if it cannot be retrieved from the universe.")
+        west_h5_path = universe.trajectory.filename
+
+    if len(results) != len(universe.trajectory):
+        raise ValueError(f"Length of results ({len(results)}) must match length of trajectory ({len(universe.trajectory)}).")
+    iter_prec = getattr(universe.trajectory, 'iter_prec', 8)
+
+    # Group the flat results
+    data_map = {}
+    for i, frame_info in enumerate(universe.trajectory.frame_index):
+        iter_num, seg_idx, actual_pos, path, local_frame = frame_info
+
+        if iter_num not in data_map:
+            data_map[iter_num] = {}
+        if seg_idx not in data_map[iter_num]:
+            data_map[iter_num][seg_idx] = {}
+
+        data_map[iter_num][seg_idx][local_frame] = results[i]
+
+    sample_result = np.asarray(results[0])
+    result_shape = sample_result.shape
+    result_dtype = sample_result.dtype
+
+    with h5py.File(west_h5_path, 'r+') as f:
+        for iter_num in data_map.keys():
+            iter_name = f'iter_{iter_num:0{iter_prec}d}'
+            if iter_name not in f['iterations']:  # Pre-check for overwrite condition to prevent partial writes
+                continue
+
+            iter_group = f[f'iterations/{iter_name}']
+            if 'auxdata' in iter_group and dataset_name in iter_group['auxdata']:
+                if not overwrite:
+                    raise RuntimeError(
+                        f"Dataset '{dataset_name}' already exists in iteration '{iter_name}'. Use overwrite=True to replace it."
+                    )
+
+        # Write loop
+        for iter_num, segs in data_map.items():
+            iter_name = f'iter_{iter_num:0{iter_prec}d}'
+            if iter_name not in f['iterations']:
+                print(f"Warning: {iter_name} not found in HDF5 file! Skipping.")
+                continue
+
+            iter_group = f[f'iterations/{iter_name}']
+            n_segments = len(iter_group['seg_index'])
+
+            # Determine the total number of frames expected per segment
+            if 'pcoord' in iter_group:
+                pcoord_len = iter_group['pcoord'].shape[1]
+            else:
+                # Fallback: Find the maximum index bound from the data map
+                pcoord_len = max(max(frames.keys()) for frames in segs.values()) + 1
+
+            # Create a target array according to WESTPA structure
+            chunk_shape = (n_segments, pcoord_len) + result_shape
+            iter_array = np.zeros(chunk_shape, dtype=result_dtype)
+
+            # Map elements out of the nested mapping into the linear array
+            for seg_idx, frames in segs.items():
+                for local_frame, val in frames.items():
+                    iter_array[seg_idx, local_frame] = val
+
+            if 'auxdata' not in iter_group:  # Ensure the auxdata group is actually present, if not, create it
+                iter_group.create_group('auxdata')
+            aux_group = iter_group['auxdata']
+
+            # Clear old dataset references since it has permission at this point
+            if dataset_name in aux_group:
+                del aux_group[dataset_name]
+
+            # Create the data block structure
+            aux_group.create_dataset(dataset_name, data=iter_array)
+            print(f"In {iter_name}, Created auxdata/{dataset_name} with shape {chunk_shape}")
