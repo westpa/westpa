@@ -4,6 +4,7 @@ from tqdm.auto import tqdm
 import os
 import shutil
 import tempfile
+from westpa.core.h5io import WESTIterationFile
 from westpa.core.propagators.loaders import restart_writer
 from westpa.core.segment import Segment
 from westpa.core._rc import WESTRC
@@ -230,9 +231,10 @@ class W_Reverse(WESTTool):
                     if self.h5_framework:
                         with tempfile.TemporaryDirectory() as tmpdirname:
                             # Extracct the restart data from the .h5 file
-                            iter_h5 = h5py.File(self.traj_seg.format(n_iter=it))
+                            h5file = WESTIterationFile(self.traj_seg.format(n_iter=it))
+                            restart_data = h5file.read_data('/restart/%d_%d' % (it, wlk), 'data')
                             segment = Segment(n_iter=it, seg_id=wlk, weight=weight)
-                            segment.data['iterh5/restart'] = iter_h5['restart']
+                            segment.data['iterh5/restart'] = restart_data
                             restart_writer(tmpdirname, segment)
                             # Look at all files in the temp directory
                             temp_dir_contents = os.listdir(tmpdirname)
@@ -242,7 +244,7 @@ class W_Reverse(WESTTool):
                                 if temp_file.split('.')[-1] == self.rst_extension:
                                     extension_not_found = False
                                     shutil.move(
-                                        f"{self.temp_dir}/{temp_file}",
+                                        f"{tmpdirname}/{temp_file}",
                                         f"{self.output_bstates_dir}/{it:06d}_{wlk:06d}.{self.rst_extension}",
                                     )
                                     break
