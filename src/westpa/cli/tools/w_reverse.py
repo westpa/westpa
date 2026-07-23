@@ -3,10 +3,9 @@ import h5py
 from tqdm.auto import tqdm
 import os
 import shutil
-from io import BytesIO
-import tarfile
-from westpa.core.h5io import WESTIterationFile
-from westpa.core.h5io import safe_extract
+import tempfile
+from westpa.core.propagators.loaders import restart_writer
+from westpa.core.segment import Segment
 from westpa.core._rc import WESTRC
 from westpa.tools import WESTTool
 
@@ -40,7 +39,6 @@ class W_Reverse(WESTTool):
         output_bstates_dir="bstates_reverse",
         output_bstates_file="bstates.txt",
         use_weights=True,
-        temp_dir="temp_dir",
     ):
         super().__init__()
         self.westrc = WESTRC()
@@ -53,7 +51,6 @@ class W_Reverse(WESTTool):
         self.output_bstates_dir = output_bstates_dir
         self.output_bstates_file = output_bstates_file
         self.use_weights = use_weights
-        self.temp_dir = temp_dir
 
     def add_args(self, parser):
         rgroup = parser.add_argument_group('reverse options')
@@ -114,14 +111,6 @@ class W_Reverse(WESTTool):
             action="store_false",
             help="Don't include the recycled event weight when making the bstates.txt file",
         )
-        rgroup.add_argument(
-            "--temp-dir",
-            "-td",
-            dest="temp_dir",
-            type=str,
-            default="temp_dir",
-            help="Directory that files will temporarily be stored in while w_reverse is running",
-        )
 
     def process_args(self, args):
         """
@@ -148,7 +137,6 @@ class W_Reverse(WESTTool):
         use_weights : bool
             By default, include the recycled event weight when making the bstates.txt file.
             temp_dir : str
-        Name of the temporary directory that will be created
         """
         self.config_required = True
         self.config_file = args.config_file
@@ -167,17 +155,19 @@ class W_Reverse(WESTTool):
         # Default to not using HDF5 framework
         self.h5_framework = False
         if 'iteration' in self.data_refs_dic.keys():
+            traj_seg_file_name = self.data_refs_dic["iteration"].split('/')[-1]
             traj_seg_path_list = self.data_refs_dic['iteration'].split('/')[1:-1]
             self.h5_framework = True
         else:
             traj_seg_path_list = self.data_refs_dic['segment'].split('/')[1:]
         self.traj_segs_path = '/'.join(traj_seg_path_list)
+        if self.h5_framework:
+            self.traj_seg = f'{self.traj_segs_path}/{traj_seg_file_name}'
         self.max_n_bstates = int(args.max_n_bstates)
         self.rst_file = str(args.rst_file)
-        # Get the restart file extention being used
+        # Get the restart file extension being used
         self.rst_extension = self.rst_file.split('.')[-1]
         self.output_bstates_dir = str(args.output_bstates_dir)
-        self.temp_dir = str(args.temp_dir)
         self.output_bstates_file = str(args.output_bstates_file)
         self.use_weights = args.use_weights
 
@@ -219,8 +209,6 @@ class W_Reverse(WESTTool):
         # succ_pairs = [(73, 130, 5.991585103556223e-13)]
         # make directory for bstates_reverse if it doesn't already exist
         self.create_dir(self.output_bstates_dir)
-        # make directory for tmporary file storage
-        self.create_dir(self.temp_dir)
         # create bstates.txt file
         with open(f"{self.output_bstates_dir}/{self.output_bstates_file}", "w") as bstates_f:
 
@@ -240,44 +228,27 @@ class W_Reverse(WESTTool):
                     rst_dest_name = f"{it:06d}_{wlk:06d}.{self.rst_extension}"
                     # check if using HDF5 framework
                     if self.h5_framework:
-                        # Find how the .h5 files for each iteration are named
-                        traj_seg_file_name = self.data_refs_dic["iteration"].split('/')[-1]
-                        # Make a path to this iterations .h5 file
-                        traj_seg = f'{self.traj_segs_path}/{traj_seg_file_name}'
-                        # Extracct the restart data from the .h5 file
-                        h5file = WESTIterationFile(traj_seg.format(n_iter=it))
-                        restart_data = h5file.read_data('/restart/%d_%d' % (it, wlk), 'data')
-                        try:
-                            if restart_data is None:
-                                raise ValueError('restart data is not present')
-                            # Extract all restart files into a temporary directory
-                            with BytesIO(restart_data[:-1]) as d:
-                                with tarfile.open(fileobj=d, mode='r:gz') as t:
-                                    safe_extract(t, path=self.temp_dir)
-                        except ValueError as e:
-                            log.warning(f'could not write HDF5 Framework restart data for iteration {it} walker {wlk}: {e}')
-                            if it == 1:
+                        with tempfile.TemporaryDirectory() as tmpdirname:
+                            # Extracct the restart data from the .h5 file
+                            segment = Segment(n_iter=it, seg_id=wlk, weight=weight)
+                            segment.data['iterh5/restart'] = self.traj_seg.format(n_iter=it)
+                            restart_writer(tmpdirname, segment)
+                            # Look at all files in the temp directory
+                            temp_dir_contents = os.listdir(tmpdirname)
+                            extension_not_found = True
+                            for temp_file in temp_dir_contents:
+                                # Move and rename only the restart file with the user specified extension to the bstate directory
+                                if temp_file.split('.')[-1] == self.rst_extension:
+                                    extension_not_found = False
+                                    shutil.move(
+                                        f"{self.temp_dir}/{temp_file}",
+                                        f"{self.output_bstates_dir}/{it:06d}_{wlk:06d}.{self.rst_extension}",
+                                    )
+                                    break
+                            if extension_not_found:
                                 log.warning(
-                                    f'In iteration 1. Assuming this is a start state and proceeding to skip reading restart from per-iteration HDF5 file for iteration {it} walker {wlk}'
+                                    f'File with extension {self.rst_extension} is not present in the restart data of {self.traj_seg.format(n_iter=it)}'
                                 )
-                        except Exception as e:
-                            log.warning(f'could not write HDF5 Framework restart data for iteration {it} walker {wlk}: {e}')
-                        # Look at all files in the temp directory
-                        temp_dir_contents = os.listdir(self.temp_dir)
-                        extention_not_found = True
-                        for temp_file in temp_dir_contents:
-                            # Move and rename only the restart file with the user specified extension to the bstate directory
-                            if temp_file.split('.')[-1] == self.rst_extension:
-                                extention_not_found = False
-                                shutil.move(
-                                    f"{self.temp_dir}/{temp_file}",
-                                    f"{self.output_bstates_dir}/{it:06d}_{wlk:06d}.{self.rst_extension}",
-                                )
-                                break
-                        if extention_not_found:
-                            log.warning(
-                                f'File with extension {self.rst_extension} is not present in the restart data of {traj_seg.format(n_iter=it)}'
-                            )
                     else:
                         # find the corresponding restart file
                         seg_path = (
@@ -301,8 +272,6 @@ class W_Reverse(WESTTool):
                     n_bstates += 1
                 else:
                     break
-            # Remove temporary directory
-            shutil.rmtree(self.temp_dir)
 
 
 def entry_point():
