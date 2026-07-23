@@ -232,7 +232,7 @@ class W_Reverse(WESTTool):
                             # Extracct the restart data from the .h5 file
                             iter_h5 = h5py.File(self.traj_seg.format(n_iter=it))
                             segment = Segment(n_iter=it, seg_id=wlk, weight=weight)
-                            segment.data['iterh5/restart'] = iter_h5['restart'][f'{it}_{wlk}']['data']
+                            segment.data['iterh5/restart'] = iter_h5['restart']
                             restart_writer(tmpdirname, segment)
                             # Look at all files in the temp directory
                             temp_dir_contents = os.listdir(tmpdirname)
