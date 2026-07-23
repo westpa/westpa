@@ -3,17 +3,12 @@ import h5py
 from tqdm.auto import tqdm
 import os
 import shutil
-import argparse
 from io import BytesIO
 import tarfile
 from westpa.core.h5io import WESTIterationFile
 from westpa.core.h5io import safe_extract
 from westpa.core._rc import WESTRC
-from westpa.tools import (
-    WESTTool,
-    WESTDataReader,
-    IterRangeSelection,
-)
+from westpa.tools import WESTTool
 
 log = logging.getLogger('w_reverse')
 
@@ -47,6 +42,88 @@ class W_Reverse(WESTTool):
         use_weights=True,
         temp_dir="temp_dir",
     ):
+        super().__init__()
+        self.westrc = WESTRC()
+        self.h5 = h5
+        self.first_iter = first_iter
+        self.last_iter = last_iter
+        self.config_file = config_file
+        self.max_n_bstates = max_n_bstates
+        self.rst_file = rst_file
+        self.output_bstates_dir = output_bstates_dir
+        self.output_bstates_file = output_bstates_file
+        self.use_weights = use_weights
+        self.temp_dir = temp_dir
+
+    def add_args(self, parser):
+        rgroup = parser.add_argument_group('reverse options')
+        rgroup.add_argument(
+            "-W",
+            "-w",
+            "--west",
+            "--west-data",
+            "-h5",
+            "--h5file",
+            dest="h5",
+            type=str,
+            default="west.h5",
+            help="Path to west.h5 file",
+        )
+        rgroup.add_argument(
+            "--first-iter", "-fi", dest="first_iter", type=int, default=1, help="First iteration to consider (default: 1)"
+        )
+        rgroup.add_argument(
+            "--last-iter",
+            "-li",
+            dest="last_iter",
+            type=int,
+            default=None,
+            help="Last iteration to consider (default: last recorded iteration in west.h5)",
+        )
+        rgroup.add_argument("--config-file", dest="config_file", type=str, default="west.cfg", help="Path to the config file")
+        rgroup.add_argument(
+            "--max-n-bstates",
+            dest="max_n_bstates",
+            type=int,
+            default=10000,
+            help="Max number of bstates to copy over. Adjust this if you prefer "
+            + "a subset of the first bstates found. Default max of 10000.",
+        )
+        rgroup.add_argument("--rst-file", dest="rst_file", type=str, default="seg.ncrst", help="Path to the Restart File")
+        rgroup.add_argument(
+            "--output-bstates-dir",
+            "-obd",
+            dest="output_bstates_dir",
+            type=str,
+            default="bstates_reverse",
+            help="Output directory for the bstates and output_bstates_file",
+        )
+        rgroup.add_argument(
+            "--output-bstates-file",
+            "-obf",
+            dest="output_bstates_file",
+            type=str,
+            default="bstates.txt",
+            help="Name of the output bstates file",
+        )
+        # TODO: may need to be adjusted to store False when included
+        rgroup.add_argument(
+            "--no-weights",
+            "-nw",
+            dest="use_weights",
+            action="store_false",
+            help="Don't include the recycled event weight when making the bstates.txt file",
+        )
+        rgroup.add_argument(
+            "--temp-dir",
+            "-td",
+            dest="temp_dir",
+            type=str,
+            default="temp_dir",
+            help="Directory that files will temporarily be stored in while w_reverse is running",
+        )
+
+    def process_args(self, args):
         """
         Parameters
         ----------
@@ -74,36 +151,35 @@ class W_Reverse(WESTTool):
         Name of the temporary directory that will be created
         """
         self.config_required = True
-        westrc = rc or westpa.rc
-        westrc.read_config(config_file)
-        self.config_file = config_file
-        config = westrc.config
+        self.config_file = args.config_file
+        self.westrc.read_config(self.config_file)
+        self.config = self.westrc.config
         # Read the west.h5 file
-        self.h5 = h5py.File(h5, mode="r")
-        self.first_iter = int(first_iter)
+        self.h5 = h5py.File(args.h5, mode="r")
+        self.first_iter = int(args.first_iter)
         # default to last
-        if last_iter is not None:
-            self.last_iter = int(last_iter)
-        elif last_iter is None:
+        if args.last_iter is not None:
+            self.last_iter = int(args.last_iter)
+        elif args.last_iter is None:
             self.last_iter = self.h5.attrs["west_current_iteration"] - 1
         # Look at the data_refs from the config file
-        data_refs_dic = config['west']['data']['data_refs']
+        self.data_refs_dic = self.config['west']['data']['data_refs']
         # Default to not using HDF5 framework
         self.h5_framework = False
-        if 'iteration' in data_refs_dic.keys():
-            traj_seg_path_list = data_refs_dic['iteration'].split('/')[1:-1]
+        if 'iteration' in self.data_refs_dic.keys():
+            traj_seg_path_list = self.data_refs_dic['iteration'].split('/')[1:-1]
             self.h5_framework = True
         else:
-            traj_seg_path_list = data_refs_dic['segment'].split('/')[1:]
+            traj_seg_path_list = self.data_refs_dic['segment'].split('/')[1:]
         self.traj_segs_path = '/'.join(traj_seg_path_list)
-        self.max_n_bstates = int(max_n_bstates)
-        self.rst_file = str(rst_file)
+        self.max_n_bstates = int(args.max_n_bstates)
+        self.rst_file = str(args.rst_file)
         # Get the restart file extention being used
         self.rst_extension = self.rst_file.split('.')[-1]
-        self.output_bstates_dir = str(output_bstates_dir)
-        self.temp_dir = str(temp_dir)
-        self.output_bstates_file = str(output_bstates_file)
-        self.use_weights = use_weights
+        self.output_bstates_dir = str(args.output_bstates_dir)
+        self.temp_dir = str(args.temp_dir)
+        self.output_bstates_file = str(args.output_bstates_file)
+        self.use_weights = args.use_weights
 
     def w_succ(self):
         """
@@ -133,17 +209,10 @@ class W_Reverse(WESTTool):
         else:
             print(f"Directory '{directory}' already exists.")
 
-    def w_reverse(self):
+    def go(self):
         """
         Main public method for running w_reverse.
         """
-        # Start a new instance of WESTRC to parse the config file
-        westrc = WESTRC()
-        westrc.read_config(self.config_file)
-        config = westrc.config
-        # Get the data from the data_refs
-        data_refs_dic = config['west']['data']['data_refs']
-        # first generate list of successful events / iter,seg pairs and weights
         succ_pairs = self.w_succ()
         # Data I was used for testing
         # succ_pairs = [(73, 130, 5.991585103556223e-13), (74, 132, 7.489481379445279e-14), (74, 150, 7.489481379445279e-14)]
@@ -172,7 +241,7 @@ class W_Reverse(WESTTool):
                     # check if using HDF5 framework
                     if self.h5_framework:
                         # Find how the .h5 files for each iteration are named
-                        traj_seg_file_name = data_refs_dic["iteration"].split('/')[-1]
+                        traj_seg_file_name = self.data_refs_dic["iteration"].split('/')[-1]
                         # Make a path to this iterations .h5 file
                         traj_seg = f'{self.traj_segs_path}/{traj_seg_file_name}'
                         # Extracct the restart data from the .h5 file
@@ -236,74 +305,8 @@ class W_Reverse(WESTTool):
             shutil.rmtree(self.temp_dir)
 
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="w_reverse: a tool for generating bstates for a subsequent "
-        + "steady-state WE simulation in the opposite direction."
-    )
-    parser.add_argument(
-        "-W", "-w", "--west", "--west-data", "-h5", "--h5file", dest="h5", type=str, default="west.h5", help="Path to west.h5 file"
-    )
-    parser.add_argument(
-        "--first-iter", "-fi", dest="first_iter", type=int, default=1, help="First iteration to consider (default: 1)"
-    )
-    parser.add_argument(
-        "--last-iter",
-        "-li",
-        dest="last_iter",
-        type=int,
-        default=None,
-        help="Last iteration to consider (default: last recorded iteration in west.h5)",
-    )
-    parser.add_argument("--config-file", dest="config_file", type=str, default="west.cfg", help="Path to the config file")
-    parser.add_argument(
-        "--max-n-bstates",
-        dest="max_n_bstates",
-        type=int,
-        default=10000,
-        help="Max number of bstates to copy over. Adjust this if you prefer "
-        + "a subset of the first bstates found. Default max of 10000.",
-    )
-    parser.add_argument("--rst-file", dest="rst_file", type=str, default="seg.ncrst", help="Path to the Restart File")
-    parser.add_argument(
-        "--output-bstates-dir",
-        "-obd",
-        dest="output_bstates_dir",
-        type=str,
-        default="bstates_reverse",
-        help="Output directory for the bstates and output_bstates_file",
-    )
-    parser.add_argument(
-        "--output-bstates-file",
-        "-obf",
-        dest="output_bstates_file",
-        type=str,
-        default="bstates.txt",
-        help="Name of the output bstates file",
-    )
-    # TODO: may need to be adjusted to store False when included
-    parser.add_argument(
-        "--no-weights",
-        "-nw",
-        dest="use_weights",
-        action="store_false",
-        help="Don't include the recycled event weight when making the bstates.txt file",
-    )
-    parser.add_argument(
-        "--temp-dir",
-        "-td",
-        dest="temp_dir",
-        type=str,
-        default="temp_dir",
-        help="Directory that files will temporarily be stored in while w_reverse is running",
-    )
-    return parser.parse_args()
-
-
 def entry_point():
-    args = parse_arguments()
-    reverse = W_Reverse(**vars(args))
-    reverse.w_reverse()
+    W_Reverse().main()
 
 
 if __name__ == "__main__":
