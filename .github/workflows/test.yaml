@@ -20,9 +20,9 @@ on:
       - 'develop'
 
 concurrency:
-  # test runs from newer commits in PRs will cancel older, in-progress runs
-  # copied from https://stackoverflow.com/a/75403978/17047865
-  group: ${{ github.workflow }}-${{ github.head_ref && github.ref || github.run_id }}
+  # test runs from newer commits in PRs will cancel older, in-progress runs if from same PR
+  # If a commit, it will not cancel anything
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
