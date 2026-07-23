@@ -17,7 +17,7 @@ dependencies:
   - mdtraj
   - mdanalysis
   # testing
-  - pytest
+  - pytest <9.1.0
   - pytest-cov
   - pytest-rerunfailures
   - pytest-timeout
