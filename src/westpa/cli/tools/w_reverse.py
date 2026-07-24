@@ -4,11 +4,13 @@ from tqdm.auto import tqdm
 import os
 import shutil
 import tempfile
+from westpa.analysis.core import Walker
 from westpa.core.h5io import WESTIterationFile, WESTPAH5File
 from westpa.core.propagators.loaders import restart_writer
 from westpa.core.segment import Segment
 from westpa.core._rc import WESTRC
 from westpa.tools import WESTTool, WESTDataReader
+from numpy import flatnonzero, random, array, sum
 
 log = logging.getLogger('w_reverse')
 
@@ -164,16 +166,13 @@ class W_Reverse(WESTTool):
         succ : list of tuples (iter,wlk,weight)
         """
         succ = []
+        for iteration_index, iteration in enumerate(self.h5['iterations'].keys()):
+            endpoint_type = self.h5['iterations'][iteration]['seg_index']['endpoint_type']
+            indices = flatnonzero(endpoint_type == Segment.SEG_ENDPOINT_RECYCLED)
+            temp_array = [[iteration_index, index, self.h5['iterations'][iteration]['seg_index']['weight'][index]] for index in indices]
+            succ += temp_array
+        return array(succ)
 
-        for iter in tqdm(range(self.first_iter, self.last_iter + 1), desc="Running w_succ"):
-            # if the new_weights group exists in the h5 file
-            if f"iterations/iter_{iter:08d}/new_weights" in self.h5:
-                prev_segs = self.h5[f"iterations/iter_{iter:08d}/new_weights/index"]["prev_seg_id"]
-                recycled_weights = self.h5[f"iterations/iter_{iter:08d}/new_weights/index"]["weight"]
-                # append the previous iter and previous seg id recycled and the weight
-                for i in range(len(prev_segs)):
-                    succ.append((iter - 1, prev_segs[i], recycled_weights[i]))
-        return succ
 
     @staticmethod
     def create_dir(directory):
@@ -203,20 +202,24 @@ class W_Reverse(WESTTool):
                 total_pairs = self.max_n_bstates
             else:
                 total_pairs = len(succ_pairs)
-
             # then for each pair
-            for idx, (it, wlk, weight) in tqdm(enumerate(succ_pairs), total=total_pairs, desc="New bstates"):
+            rng = random.default_rng()
+            indices = rng.choice(len(succ_pairs),size=total_pairs,p=succ_pairs[:, 2] / sum(succ_pairs[:, 2], dtype=float),replace=False)
+            for idx, index in tqdm(enumerate(indices), total=total_pairs, desc="New bstates"):
+                iteration = int(succ_pairs[index][0])
+                walker = int(succ_pairs[index][1])
+                weight = float(succ_pairs[index][2])
                 # Make sure you are not over the maximum bstates
                 if n_bstates < self.max_n_bstates:
                     # Assign new bstate restart file name
-                    rst_dest_name = f"{it:06d}_{wlk:06d}.{self.rst_extension}"
+                    rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
                     # check if using HDF5 framework
                     if self.h5_framework:
                         with tempfile.TemporaryDirectory() as tmpdirname:
                             # Extracct the restart data from the .h5 file
-                            h5file = WESTIterationFile(self.traj_seg.format(n_iter=it))
-                            restart_data = h5file.read_data('/restart/%d_%d' % (it, wlk), 'data')
-                            segment = Segment(n_iter=it, seg_id=wlk, weight=weight)
+                            h5file = WESTIterationFile(self.traj_seg.format(n_iter=iteration))
+                            restart_data = h5file.read_data('/restart/%d_%d' % (iteration, walker), 'data')
+                            segment = Segment(n_iter=iteration, seg_id=walker, weight=weight)
                             segment.data['iterh5/restart'] = restart_data
                             restart_writer(tmpdirname, segment)
                             # Look at all files in the temp directory
@@ -228,19 +231,19 @@ class W_Reverse(WESTTool):
                                     extension_not_found = False
                                     shutil.move(
                                         f"{tmpdirname}/{temp_file}",
-                                        f"{self.output_bstates_dir}/{it:06d}_{wlk:06d}.{self.rst_extension}",
+                                        f"{self.output_bstates_dir}/{iteration:06d}_{walker:06d}.{self.rst_extension}",
                                     )
                                     break
                             if extension_not_found:
                                 log.warning(
-                                    f'File with extension {self.rst_extension} is not present in the restart data of {self.traj_seg.format(n_iter=it)}'
+                                    f"File with extension {self.rst_extension} is not present in the restart data of {self.traj_seg.format(n_iter=iteration)}"
                                 )
                     else:
                         # find the corresponding restart file
                         seg_path = (
                             self.traj_segs_path.replace('segment.n_iter', 'n_iter')
                             .replace('segment.seg_id', 'seg_id')
-                            .format(n_iter=it, seg_id=wlk)
+                            .format(n_iter=iteration, seg_id=walker)
                         )
                         os.listdir(seg_path)
                         rst_file_path = f'{seg_path}/{self.rst_file}'
