@@ -4,11 +4,11 @@ from tqdm.auto import tqdm
 import os
 import shutil
 import tempfile
-from westpa.core.h5io import WESTIterationFile
+from westpa.core.h5io import WESTIterationFile, WESTPAH5File
 from westpa.core.propagators.loaders import restart_writer
 from westpa.core.segment import Segment
 from westpa.core._rc import WESTRC
-from westpa.tools import WESTTool
+from westpa.tools import WESTTool, WESTDataReader
 
 log = logging.getLogger('w_reverse')
 
@@ -29,31 +29,13 @@ class W_Reverse(WESTTool):
         * change printing to west logging
     """
 
-    def __init__(
-        self,
-        h5="west.h5",
-        first_iter=1,
-        last_iter=None,
-        config_file="west.cfg",
-        max_n_bstates=10000,
-        rst_file='seg.ncrst',
-        output_bstates_dir="bstates_reverse",
-        output_bstates_file="bstates.txt",
-        use_weights=True,
-    ):
+    def __init__(self):
         super().__init__()
         self.westrc = WESTRC()
-        self.h5 = h5
-        self.first_iter = first_iter
-        self.last_iter = last_iter
-        self.config_file = config_file
-        self.max_n_bstates = max_n_bstates
-        self.rst_file = rst_file
-        self.output_bstates_dir = output_bstates_dir
-        self.output_bstates_file = output_bstates_file
-        self.use_weights = use_weights
+        self.data_reader = WESTDataReader()
 
     def add_args(self, parser):
+        self.data_reader.add_args(parser)
         rgroup = parser.add_argument_group('reverse options')
         rgroup.add_argument(
             "-W",
@@ -62,7 +44,7 @@ class W_Reverse(WESTTool):
             "--west-data",
             "-h5",
             "--h5file",
-            dest="h5",
+            dest="we_h5filename",
             type=str,
             default="west.h5",
             help="Path to west.h5 file",
@@ -139,12 +121,13 @@ class W_Reverse(WESTTool):
             By default, include the recycled event weight when making the bstates.txt file.
             temp_dir : str
         """
+        self.data_reader.process_args(args)
         self.config_required = True
         self.config_file = args.config_file
         self.westrc.read_config(self.config_file)
         self.config = self.westrc.config
         # Read the west.h5 file
-        self.h5 = h5py.File(args.h5, mode="r")
+        self.h5 = WESTPAH5File(args.we_h5filename, 'r')
         self.first_iter = int(args.first_iter)
         # default to last
         if args.last_iter is not None:
