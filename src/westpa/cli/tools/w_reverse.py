@@ -169,10 +169,11 @@ class W_Reverse(WESTTool):
         for iteration_index, iteration in enumerate(self.h5['iterations'].keys()):
             endpoint_type = self.h5['iterations'][iteration]['seg_index']['endpoint_type']
             indices = flatnonzero(endpoint_type == Segment.SEG_ENDPOINT_RECYCLED)
-            temp_array = [[iteration_index, index, self.h5['iterations'][iteration]['seg_index']['weight'][index]] for index in indices]
+            temp_array = [
+                [iteration_index, index, self.h5['iterations'][iteration]['seg_index']['weight'][index]] for index in indices
+            ]
             succ += temp_array
         return array(succ)
-
 
     @staticmethod
     def create_dir(directory):
@@ -204,7 +205,9 @@ class W_Reverse(WESTTool):
                 total_pairs = len(succ_pairs)
             # then for each pair
             rng = random.default_rng()
-            indices = rng.choice(len(succ_pairs),size=total_pairs,p=succ_pairs[:, 2] / sum(succ_pairs[:, 2], dtype=float),replace=False)
+            indices = rng.choice(
+                len(succ_pairs), size=total_pairs, p=succ_pairs[:, 2] / sum(succ_pairs[:, 2], dtype=float), replace=False
+            )
             for idx, index in tqdm(enumerate(indices), total=total_pairs, desc="New bstates"):
                 iteration = int(succ_pairs[index][0])
                 walker = int(succ_pairs[index][1])
