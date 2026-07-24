@@ -163,7 +163,7 @@ class W_Reverse(WESTTool):
 
         Returns
         -------
-        succ : list of tuples (iter,wlk,weight)
+        succ : array of shape (n, 3) with [iteration, walker, weight] for each succ[i]
         """
         succ = []
         for iteration_index, iteration in enumerate(self.h5['iterations'].keys()):
