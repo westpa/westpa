@@ -254,6 +254,10 @@ class W_Reverse(WESTTool):
                                     f"{self.output_bstates_dir}/{rst_dest_name}",
                                 )
                     else:
+                        if not self.rst_file:
+                            log.warning(
+                                "The flag --rst-file that defines the restart file name must be used if the HDF5 frame work is not used!!"
+                            )
                         rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
                         # find the corresponding restart file
                         seg_path = (
