@@ -1,16 +1,15 @@
 import logging
-import h5py
 from tqdm.auto import tqdm
 import os
 import shutil
 import tempfile
-from westpa.analysis.core import Walker
 from westpa.core.h5io import WESTIterationFile, WESTPAH5File
 from westpa.core.propagators.loaders import restart_writer
 from westpa.core.segment import Segment
 from westpa.core._rc import WESTRC
 from westpa.tools import WESTTool, WESTDataReader
 from numpy import flatnonzero, random, array, sum
+from westpa.core.trajectory import find_top_traj_file, mdtraj_supported_extensions
 
 log = logging.getLogger('w_reverse')
 
@@ -35,6 +34,7 @@ class W_Reverse(WESTTool):
         super().__init__()
         self.westrc = WESTRC()
         self.data_reader = WESTDataReader()
+        _, self.traj_exts = mdtraj_supported_extensions()
 
     def add_args(self, parser):
         self.data_reader.add_args(parser)
@@ -71,7 +71,7 @@ class W_Reverse(WESTTool):
             help="Max number of bstates to copy over. Adjust this if you prefer "
             + "a subset of the first bstates found. Default max of 10000.",
         )
-        rgroup.add_argument("--rst-file", dest="rst_file", type=str, default="seg.ncrst", help="Path to the Restart File")
+        rgroup.add_argument("--rst-file", dest="rst_file", type=str, default=None, help="Path to the Restart File")
         rgroup.add_argument(
             "--output-bstates-dir",
             "-obd",
@@ -150,9 +150,13 @@ class W_Reverse(WESTTool):
         if self.h5_framework:
             self.traj_seg = f'{self.traj_segs_path}/{traj_seg_file_name}'
         self.max_n_bstates = int(args.max_n_bstates)
-        self.rst_file = str(args.rst_file)
-        # Get the restart file extension being used
-        self.rst_extension = self.rst_file.split('.')[-1]
+        if args.rst_file:
+            self.rst_file = str(args.rst_file).lower()
+            # Get the restart file extension being used
+            self.rst_extension = self.rst_file.split('.')[-1]
+        else:
+            self.rst_file = None
+            self.rst_extension = None
         self.output_bstates_dir = str(args.output_bstates_dir)
         self.output_bstates_file = str(args.output_bstates_file)
         self.use_weights = args.use_weights
@@ -214,8 +218,6 @@ class W_Reverse(WESTTool):
                 weight = float(succ_pairs[index][2])
                 # Make sure you are not over the maximum bstates
                 if n_bstates < self.max_n_bstates:
-                    # Assign new bstate restart file name
-                    rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
                     # check if using HDF5 framework
                     if self.h5_framework:
                         with tempfile.TemporaryDirectory() as tmpdirname:
@@ -226,22 +228,33 @@ class W_Reverse(WESTTool):
                             segment.data['iterh5/restart'] = restart_data
                             restart_writer(tmpdirname, segment)
                             # Look at all files in the temp directory
-                            temp_dir_contents = os.listdir(tmpdirname)
-                            extension_not_found = True
-                            for temp_file in temp_dir_contents:
-                                # Move and rename only the restart file with the user specified extension to the bstate directory
-                                if temp_file.split('.')[-1] == self.rst_extension:
-                                    extension_not_found = False
-                                    shutil.move(
-                                        f"{tmpdirname}/{temp_file}",
-                                        f"{self.output_bstates_dir}/{iteration:06d}_{walker:06d}.{self.rst_extension}",
+                            if self.rst_file:
+                                rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
+                                temp_dir_contents = os.listdir(tmpdirname)
+                                file_not_found = True
+                                for temp_file in temp_dir_contents:
+                                    # Move and rename only the restart file with the user specified extension to the bstate directory
+                                    if temp_file.lower() == self.rst_file:
+                                        file_not_found = False
+                                        shutil.move(
+                                            f"{tmpdirname}/{temp_file}",
+                                            f"{self.output_bstates_dir}/{iteration:06d}_{walker:06d}.{self.rst_extension}",
+                                        )
+                                        break
+                                if file_not_found:
+                                    log.warning(
+                                        f"File {self.rst_file} is not present in the restart data of {self.traj_seg.format(n_iter=iteration)}"
                                     )
-                                    break
-                            if extension_not_found:
-                                log.warning(
-                                    f"File with extension {self.rst_extension} is not present in the restart data of {self.traj_seg.format(n_iter=iteration)}"
+                            else:
+                                _, traj_file = find_top_traj_file(tmpdirname, [], self.traj_exts)
+                                extension = traj_file.split('/')[-1].split('.')[-1].lower()
+                                rst_dest_name = f"{iteration:06d}_{walker:06d}.{extension}"
+                                shutil.move(
+                                    traj_file,
+                                    f"{self.output_bstates_dir}/{rst_dest_name}",
                                 )
                     else:
+                        rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
                         # find the corresponding restart file
                         seg_path = (
                             self.traj_segs_path.replace('segment.n_iter', 'n_iter')
