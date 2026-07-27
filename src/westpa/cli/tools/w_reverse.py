@@ -171,7 +171,7 @@ class W_Reverse(WESTTool):
         """
         succ = []
         for iteration_index, iteration in tqdm(
-            enumerate(self.h5['iterations'].keys()), total=len(self.h5['iterations'].keys()), desc="New bstates"
+            enumerate(self.h5['iterations'].keys()), total=len(self.h5['iterations'].keys()), desc="w_succ"
         ):
             endpoint_type = self.h5['iterations'][iteration]['seg_index']['endpoint_type']
             indices = flatnonzero(endpoint_type == Segment.SEG_ENDPOINT_RECYCLED)
