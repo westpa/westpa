@@ -170,7 +170,9 @@ class W_Reverse(WESTTool):
         succ : array of shape (n, 3) with [iteration, walker, weight] for each succ[i]
         """
         succ = []
-        for iteration_index, iteration in enumerate(self.h5['iterations'].keys()):
+        for iteration_index, iteration in tqdm(
+            enumerate(self.h5['iterations'].keys()), total=len(self.h5['iterations'].keys()), desc="New bstates"
+        ):
             endpoint_type = self.h5['iterations'][iteration]['seg_index']['endpoint_type']
             indices = flatnonzero(endpoint_type == Segment.SEG_ENDPOINT_RECYCLED)
             temp_array = [
