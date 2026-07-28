@@ -34,7 +34,7 @@ class W_Reverse(WESTTool):
         super().__init__()
         self.westrc = WESTRC()
         self.data_reader = WESTDataReader()
-        _, self.traj_exts = mdtraj_supported_extensions()
+        self.top_exts, self.traj_exts = mdtraj_supported_extensions()
 
     def add_args(self, parser):
         self.data_reader.add_args(parser)
@@ -135,18 +135,31 @@ class W_Reverse(WESTTool):
         if args.last_iter is not None:
             self.last_iter = int(args.last_iter)
         elif args.last_iter is None:
-            self.last_iter = self.h5.attrs["west_current_iteration"] - 1
+            self.last_iter = self.h5.attrs['west_current_iteration'] - 1
         # Look at the data_refs from the config file
         self.data_refs_dic = self.config['west']['data']['data_refs']
         # Default to not using HDF5 framework
         self.h5_framework = False
+        starts_with_slash = False
         if 'iteration' in self.data_refs_dic.keys():
-            traj_seg_file_name = self.data_refs_dic["iteration"].split('/')[-1]
-            traj_seg_path_list = self.data_refs_dic['iteration'].split('/')[1:-1]
+            traj_seg_file_name = self.data_refs_dic['iteration'].split('/')[-1]
+            if self.data_refs_dic['iteration'][0] == '$':
+                traj_seg_path_list = self.data_refs_dic['iteration'].split('/')[1:-1]
+            else:
+                traj_seg_path_list = self.data_refs_dic['iteration'].split('/')[:-1]
+            if self.data_refs_dic['iteration'][0] == '/':
+                starts_with_slash = True
             self.h5_framework = True
         else:
-            traj_seg_path_list = self.data_refs_dic['segment'].split('/')[1:]
+            if self.data_refs_dic['segment'][0] == '$':
+                traj_seg_path_list = self.data_refs_dic['segment'].split('/')[1:]
+            else:
+                traj_seg_path_list = self.data_refs_dic['segment'].split('/')
+            if self.data_refs_dic['segment'][0] == '/':
+                starts_with_slash = True
         self.traj_segs_path = '/'.join(traj_seg_path_list)
+        if starts_with_slash:
+            self.traj_segs_path = f'/{self.traj_segs_path}'
         if self.h5_framework:
             self.traj_seg = f'{self.traj_segs_path}/{traj_seg_file_name}'
         self.max_n_bstates = int(args.max_n_bstates)
@@ -157,6 +170,13 @@ class W_Reverse(WESTTool):
         else:
             self.rst_file = None
             self.rst_extension = None
+        self.traj_exc_exts = []
+        self.traj_or_top_exts = []
+        for i in self.traj_exts:
+            if i in self.top_exts:
+                self.traj_or_top_exts.append(i)
+            else:
+                self.traj_exc_exts.append(i)
         self.output_bstates_dir = str(args.output_bstates_dir)
         if os.path.isdir(self.output_bstates_dir):
             shutil.rmtree(self.output_bstates_dir)
@@ -239,9 +259,11 @@ class W_Reverse(WESTTool):
                                     f"File {self.rst_file} is not present in the restart data of {self.traj_seg.format(n_iter=iteration)}"
                                 )
                         else:
-                            _, traj_file = find_top_traj_file(tmpdirname, [], self.traj_exts)
-                            extension = traj_file.split('/')[-1].split('.')[-1].lower()
-                            rst_dest_name = f"{iteration:06d}_{walker:06d}.{extension}"
+                            _, traj_file = find_top_traj_file(tmpdirname, [], self.traj_exc_exts)
+                            if not traj_file:
+                                _, traj_file = find_top_traj_file(tmpdirname, [], self.traj_or_top_exts)
+                            extension = f'.{traj_file.split('/')[-1].split('.')[-1].lower()}'
+                            rst_dest_name = f"{iteration:06d}_{walker:06d}{extension}"
                             shutil.move(
                                 traj_file,
                                 f"{self.output_bstates_dir}/{rst_dest_name}",
