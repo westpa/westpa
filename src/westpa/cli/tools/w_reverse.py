@@ -262,8 +262,8 @@ class W_Reverse(WESTTool):
                             _, traj_file = find_top_traj_file(tmpdirname, [], self.traj_exc_exts)
                             if not traj_file:
                                 _, traj_file = find_top_traj_file(tmpdirname, [], self.traj_or_top_exts)
-                            extension = f'.{traj_file.split('/')[-1].split('.')[-1].lower()}'
-                            rst_dest_name = f"{iteration:06d}_{walker:06d}{extension}"
+                            extension = traj_file.split('/')[-1].split('.')[-1].lower()
+                            rst_dest_name = f"{iteration:06d}_{walker:06d}.{extension}"
                             shutil.move(
                                 traj_file,
                                 f"{self.output_bstates_dir}/{rst_dest_name}",
