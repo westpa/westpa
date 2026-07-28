@@ -1,6 +1,7 @@
 import os
 import shutil
 import unittest
+from filecmp import cmp
 
 
 class Test_W_Reverse(unittest.TestCase):
@@ -18,15 +19,9 @@ class Test_W_Reverse(unittest.TestCase):
         assert os.path.isfile('./bstates_reverse/000001_000000.xml'), "The 000001_000000.xml file was not generated."
         assert os.path.isfile('./bstates_reverse/000002_000000.xml'), "The 000002_000000.xml file was not generated."
         assert os.path.isfile('./bstates_reverse/000003_000000.xml'), "The 000003_000000.xml file was not generated."
-        same_lines = True
-        with open(os.path.join(ref_dir, 'bstates.txt'), 'r') as ref_file, open('./bstates_reverse/bstates.txt', 'r') as test_file:
-            ref_lines = ref_file.readlines()
-            test_lines = test_file.readlines()
-            for line in test_lines:
-                if line not in ref_lines:
-                    same_lines = False
-                    break
-        assert same_lines, 'The reference bstates.txt and the produced bstates.txt do not contain the same information'
+        assert cmp(
+            os.path.join(ref_dir, 'bstates.txt'), './bstates_reverse/bstates.txt'
+        ), 'The reference bstates.txt and the produced bstates.txt are notthe same'
         shutil.rmtree('traj_segs')
         os.remove('west.h5')
         os.remove('west.cfg')

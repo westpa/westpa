@@ -203,7 +203,7 @@ class W_Reverse(WESTTool):
             else:
                 total_pairs = len(succ_pairs)
             # then for each pair
-            rng = random.default_rng()
+            rng = random.default_rng(12345)
             indices = rng.choice(
                 len(succ_pairs), size=total_pairs, p=succ_pairs[:, 2] / sum(succ_pairs[:, 2], dtype=float), replace=False
             )
