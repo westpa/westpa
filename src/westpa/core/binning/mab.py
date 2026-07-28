@@ -332,13 +332,14 @@ def detect_bottlenecks(unmasked_coords, unmasked_weights, n_coords, n):
 
 
 def log_mab_stats(minlist, maxlist, direction, skip):
-    westpa.rc.pstatus("################ MAB stats ################")
-    westpa.rc.pstatus(f"minima in each dimension:      {minlist}")
-    westpa.rc.pstatus(f"maxima in each dimension:      {maxlist}")
-    westpa.rc.pstatus(f"direction in each dimension:   {direction}")
-    westpa.rc.pstatus(f"skip in each dimension:        {skip}")
-    westpa.rc.pstatus("###########################################")
-    westpa.rc.pflush()
+    with np.printoptions(legacy='1.25'):
+        westpa.rc.pstatus("################ MAB stats ################")
+        westpa.rc.pstatus(f"minima in each dimension:      {minlist}")
+        westpa.rc.pstatus(f"maxima in each dimension:      {maxlist}")
+        westpa.rc.pstatus(f"direction in each dimension:   {direction}")
+        westpa.rc.pstatus(f"skip in each dimension:        {skip}")
+        westpa.rc.pstatus("###########################################")
+        westpa.rc.pflush()
 
 
 def bin_assignment(

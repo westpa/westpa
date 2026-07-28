@@ -27,7 +27,7 @@ class ProcessWorkManager(WorkManager):
     -----
 
     On MacOS, as of Python 3.8 the default start method for multiprocessing launching new processes was changed from fork to spawn.
-    On Linux, as of Python 3.14, the default start method for multiprocessing launching new processes was changed from fork to spawn.
+    On Linux, as of Python 3.14, the default start method for multiprocessing launching new processes was changed from fork to forkserver.
     In general, spawn is more robust and efficient, however it requires serializability of everything being passed to the child process.
     In contrast, fork is much less memory efficient, as it makes a full copy of everything in the parent process.
     However, it does not require picklability.
@@ -77,7 +77,10 @@ class ProcessWorkManager(WorkManager):
 
         while not self.shutdown_received.is_set():
             if not self.task_queue.empty():
-                message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
+                try:
+                    message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
+                except EOFError:
+                    pass  # Take into account of delays between if and get()
 
                 if message == 'shutdown':
                     break
@@ -95,7 +98,10 @@ class ProcessWorkManager(WorkManager):
     def results_loop(self):
         while not self.shutdown_received.is_set():
             if not self.result_queue.empty():
-                message, task_id, payload = self.result_queue.get()[:3]
+                try:
+                    message, task_id, payload = self.result_queue.get()[:3]
+                except EOFError:
+                    pass  # Take into account of delays between if and get()
 
                 if message == 'shutdown':
                     break

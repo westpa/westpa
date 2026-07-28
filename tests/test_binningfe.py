@@ -3,7 +3,10 @@ from io import StringIO
 
 import numpy as np
 
+import westpa
 from westpa.core.binning.assign import RecursiveBinMapper
+from westpa.core.binning.mab import log_mab_stats
+from westpa.core._rc import WESTRC
 from westpa.tools.binning import mapper_from_expr, mapper_from_system, write_bin_info
 
 
@@ -52,3 +55,29 @@ Norm = 1, error in norm = 0 (0 epsilon)
 
         write_bin_info(mapper=mapper, assignments=assignments, weights=weights, n_target_states=1, outfile=out_io, detailed=True)
         assert out_io.getvalue() == reference_output
+
+
+class TestMABStats:
+    def test_log_mab_stats(self, monkeypatch, capsys):
+        rc = WESTRC()
+
+        minlist = [np.float64(-0.47485543251358475), np.float64(-0.4430687890306835)]
+        maxlist = [np.float64(1.1889518895689877), np.float64(1.266509184762224)]
+        direction = [0, 0]
+        skip = [0, 1]
+
+        desired_output = '''################ MAB stats ################
+minima in each dimension:      [-0.47485543251358475, -0.4430687890306835]
+maxima in each dimension:      [1.1889518895689877, 1.266509184762224]
+direction in each dimension:   [0, 0]
+skip in each dimension:        [0, 1]
+###########################################
+'''
+        with monkeypatch.context() as m:
+            m.setattr(westpa, 'rc', rc)
+
+            log_mab_stats(minlist, maxlist, direction, skip)
+
+            captured = capsys.readouterr()
+            for out_line, desired_line in zip(captured.out.splitlines(), desired_output.splitlines()):
+                assert out_line == desired_line

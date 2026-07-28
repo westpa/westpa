@@ -6,6 +6,13 @@ import logging
 log = logging.getLogger(__name__)
 
 
+def _binless_group_walkers_identity(binless_coords, nsegs_binless, splitting, **kwargs):
+    '''Default grouping. Puts all segments into the same cluster.'''
+    log.debug('using binless_driver._binless_group_walkers_identity')
+    list_bins = [0 for _ in range(len(binless_coords))]
+    return list_bins
+
+
 def map_binless(coords, mask, output, *args, **kwargs):
     '''Adaptively groups walkers according to a user-defined grouping function
     that is defined externally. Very general implementation but limited to
@@ -13,7 +20,13 @@ def map_binless(coords, mask, output, *args, **kwargs):
 
     n_groups = kwargs.get("n_groups")
     n_dims = kwargs.get("n_dims")
-    group_function = get_object(kwargs.get("group_function"))
+
+    try:
+        group_function = get_object(kwargs.get("group_function"))
+    except (ValueError, ModuleNotFoundError):
+        group_function = _binless_group_walkers_identity
+        log.warning('Unable to load group function. Defaulting to `_binless_group_walkers_identity()`.')
+
     log.debug(f'binless arguments: {kwargs}')
     try:
         group_function_kwargs = kwargs.get('group_function_kwargs')['group_arguments']

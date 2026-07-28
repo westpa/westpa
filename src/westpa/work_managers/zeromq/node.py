@@ -124,8 +124,12 @@ class ZMQNode(ZMQCore, IsNode):
             self.log.debug('exiting')
             self.context = None
             self.remove_ipc_endpoints()
-            IsNode.shutdown(self)
+            self.shutdown()
 
     def startup(self):
         IsNode.startup(self)
         super().startup()
+
+    def shutdown(self):
+        IsNode.shutdown(self)
+        super().shutdown()

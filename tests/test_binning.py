@@ -1,3 +1,4 @@
+import logging
 import os
 import pytest
 
@@ -15,6 +16,7 @@ from westpa.core.binning.assign import (
     RecursiveBinMapper,
 )
 from westpa.core.binning.assign import coord_dtype
+from westpa.core.binning.binless import BinlessMapper
 from westpa.core.binning.mab import MABBinMapper, map_mab, log_bin_boundaries
 
 REFERENCE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'refs')
@@ -77,7 +79,7 @@ class TestFuncBinMapper:
     def test_fmapper(self):
         mapper = FuncBinMapper(self.fn, 2)
         coords = np.array([0.0, 0.1, 0.5, 0.7])
-        coords.shape = (coords.shape[0], 1)
+        coords = coords[:, None]
         print(repr(coords))
         output = mapper.assign(coords)
         print(repr(output))
@@ -95,7 +97,7 @@ class TestVectorizingFuncBinMapper:
     def test_vmapper(self):
         mapper = VectorizingFuncBinMapper(self.fn, 2)
         coords = np.array([0.0, 0.1, 0.5, 0.7])
-        coords.shape = (coords.shape[0], 1)
+        coords = coords[:, None]
         output = mapper.assign(coords)
         assert list(output) == [0, 0, 0, 1]
 
@@ -782,3 +784,32 @@ def output_mab_reference():
             plt.savefig(f'mab_tests/2d_gauss_ref_result_{i}.png')
             plt.clf()
     print("Reference data generated and saved to file.")
+
+
+class TestBinlessMapper:
+    def test_binless_mapper(self, caplog):
+        mapper = BinlessMapper(ngroups=10, ndims=1, group_function='westpa.core.binning.binless._binless_group_walkers_identity')
+
+        output = mapper.assign(np.asarray([[1, 1]]), mask=None, output=None)
+
+        assert (
+            'westpa.core.binning.binless',
+            logging.WARNING,
+            "Unable to load group function. Defaulting to `_binless_group_walkers_identity()`.",
+        ) not in caplog.record_tuples
+
+        assert output == [0]
+
+    def test_binless_default_group_function(self, caplog):
+        mapper = BinlessMapper(ngroups=10, ndims=1, group_function='a.b')
+        mapper = BinlessMapper(ngroups=10, ndims=1, group_function='a')
+
+        output = mapper.assign(np.asarray([[1, 1]]), mask=None, output=None)
+
+        assert (
+            'westpa.core.binning.binless',
+            logging.WARNING,
+            "Unable to load group function. Defaulting to `_binless_group_walkers_identity()`.",
+        ) in caplog.record_tuples
+
+        assert output == [0]
