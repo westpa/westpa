@@ -176,7 +176,7 @@ class W_Reverse(WESTTool):
             endpoint_type = self.h5['iterations'][iteration]['seg_index']['endpoint_type']
             indices = flatnonzero(endpoint_type == Segment.SEG_ENDPOINT_RECYCLED)
             temp_array = [
-                [iteration_index, index, self.h5['iterations'][iteration]['seg_index']['weight'][index]] for index in indices
+                [iteration_index + 1, index, self.h5['iterations'][iteration]['seg_index']['weight'][index]] for index in indices
             ]
             succ += temp_array
         return array(succ)
@@ -267,7 +267,7 @@ class W_Reverse(WESTTool):
                             .replace('segment.seg_id', 'seg_id')
                             .format(n_iter=iteration, seg_id=walker)
                         )
-                        os.listdir(seg_path)
+                        # os.listdir(seg_path)
                         rst_file_path = f'{seg_path}/{self.rst_file}'
                         # if bstate file exists, skip
                         if os.path.exists(f"{self.output_bstates_dir}/{rst_dest_name}"):
