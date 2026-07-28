@@ -158,6 +158,7 @@ class W_Reverse(WESTTool):
             self.rst_file = None
             self.rst_extension = None
         self.output_bstates_dir = str(args.output_bstates_dir)
+        shutil.rmtree(self.output_bstates_dir)
         self.output_bstates_file = str(args.output_bstates_file)
         self.use_weights = args.use_weights
 
@@ -203,7 +204,6 @@ class W_Reverse(WESTTool):
         with open(f"{self.output_bstates_dir}/{self.output_bstates_file}", "w") as bstates_f:
 
             # Number of reverse bstates created
-            n_bstates = 0
             # different totals if the max is less than total succ_pairs to loop
             if self.max_n_bstates < len(succ_pairs):
                 total_pairs = self.max_n_bstates
@@ -218,71 +218,66 @@ class W_Reverse(WESTTool):
                 iteration = int(succ_pairs[index][0])
                 walker = int(succ_pairs[index][1])
                 weight = float(succ_pairs[index][2])
-                # Make sure you are not over the maximum bstates
-                if n_bstates < self.max_n_bstates:
-                    # check if using HDF5 framework
-                    if self.h5_framework:
-                        with tempfile.TemporaryDirectory() as tmpdirname:
-                            # Extracct the restart data from the .h5 file
-                            h5file = WESTIterationFile(self.traj_seg.format(n_iter=iteration))
-                            restart_data = h5file.read_data('/restart/%d_%d' % (iteration, walker), 'data')
-                            segment = Segment(n_iter=iteration, seg_id=walker, weight=weight)
-                            segment.data['iterh5/restart'] = restart_data
-                            restart_writer(tmpdirname, segment)
-                            # Look at all files in the temp directory
-                            if self.rst_file:
-                                rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
-                                temp_dir_contents = os.listdir(tmpdirname)
-                                file_not_found = True
-                                for temp_file in temp_dir_contents:
-                                    # Move and rename only the restart file with the user specified extension to the bstate directory
-                                    if temp_file.lower() == self.rst_file:
-                                        file_not_found = False
-                                        shutil.move(
-                                            f"{tmpdirname}/{temp_file}",
-                                            f"{self.output_bstates_dir}/{iteration:06d}_{walker:06d}.{self.rst_extension}",
-                                        )
-                                        break
-                                if file_not_found:
-                                    log.warning(
-                                        f"File {self.rst_file} is not present in the restart data of {self.traj_seg.format(n_iter=iteration)}"
+                # check if using HDF5 framework
+                if self.h5_framework:
+                    with tempfile.TemporaryDirectory() as tmpdirname:
+                        # Extracct the restart data from the .h5 file
+                        h5file = WESTIterationFile(self.traj_seg.format(n_iter=iteration))
+                        restart_data = h5file.read_data('/restart/%d_%d' % (iteration, walker), 'data')
+                        segment = Segment(n_iter=iteration, seg_id=walker, weight=weight)
+                        segment.data['iterh5/restart'] = restart_data
+                        restart_writer(tmpdirname, segment)
+                        # Look at all files in the temp directory
+                        if self.rst_file:
+                            rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
+                            temp_dir_contents = os.listdir(tmpdirname)
+                            file_not_found = True
+                            for temp_file in temp_dir_contents:
+                                # Move and rename only the restart file with the user specified extension to the bstate directory
+                                if temp_file.lower() == self.rst_file:
+                                    file_not_found = False
+                                    shutil.move(
+                                        f"{tmpdirname}/{temp_file}",
+                                        f"{self.output_bstates_dir}/{iteration:06d}_{walker:06d}.{self.rst_extension}",
                                     )
-                            else:
-                                _, traj_file = find_top_traj_file(tmpdirname, [], self.traj_exts)
-                                extension = traj_file.split('/')[-1].split('.')[-1].lower()
-                                rst_dest_name = f"{iteration:06d}_{walker:06d}.{extension}"
-                                shutil.move(
-                                    traj_file,
-                                    f"{self.output_bstates_dir}/{rst_dest_name}",
+                                    break
+                            if file_not_found:
+                                log.warning(
+                                    f"File {self.rst_file} is not present in the restart data of {self.traj_seg.format(n_iter=iteration)}"
                                 )
-                    else:
-                        if not self.rst_file:
-                            log.warning(
-                                "The flag --rst-file that defines the restart file name must be used if the HDF5 frame work is not used!!"
+                        else:
+                            _, traj_file = find_top_traj_file(tmpdirname, [], self.traj_exts)
+                            extension = traj_file.split('/')[-1].split('.')[-1].lower()
+                            rst_dest_name = f"{iteration:06d}_{walker:06d}.{extension}"
+                            shutil.move(
+                                traj_file,
+                                f"{self.output_bstates_dir}/{rst_dest_name}",
                             )
-                        rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
-                        # find the corresponding restart file
-                        seg_path = (
-                            self.traj_segs_path.replace('segment.n_iter', 'n_iter')
-                            .replace('segment.seg_id', 'seg_id')
-                            .format(n_iter=iteration, seg_id=walker)
-                        )
-                        # os.listdir(seg_path)
-                        rst_file_path = f'{seg_path}/{self.rst_file}'
-                        # if bstate file exists, skip
-                        if os.path.exists(f"{self.output_bstates_dir}/{rst_dest_name}"):
-                            continue
-                        shutil.copyfile(rst_file_path, f"{self.output_bstates_dir}/{rst_dest_name}")
-                    # fill out the bstates.txt file with name and weight
-                    # but only use weights if requested, otherwise use equal weights
-                    # bstates.txt row format: bstate_n | weight | bstate_filename
-                    if self.use_weights:
-                        bstates_f.write(f"{idx} {weight:.3e} {rst_dest_name}\n")
-                    else:
-                        bstates_f.write(f"{idx} 1 {rst_dest_name}\n")
-                    n_bstates += 1
                 else:
-                    break
+                    if not self.rst_file:
+                        log.warning(
+                            "The flag --rst-file that defines the restart file name must be used if the HDF5 frame work is not used!!"
+                        )
+                    rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
+                    # find the corresponding restart file
+                    seg_path = (
+                        self.traj_segs_path.replace('segment.n_iter', 'n_iter')
+                        .replace('segment.seg_id', 'seg_id')
+                        .format(n_iter=iteration, seg_id=walker)
+                    )
+                    # os.listdir(seg_path)
+                    rst_file_path = f'{seg_path}/{self.rst_file}'
+                    # if bstate file exists, skip
+                    if os.path.exists(f"{self.output_bstates_dir}/{rst_dest_name}"):
+                        continue
+                    shutil.copyfile(rst_file_path, f"{self.output_bstates_dir}/{rst_dest_name}")
+                # fill out the bstates.txt file with name and weight
+                # but only use weights if requested, otherwise use equal weights
+                # bstates.txt row format: bstate_n | weight | bstate_filename
+                if self.use_weights:
+                    bstates_f.write(f"{idx} {weight:.3e} {rst_dest_name}\n")
+                else:
+                    bstates_f.write(f"{idx} 1 {rst_dest_name}\n")
 
 
 def entry_point():
