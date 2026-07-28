@@ -158,7 +158,8 @@ class W_Reverse(WESTTool):
             self.rst_file = None
             self.rst_extension = None
         self.output_bstates_dir = str(args.output_bstates_dir)
-        shutil.rmtree(self.output_bstates_dir)
+        if os.path.isdir(self.output_bstates_dir):
+            shutil.rmtree(self.output_bstates_dir)
         self.output_bstates_file = str(args.output_bstates_file)
         self.use_weights = args.use_weights
 
@@ -182,14 +183,6 @@ class W_Reverse(WESTTool):
             succ += temp_array
         return array(succ)
 
-    @staticmethod
-    def create_dir(directory):
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-            print(f"Directory '{directory}' created.")
-        else:
-            print(f"Directory '{directory}' already exists.")
-
     def go(self):
         """
         Main public method for running w_reverse.
@@ -199,7 +192,7 @@ class W_Reverse(WESTTool):
         # succ_pairs = [(73, 130, 5.991585103556223e-13), (74, 132, 7.489481379445279e-14), (74, 150, 7.489481379445279e-14)]
         # succ_pairs = [(73, 130, 5.991585103556223e-13)]
         # make directory for bstates_reverse if it doesn't already exist
-        self.create_dir(self.output_bstates_dir)
+        os.makedirs(self.output_bstates_dir)
         # create bstates.txt file
         with open(f"{self.output_bstates_dir}/{self.output_bstates_file}", "w") as bstates_f:
 
