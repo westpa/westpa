@@ -260,3 +260,67 @@ class Test_WESTPAReader:
 
             del iter_group['auxdata'][dataset_name]
             assert dataset_name not in iter_group['auxdata'], "Dataset was not successfully deleted!"
+
+    def test_saved_auxdata_compatability(self, mda_universe, tmp_path):
+        """Ensures that saved auxdata is compatible with other tools"""
+        import shutil
+        import subprocess
+        import h5py
+        from MDAnalysis.analysis import rms
+        from westpa.core.mdacrawl import save_to_west_h5
+
+        test_h5 = tmp_path / "test_west_mdacrawl.h5"
+        shutil.copy(hdf5_file, test_h5)
+
+        R = rms.RMSD(mda_universe, mda_universe, select="resname Na+ or resname Cl-", ref_frame=0)
+        R.run()
+
+        # Slice as [:, 2:3] instead of [:, 2] so that save_to_west_h5() is forced to build (Segment, Frames, 1), satisfying w_assign
+        flat_results = R.results.rmsd[:, 2:3]
+
+        dataset_name = "test_rmsd"
+        save_to_west_h5(mda_universe, flat_results, dataset_name, west_h5_path=str(test_h5), overwrite=True)
+
+        state_yaml = tmp_path / "states.yaml"
+        state_yaml.write_text("""
+---
+states:
+  - label: A
+    coords:
+      - [0.0]
+  - label: B
+    coords:
+      - [10.0]
+        """)
+        assign_h5 = tmp_path / "assign.h5"
+
+        cmd = [
+            "w_assign",
+            "-W",
+            str(test_h5),
+            "--dsspecs",
+            "auxdata/test_rmsd",
+            "--bins-from-expr",
+            "[[0.0, 5.0, 10.0, 100.0, inf]]",
+            "--states-from-file",
+            str(state_yaml),
+            "-o",
+            str(assign_h5),
+        ]
+
+        try:
+            # check=True makes the test to instantly fail if w_assign crashes
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)  # noqa
+        except subprocess.CalledProcessError as e:
+            import pytest
+
+            pytest.fail(f"w_assign failed to process the auxdata!\nSTDOUT: {e.stdout}\nSTDERR: {e.stderr}")
+
+        assert assign_h5.exists(), "w_assign did not generate the output file!"
+
+        with h5py.File(assign_h5, 'r') as f:
+            assert 'assignments' in f, "The 'assignments' dataset was not found in assign.h5"
+            assignments = f['assignments'][:]
+
+            assert assignments.size > 0, "The w_assign assignments array is empty"
+            assert len(assignments.shape) == 3, f"Expected a 3D array from w_assign, got {len(assignments.shape)}D"
