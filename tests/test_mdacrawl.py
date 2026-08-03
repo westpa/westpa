@@ -5,7 +5,7 @@ import numpy as np
 import h5py
 
 mda = pytest.importorskip("MDAnalysis")
-from westpa.core import mdacrawl  # noqa
+from westpa.core import mdanalysis_core  # noqa
 
 here = os.path.dirname(os.path.abspath(__file__))
 hdf5_file = os.path.join(here, 'refs', 'west_mdacrawl.h5')
@@ -225,7 +225,7 @@ class Test_WESTPAReader:
         """Ensures that analysis data can be generated from the universe, saved back to a WESTPA HDF5 file as auxdata"""
         import shutil
         from MDAnalysis.analysis import rms
-        from westpa.core.mdacrawl import save_to_west_h5
+        from westpa.core.mdanalysis_core import save_to_west_h5
 
         # Temp file in order to not change the actual ref file
         test_h5 = tmp_path / "test_west_mdacrawl.h5"
@@ -268,7 +268,7 @@ class Test_WESTPAReader:
         import shutil
         import subprocess
         from MDAnalysis.analysis import rms
-        from westpa.core.mdacrawl import save_to_west_h5
+        from westpa.core.mdanalysis_core import save_to_west_h5
 
         test_h5 = tmp_path / "test_west_mdacrawl.h5"
         shutil.copy(hdf5_file, test_h5)
