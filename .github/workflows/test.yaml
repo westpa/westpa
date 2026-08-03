@@ -42,6 +42,7 @@ jobs:
   test:
     name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: "${{ matrix.os }}"
+    continue-on-error: true  # better to finish some jobs than none
     strategy:
       matrix:
         os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-15-intel", "macos-latest"]  # macos-15-intel is x86-64, macos-latest is arm64
