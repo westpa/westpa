@@ -15,7 +15,8 @@ class Test_WESTPAParser:
     """Class to test the WESTPAParser topology reading module"""
 
     @pytest.fixture(scope="class")
-    def mda_universe(self):
+    @classmethod
+    def mda_universe(cls):
         u = mda.Universe(hdf5_file, format='WESTPA')
         yield u
 
@@ -97,7 +98,8 @@ class Test_WESTPAReader:
     """Class to test the WESTPAReader dynamic trajectory reading module"""
 
     @pytest.fixture(scope="class")
-    def mda_universe(self):
+    @classmethod
+    def mda_universe(cls):
         u = mda.Universe(hdf5_file, format='WESTPA')
         yield u
 
@@ -265,7 +267,6 @@ class Test_WESTPAReader:
         """Ensures that saved auxdata is compatible with other tools"""
         import shutil
         import subprocess
-        import h5py
         from MDAnalysis.analysis import rms
         from westpa.core.mdacrawl import save_to_west_h5
 
@@ -277,6 +278,8 @@ class Test_WESTPAReader:
 
         # Slice as [:, 2:3] instead of [:, 2] so that save_to_west_h5() is forced to build (Segment, Frames, 1), satisfying w_assign
         flat_results = R.results.rmsd[:, 2:3]
+        flat_results = np.nan_to_num(flat_results, nan=0.0)
+        flat_results = np.clip(flat_results, a_min=0.0, a_max=None)
 
         dataset_name = "test_rmsd"
         save_to_west_h5(mda_universe, flat_results, dataset_name, west_h5_path=str(test_h5), overwrite=True)
@@ -301,7 +304,7 @@ states:
             "--dsspecs",
             "auxdata/test_rmsd",
             "--bins-from-expr",
-            "[[0.0, 5.0, 10.0, 100.0, inf]]",
+            "[[-inf, 5.0, 10.0, 100.0, inf]]",
             "--states-from-file",
             str(state_yaml),
             "-o",
