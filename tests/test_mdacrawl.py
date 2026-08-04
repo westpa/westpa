@@ -273,13 +273,12 @@ class Test_WESTPAReader:
         test_h5 = tmp_path / "test_west_mdacrawl.h5"
         shutil.copy(hdf5_file, test_h5)
 
-        R = rms.RMSD(mda_universe, mda_universe, select="resname Na+ or resname Cl-", ref_frame=0)
+        # Superposition is False in order to prevent results getting populated by NaN (division by 0) - Causes testcase to fail in some environments
+        R = rms.RMSD(mda_universe, mda_universe, select="resname Na+ or resname Cl-", ref_frame=0, superposition=False)
         R.run()
 
-        # Slice as [:, 2:3] instead of [:, 2] so that save_to_west_h5() is forced to build (Segment, Frames, 1), satisfying w_assign
-        flat_results = R.results.rmsd[:, 2:3]
-        flat_results = np.nan_to_num(flat_results, nan=0.0)
-        flat_results = np.clip(flat_results, a_min=0.0, a_max=None)
+        # Slice as [:, 2, None] instead of [:, 2] so that save_to_west_h5() is forced to build (Segment, Frames, 1), satisfying w_assign
+        flat_results = R.results.rmsd[:, 2, None]
 
         dataset_name = "test_rmsd"
         save_to_west_h5(mda_universe, flat_results, dataset_name, west_h5_path=str(test_h5), overwrite=True)
@@ -315,11 +314,9 @@ states:
             # check=True makes the test to instantly fail if w_assign crashes
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)  # noqa
         except subprocess.CalledProcessError as e:
-            import pytest
+            pytest.fail(f"w_assign failed to process the auxdata\nSTDOUT: {e.stdout}\nSTDERR: {e.stderr}")
 
-            pytest.fail(f"w_assign failed to process the auxdata!\nSTDOUT: {e.stdout}\nSTDERR: {e.stderr}")
-
-        assert assign_h5.exists(), "w_assign did not generate the output file!"
+        assert assign_h5.exists(), "w_assign did not generate the output file"
 
         with h5py.File(assign_h5, 'r') as f:
             assert 'assignments' in f, "The 'assignments' dataset was not found in assign.h5"
