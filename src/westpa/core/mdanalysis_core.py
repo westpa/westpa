@@ -303,6 +303,7 @@ def save_to_west_h5(universe, results, dataset_name, west_h5_path=None, overwrit
     overwrite: bool, optional
         If True, overwrites the dataset if it already exists. If False, raises a RuntimeError.
     """
+    import gc
     import h5py
     import numpy as np
 
@@ -330,6 +331,23 @@ def save_to_west_h5(universe, results, dataset_name, west_h5_path=None, overwrit
     sample_result = np.asarray(results[0])
     result_shape = sample_result.shape
     result_dtype = sample_result.dtype
+
+    if hasattr(universe, 'trajectory'):
+        universe.trajectory.close()
+
+    # If WESTPAParser left a file handle dangling in memory, this forces Python
+    # to instantly clean it up and release the OS lock.
+    gc.collect()
+
+    # If WESTTool opened the HDF5 file in the background (r mode), we force it to close
+    try:
+        import westpa
+
+        data_manager = westpa.rc.get_data_manager()
+        if data_manager.is_open:
+            data_manager.close_backing()
+    except Exception:
+        pass
 
     with h5py.File(west_h5_path, 'r+') as f:
         for iter_num in data_map.keys():
