@@ -106,7 +106,7 @@ Examples:
                 log.warning('--column ignored: Results are already a 1D array.')
 
         log.info(f'Results shape: {self.results.shape}, dtype: {self.results.dtype}')
-        print(f'\n{"="*60}')
+        print(f'\n{"=" * 60}')
         print(f'Analysis : {self.analysis_cls.__name__}')
         print(f'Frames   : {len(self.universe.trajectory)}')
         print(f'Results  : shape={self.results.shape}, dtype={self.results.dtype}')
@@ -118,7 +118,7 @@ Examples:
             print(
                 f'Last 5   :\n{self.results[-5:]}'
             )  # Users can store their data using --save instead, after fact checking the data like this
-        print(f'{"="*60}\n')
+        print(f'{"=" * 60}\n')
 
         # Release the HDF5 read-lock before triggering any potential save events
         self.universe.trajectory.close()
