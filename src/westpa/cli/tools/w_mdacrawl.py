@@ -22,7 +22,7 @@ Results can optionally be saved back into the HDF5 as auxdata.
 
 Examples:
   w_mdacrawl west.h5 MDAnalysis.analysis.rms.RMSD --save rmsd --select "name CA" --column 2
-  w_mdacrawl west.h5 MDAnalysis.analysis.rms.RMSF --save rmsf --select "protein"
+  w_mdacrawl west.h5 MDAnalysis.analysis.rms.RMSF --save rmsf --select "protein" --overwrite
   w_mdacrawl west.h5 MDAnalysis.analysis.rms.RMSD --save rmsd -j 4
 -------------------------------------------------------------------------------------------
 '''
@@ -114,8 +114,10 @@ Examples:
         if self.results.ndim <= 2 and self.results.shape[0] <= 10:
             print(f'Values   :\n{self.results}')
         else:
-            print(f'First 5  :\n{self.results[:5]}')
-            print(f'Last 5   :\n{self.results[-5:]}')
+            print(f'First 5  :\n{self.results[:5]}')  # Only prints first 5 and last 5 so that the terminal doesnt get flooded
+            print(
+                f'Last 5   :\n{self.results[-5:]}'
+            )  # Users can store their data using --save instead, after fact checking the data like this
         print(f'{"="*60}\n')
 
         # Release the HDF5 read-lock before triggering any potential save events
