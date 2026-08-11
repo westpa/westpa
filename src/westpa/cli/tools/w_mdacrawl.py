@@ -57,7 +57,7 @@ Examples:
             '--save',
             metavar='DATASET_NAME',
             default=None,
-            help=('Save the results back into west.h5 under iterations/iter_XXXXXXXX/auxdata/DATASET_NAME.'),
+            help=('Save the results back into west.h5 under iterations/iter_XXXXXXXX/auxdata/DATASET_NAME'),
         )
         parser.add_argument(
             '--select',
