@@ -12,6 +12,7 @@ from numpy.random import Generator, MT19937
 
 import westpa
 from .data_manager import weight_dtype
+from .run_status import RUN_STATE_COMPLETE, RUN_STATE_INTERRUPTED, RUN_STATE_RUNNING, RunStatusWriter
 from .segment import Segment
 from .states import InitialState
 from . import extloader
@@ -95,8 +96,88 @@ class WESimManager:
         # Tracking of binning
         self.bin_mapper_hash = None  # Hash of bin mapper from most recently-run WE, for use by post-WE analysis plugins
 
+        # Live status sidecar used by w_progress while west.h5 is locked by w_run.
+        self.run_status_writer = None
+        self.run_status_recent_walltimes = []
+        self.run_status_completed_walltime = 0.0
+        self.run_status_completed_segments = 0
+        self.iteration_started_at = None
+
         # Pseudo Random Number Generator
         self.rng = Generator(MT19937())
+
+    def _summary_progress(self, recent=5):
+        try:
+            current_iteration = self.data_manager.current_iteration
+            if current_iteration <= 1:
+                return [], 0.0, 0
+            rows = self.data_manager.we_h5file['summary'][: current_iteration - 1]
+        except Exception:
+            return [], 0.0, 0
+
+        walltimes = []
+        for value in rows['walltime']:
+            value = float(value)
+            if math.isfinite(value) and value > 0:
+                walltimes.append(value)
+
+        completed_walltime = sum(float(value) for value in rows['walltime'] if math.isfinite(float(value)))
+        completed_segments = int(rows['n_particles'].sum()) if 'n_particles' in rows.dtype.names else 0
+        return walltimes[-recent:], completed_walltime, completed_segments
+
+    def _status_segment_counts(self):
+        segments = self.segments or {}
+        total = len(segments)
+        prepared = 0
+        failed = 0
+        for segment in segments.values():
+            if segment.status == Segment.SEG_STATUS_PREPARED:
+                prepared += 1
+            elif segment.status == Segment.SEG_STATUS_FAILED:
+                failed += 1
+        return total, prepared, failed
+
+    def write_run_status(self, phase, run_state=RUN_STATE_RUNNING, force=False, message=None):
+        if self.run_status_writer is None:
+            try:
+                self.run_status_writer = RunStatusWriter(self.data_manager.we_h5filename)
+            except Exception:
+                return False
+
+        current_iteration = self.n_iter
+        if current_iteration is None:
+            try:
+                current_iteration = self.data_manager.current_iteration
+            except Exception:
+                current_iteration = None
+
+        latest_completed_iteration = None
+        if current_iteration is not None:
+            latest_completed_iteration = max(int(current_iteration) - 1, 0)
+
+        segment_total, segment_prepared, segment_failed = self._status_segment_counts()
+        try:
+            return self.run_status_writer.write(
+                {
+                    'run_state': run_state,
+                    'phase': phase,
+                    'current_iteration': current_iteration,
+                    'latest_completed_iteration': latest_completed_iteration,
+                    'requested_total_iterations': self.max_total_iterations,
+                    'segment_total': segment_total,
+                    'segment_prepared': segment_prepared,
+                    'segment_failed': segment_failed,
+                    'iteration_started_at': self.iteration_started_at,
+                    'recent_walltimes': self.run_status_recent_walltimes[-5:],
+                    'completed_walltime': self.run_status_completed_walltime,
+                    'completed_segments': self.run_status_completed_segments,
+                    'message': message,
+                },
+                force=force,
+            )
+        except Exception:
+            log.debug('could not write live run status', exc_info=True)
+            return False
 
     def register_callback(self, hook, function, priority=0):
         '''Registers a callback to execute during the given ``hook`` into the simulation loop. The optional
@@ -587,6 +668,7 @@ class WESimManager:
     def propagate(self):
         segments = list(self.incomplete_segments.values())
         log.debug('iteration {:d}: propagating {:d} segments'.format(self.n_iter, len(segments)))
+        self.write_run_status('propagating', force=True)
 
         # all futures dispatched for this iteration
         futures = set()
@@ -626,6 +708,7 @@ class WESimManager:
 
                 with self.data_manager.expiring_flushing_lock():
                     self.data_manager.update_segments(self.n_iter, incoming)
+                self.write_run_status('propagating')
 
             elif future in istate_gen_futures:
                 istate_gen_futures.remove(future)
@@ -751,25 +834,41 @@ class WESimManager:
 
         self.n_iter = self.data_manager.current_iteration
         max_iter = self.max_total_iterations or self.n_iter + 1
+        (
+            self.run_status_recent_walltimes,
+            self.run_status_completed_walltime,
+            self.run_status_completed_segments,
+        ) = self._summary_progress()
+        self.write_run_status('starting', force=True)
 
         iter_elapsed = 0
         while self.n_iter <= max_iter:
             if max_walltime and time.time() + 1.1 * iter_elapsed >= run_killtime:
                 self.rc.pstatus('Iteration {:d} would require more than the allotted time. Ending run.'.format(self.n_iter))
+                self.write_run_status(
+                    'stopping',
+                    run_state=RUN_STATE_INTERRUPTED,
+                    force=True,
+                    message='Iteration would require more than the allotted time.',
+                )
                 return
 
             try:
                 iter_start_time = time.time()
+                self.iteration_started_at = iter_start_time
 
                 self.rc.pstatus('\n%s' % time.asctime())
                 self.rc.pstatus('Iteration %d (%d requested)' % (self.n_iter, max_iter))
 
+                self.write_run_status('preparing iteration', force=True)
                 self.prepare_iteration()
                 self.rc.pflush()
 
+                self.write_run_status('propagating', force=True)
                 self.pre_propagation()
                 self.propagate()
                 self.rc.pflush()
+                self.write_run_status('checking propagation', force=True)
                 self.check_propagation()
                 self.rc.pflush()
                 self.post_propagation()
@@ -777,13 +876,16 @@ class WESimManager:
                 cputime = sum(segment.cputime for segment in self.segments.values())
 
                 self.rc.pflush()
+                self.write_run_status('weighted ensemble', force=True)
                 self.pre_we()
                 self.run_we()
                 self.post_we()
                 self.rc.pflush()
 
+                self.write_run_status('preparing next iteration', force=True)
                 self.prepare_new_iteration()
 
+                self.write_run_status('finalizing iteration', force=True)
                 self.finalize_iteration()
 
                 iter_elapsed = time.time() - iter_start_time
@@ -791,9 +893,14 @@ class WESimManager:
                 iter_summary['walltime'] += iter_elapsed
                 iter_summary['cputime'] = cputime
                 self.data_manager.update_iter_summary(iter_summary)
+                self.run_status_recent_walltimes.append(float(iter_elapsed))
+                self.run_status_recent_walltimes = self.run_status_recent_walltimes[-5:]
+                self.run_status_completed_walltime += float(iter_elapsed)
+                self.run_status_completed_segments += int(iter_summary['n_particles'])
 
                 self.n_iter += 1
                 self.data_manager.current_iteration += 1
+                self.write_run_status('iteration complete', force=True)
 
                 try:
                     # This may give NaN if starting a truncated simulation
@@ -813,6 +920,7 @@ class WESimManager:
 
         self.rc.pstatus('\n%s' % time.asctime())
         self.rc.pstatus('WEST run complete.')
+        self.write_run_status('complete', run_state=RUN_STATE_COMPLETE, force=True)
 
     def prepare_run(self):
         '''Prepare a new run.'''

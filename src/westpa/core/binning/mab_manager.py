@@ -27,6 +27,7 @@ class MABSimManager(WESimManager):
         log.debug("MABSimManager in use")
         segments = list(self.incomplete_segments.values())
         log.debug('iteration {:d}: propagating {:d} segments'.format(self.n_iter, len(segments)))
+        self.write_run_status('propagating', force=True)
 
         # all futures dispatched for this iteration
         futures = set()
@@ -65,6 +66,7 @@ class MABSimManager(WESimManager):
 
                 with self.data_manager.expiring_flushing_lock():
                     self.data_manager.update_segments(self.n_iter, incoming)
+                self.write_run_status('propagating')
 
             elif future in istate_gen_futures:
                 istate_gen_futures.remove(future)

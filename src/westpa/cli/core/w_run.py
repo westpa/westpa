@@ -3,6 +3,7 @@ import logging
 import traceback
 
 import westpa
+from westpa.core.run_status import RUN_STATE_ERROR, RUN_STATE_INTERRUPTED
 import westpa.work_managers as work_managers
 from westpa.work_managers import make_work_manager
 
@@ -62,8 +63,20 @@ def run_simulation():
                 log.debug('finalizing run')
                 sim_manager.finalize_run()
             except KeyboardInterrupt:
+                sim_manager.write_run_status(
+                    'interrupted',
+                    run_state=RUN_STATE_INTERRUPTED,
+                    force=True,
+                    message='interrupted; shutting down',
+                )
                 westpa.rc.pstatus('interrupted; shutting down')
             except Exception as e:
+                sim_manager.write_run_status(
+                    'error',
+                    run_state=RUN_STATE_ERROR,
+                    force=True,
+                    message=str(e) or e.__class__.__name__,
+                )
                 westpa.rc.pstatus('exception caught; shutting down')
                 if str(e) != '':
                     log.error(f'error message: {e}')

@@ -49,6 +49,9 @@ Command             Function
 :ref:`w_run`        Launches a simulation. Command arguments/environmental
                     variables can be included to specify the work managers and
                     simulation parameters
+:ref:`w_progress`   Monitors simulation progress from the live status sidecar
+                    or ``west.h5`` and reports iteration progress, segment
+                    completion, timing, and ETA.
 :ref:`w_truncate`   Truncates the weighted ensemble simulation from a given
                     iteration. 
 =================== ===========================================================

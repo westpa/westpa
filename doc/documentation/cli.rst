@@ -8,6 +8,7 @@ westpa.cli package
     w_init       <cli/w_init>
     w_bins       <cli/w_bins>
     w_run        <cli/w_run>
+    w_progress   <cli/w_progress>
     w_truncate   <cli/w_truncate>
     w_fork       <cli/w_fork>
 

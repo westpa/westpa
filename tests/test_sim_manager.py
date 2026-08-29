@@ -123,6 +123,35 @@ class TestSimManager:
         assert self.sim_manager.n_propagated == 0
         assert len(self.sim_manager._callback_table) == 0
 
+    def test_write_run_status_counts_segments(self):
+        self.sim_manager.run_status_writer = MagicMock()
+        self.sim_manager.max_total_iterations = 10
+        self.sim_manager.n_iter = 3
+        self.sim_manager.iteration_started_at = 123.0
+        self.sim_manager.run_status_completed_walltime = 12.5
+        self.sim_manager.run_status_completed_segments = 8
+        self.segments[0].status = Segment.SEG_STATUS_COMPLETE
+        self.segments[1].status = Segment.SEG_STATUS_FAILED
+        for segment in self.segments[2:]:
+            segment.status = Segment.SEG_STATUS_PREPARED
+        self.sim_manager.segments = {seg_id: segment for seg_id, segment in enumerate(self.segments)}
+
+        self.sim_manager.write_run_status('propagating', force=True)
+
+        status = self.sim_manager.run_status_writer.write.call_args.args[0]
+        assert status['phase'] == 'propagating'
+        assert status['run_state'] == 'running'
+        assert status['current_iteration'] == 3
+        assert status['latest_completed_iteration'] == 2
+        assert status['requested_total_iterations'] == 10
+        assert status['segment_total'] == len(self.segments)
+        assert status['segment_prepared'] == len(self.segments) - 2
+        assert status['segment_failed'] == 1
+        assert status['iteration_started_at'] == 123.0
+        assert status['completed_walltime'] == 12.5
+        assert status['completed_segments'] == 8
+        assert self.sim_manager.run_status_writer.write.call_args.kwargs['force'] is True
+
     def test_register_callback(self):
         hook = self.sim_manager.prepare_new_iteration
 
