@@ -22,6 +22,7 @@ westpa.cli package
     w_pdist      <cli/w_pdist>
     w_succ       <cli/w_succ>
     w_crawl      <cli/w_crawl>
+    w_mdacrawl   <cli/w_mdacrawl>
     w_direct     <cli/w_direct>
     w_select     <cli/w_select>
     w_states     <cli/w_states>
