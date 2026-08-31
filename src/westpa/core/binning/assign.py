@@ -9,7 +9,7 @@ A number of pre-defined bin mappers are available here:
   * :class:`RectilinearBinMapper`, for bins divided by N-dimensional grids
   * :class:`FuncBinMapper`, for functions which directly calculate bin assignments
     for a number of coordinate values. This is best used with C/Cython/Numba
-    functions, or intellegently-tuned numpy-based Python functions.
+    functions, or intelligently tuned numpy-based Python functions.
   * :class:`VectorizingFuncBinMapper`, for functions which calculate a bin
     assignment for a single coordinate value. This is best used for arbitrary
     Python functions.
@@ -41,9 +41,7 @@ the total number of bins within the mapper.
 """
 
 import hashlib
-import functools
 import logging
-import operator
 import pickle
 
 import numpy as np
@@ -61,7 +59,6 @@ UNKNOWN_INDEX = 65535
 # All coordinates are currently 32-bit floats. If you need 64-bit, change
 # coord_dtype here and coord_t in _assign.pyx.
 coord_dtype = np.float32
-
 
 log = logging.getLogger(__name__)
 
@@ -89,15 +86,19 @@ class BinMapper:
         self.nbins = 0
 
     def construct_bins(self):
-        # Construct and return a tuple of ``nbins`` empty bins.
-        return tuple(Bin(label=label) for label in self.labels)
+        """Return a list of empty bins."""
+        if self.labels:
+            return [Bin(label=label) for label in self.labels]
+        else:
+            return [Bin() for _ in range(self.nbins)]
 
     def pickle_and_hash(self):
-        # Pickle this mapper and calculate a hash of the result (thus identifying the
-        # contents of the pickled data), returning a tuple ``(pickled_data, hash)``.
-        # This will raise PickleError if this mapper cannot be pickled, in which case
-        # code that would otherwise rely on detecting a topology change must assume
-        # a topology change happened, even if one did not.
+        """Pickle this mapper and calculate a hash of the result (thus identifying the
+        contents of the pickled data), returning a tuple ``(pickled_data, hash)``.
+        This will raise PickleError if this mapper cannot be pickled, in which case
+        code that would otherwise rely on detecting a topology change must assume
+        a topology change happened, even if one did not.
+        """
         pkldat = pickle.dumps(self, pickle.HIGHEST_PROTOCOL)
         hash = hashlib.sha256(pkldat)
         return (pkldat, hash.hexdigest())
@@ -105,30 +106,45 @@ class BinMapper:
     def __repr__(self):
         return '<{} at 0x{:x} with {:d} bins>'.format(self.__class__.__name__, id(self), self.nbins or 0)
 
-    def assign(self, coords, mask=None, output=None):
+    def _assign(self, coords, mask, output):
         raise NotImplementedError()
 
-    def map(self, segments, bins):
-        """Assign trajectory segments to bins.
+    def assign(self, coords, mask=None, output=None):
+        # Validate arguments and pass them to _assign(coords, mask, output),
+        # which handles the actual bin assignment.
+        try:
+            passed_coord_dtype = coords.dtype
+        except AttributeError:
+            coords = np.require(coords, dtype=coord_dtype)
+        else:
+            if passed_coord_dtype != coord_dtype:
+                coords = np.require(coords, dtype=coord_dtype)
 
-        Parameters
-        ----------
-        segments : tuple of :class:`Segment`
-            Segments to bin.
-        bins : tuple of :class:`Bin`
-            Tuple of ``self.nbins`` empty bins.
+        if coords.ndim != 2:
+            raise TypeError('coords must be 2-dimensional')
 
-        """
-        coords = np.array([segment.pcoord[-1] for segment in segments])
-        for i, segment in zip(self.assign(coords), segments):
-            bins[i].add(segment)
+        if mask is None:
+            mask = np.ones((len(coords),), dtype=np.bool_)
+        elif len(mask) != len(coords):
+            raise TypeError('mask [shape {}] has different length than coords [shape {}]'.format(mask.shape, coords.shape))
+
+        if output is None:
+            output = np.empty((len(coords),), dtype=index_dtype)
+        elif len(output) != len(coords):
+            raise TypeError('output has different length than coords')
+
+        self._assign(coords, mask, output)
+
+        return output
 
     def __call__(self, segments):
-        segments = tuple(segments)
+        coords = np.array(list(map(lambda seg: seg.pcoord[-1], segments)))
+        assignments = self.assign(coords)
+
         bins = self.construct_bins()
-        self.map(segments, bins)
-        if functools.reduce(operator.or_, bins) != set(segments):
-            raise RuntimeError("map() must assign each segment to a bin")
+        for segment, idx in zip(segments, assignments):
+            bins[idx].add(segment)
+
         return bins
 
 
@@ -140,18 +156,8 @@ class NopMapper(BinMapper):
         self.nbins = 1
         self.labels = ['nop']
 
-    def assign(self, coords, mask=None, output=None):
-        if output is None:
-            output = np.zeros((len(coords),), dtype=index_dtype)
-
-        if mask is None:
-            mask = np.ones((len(coords),), dtype=np.bool_)
-        else:
-            mask = np.require(mask, dtype=np.bool_)
-
+    def _assign(self, coords, mask, output):
         output[mask] = 0
-
-        return output
 
 
 class RectilinearBinMapper(BinMapper):
@@ -207,35 +213,12 @@ class RectilinearBinMapper(BinMapper):
             )
             self.labels.append(label)
 
-    def assign(self, coords, mask=None, output=None):
-        try:
-            passed_coord_dtype = coords.dtype
-        except AttributeError:
-            coords = np.require(coords, dtype=coord_dtype)
-        else:
-            if passed_coord_dtype != coord_dtype:
-                coords = np.require(coords, dtype=coord_dtype)
-
-        if coords.ndim != 2:
-            raise TypeError('coords must be 2-dimensional')
-
-        if mask is None:
-            mask = np.ones((len(coords),), dtype=np.bool_)
-        elif len(mask) != len(coords):
-            raise TypeError('mask [shape {}] has different length than coords [shape {}]'.format(mask.shape, coords.shape))
-
-        if output is None:
-            output = np.empty((len(coords),), dtype=index_dtype)
-        elif len(output) != len(coords):
-            raise TypeError('output has different length than coords')
-
+    def _assign(self, coords, mask, output):
         rectilinear_assign(coords, mask, output, self.boundaries, self._boundlens)
-
-        return output
 
 
 class PiecewiseBinMapper(BinMapper):
-    """Binning using a set of functions returing boolean values; if the Nth function
+    """Binning using a set of functions returning boolean values; if the Nth function
     returns True for a coordinate tuple, then that coordinate is in the Nth bin."""
 
     def __init__(self, functions):
@@ -244,15 +227,7 @@ class PiecewiseBinMapper(BinMapper):
         self.index_dtype = np.min_scalar_type(self.nbins)
         self.labels = [str(func) for func in functions]
 
-    def assign(self, coords, mask=None, output=None):
-        if output is None:
-            output = np.zeros((len(coords),), dtype=index_dtype)
-
-        if mask is None:
-            mask = np.ones((len(coords),), dtype=np.bool_)
-        else:
-            mask = np.require(mask, dtype=np.bool_)
-
+    def _assign(self, coords, mask, output):
         coord_subset = coords[mask]
         fnvals = np.empty((len(coord_subset), len(self.functions)), dtype=index_dtype)
         for ifn, fn in enumerate(self.functions):
@@ -266,7 +241,6 @@ class PiecewiseBinMapper(BinMapper):
                 fnvals[:, ifn] = rsl
         amask = np.require(fnvals.argmax(axis=1), dtype=index_dtype)
         output[mask] = amask
-        return output
 
 
 class FuncBinMapper(BinMapper):
@@ -280,30 +254,8 @@ class FuncBinMapper(BinMapper):
         self.kwargs = kwargs or {}
         self.labels = ['{!r} bin {:d}'.format(func, ibin) for ibin in range(nbins)]
 
-    def assign(self, coords, mask=None, output=None):
-        try:
-            passed_coord_dtype = coords.dtype
-        except AttributeError:
-            coords = np.require(coords, dtype=coord_dtype)
-        else:
-            if passed_coord_dtype != coord_dtype:
-                coords = np.require(coords, dtype=coord_dtype)
-
-        if coords.ndim != 2:
-            raise TypeError('coords must be 2-dimensional')
-        if mask is None:
-            mask = np.ones((len(coords),), dtype=np.bool_)
-        elif len(mask) != len(coords):
-            raise TypeError('mask [shape {}] has different length than coords [shape {}]'.format(mask.shape, coords.shape))
-
-        if output is None:
-            output = np.empty((len(coords),), dtype=index_dtype)
-        elif len(output) != len(coords):
-            raise TypeError('output has different length than coords')
-
+    def _assign(self, coords, mask, output):
         self.func(coords, mask, output, *self.args, **self.kwargs)
-
-        return output
 
 
 class VectorizingFuncBinMapper(BinMapper):
@@ -318,30 +270,8 @@ class VectorizingFuncBinMapper(BinMapper):
         self.index_dtype = np.min_scalar_type(self.nbins)
         self.labels = ['{!r} bin {:d}'.format(func, ibin) for ibin in range(nbins)]
 
-    def assign(self, coords, mask=None, output=None):
-        try:
-            passed_coord_dtype = coords.dtype
-        except AttributeError:
-            coords = np.require(coords, dtype=coord_dtype)
-        else:
-            if passed_coord_dtype != coord_dtype:
-                coords = np.require(coords, dtype=coord_dtype)
-
-        if coords.ndim != 2:
-            raise TypeError('coords must be 2-dimensional')
-        if mask is None:
-            mask = np.ones((len(coords),), dtype=np.bool_)
-        elif len(mask) != len(coords):
-            raise TypeError('mask [shape {}] has different length than coords [shape {}]'.format(mask.shape, coords.shape))
-
-        if output is None:
-            output = np.empty((len(coords),), dtype=index_dtype)
-        elif len(output) != len(coords):
-            raise TypeError('output has different length than coords')
-
+    def _assign(self, coords, mask, output):
         apply_down(self.func, self.args, self.kwargs, coords, mask, output)
-
-        return output
 
 
 class VoronoiBinMapper(BinMapper):
@@ -352,7 +282,9 @@ class VoronoiBinMapper(BinMapper):
     Parameters
     ----------
     dfunc : callable
-        Distance metric.
+        Distance function. It must accept arguments ``(x, ys)`` and return
+        a 1-D array containing the distance of each point in ``ys`` to the
+        point ``x``.
     centers : 2-D array_like
         Voronoi sites.
     dfargs : tuple, optional
@@ -376,30 +308,8 @@ class VoronoiBinMapper(BinMapper):
         if (check != np.arange(len(self.centers))).any():
             raise TypeError('dfunc does not map centers to themselves')
 
-    def assign(self, coords, mask=None, output=None):
-        try:
-            passed_coord_dtype = coords.dtype
-        except AttributeError:
-            coords = np.require(coords, dtype=coord_dtype)
-        else:
-            if passed_coord_dtype != coord_dtype:
-                coords = np.require(coords, dtype=coord_dtype)
-
-        if coords.ndim != 2:
-            raise TypeError('coords must be 2-dimensional')
-        if mask is None:
-            mask = np.ones((len(coords),), dtype=np.bool_)
-        elif len(mask) != len(coords):
-            raise TypeError('mask [shape {}] has different length than coords [shape {}]'.format(mask.shape, coords.shape))
-
-        if output is None:
-            output = np.empty((len(coords),), dtype=index_dtype)
-        elif len(output) != len(coords):
-            raise TypeError('output has different length than coords')
-
+    def _assign(self, coords, mask, output):
         apply_down_argmin_across(self.dfunc, (self.centers,) + self.dfargs, self.dfkwargs, self.nbins, coords, mask, output)
-
-        return output
 
 
 class RecursiveBinMapper(BinMapper):
@@ -478,10 +388,8 @@ class RecursiveBinMapper(BinMapper):
 
         """
         replaces_bin_at = np.require(replaces_bin_at, dtype=coord_dtype)
-        if replaces_bin_at.ndim < 1:
-            replaces_bin_at.shape = (1, 1)
-        elif replaces_bin_at.ndim < 2:
-            replaces_bin_at.shape = (1, replaces_bin_at.shape[0])
+        if replaces_bin_at.ndim < 2:
+            replaces_bin_at = np.atleast_2d(replaces_bin_at)
         elif replaces_bin_at.ndim > 2 or replaces_bin_at.shape[1] > 1:
             raise TypeError('a single coordinate vector is required')
 
@@ -506,13 +414,7 @@ class RecursiveBinMapper(BinMapper):
         self._recursion_targets = {k: self._recursion_targets[k] for k in sorted(self._recursion_targets)}
         self.start_index = self.start_index
 
-    def assign(self, coords, mask=None, output=None):
-        if mask is None:
-            mask = np.ones((len(coords),), dtype=np.bool_)
-
-        if output is None:
-            output = np.empty((len(coords),), dtype=index_dtype)
-
+    def _assign(self, coords, mask, output):
         # mapping mask -- which output values come from our base
         # region set and therefore must be remapped
         mmask = np.zeros((len(coords),), dtype=np.bool_)
@@ -537,5 +439,3 @@ class RecursiveBinMapper(BinMapper):
         # do any recursive assignments necessary
         for rindex, mapper in self._recursion_targets.items():
             mapper.assign(coords, mask & rmasks[rindex], output)
-
-        return output
