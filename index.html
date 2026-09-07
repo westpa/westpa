@@ -40,19 +40,26 @@
   <p style="text-align: left; margin: 0;"><strong>How do we pronounce WESTPA?</strong></p>
   <div class="pronunciation-answer">
     <p>Like <em>Vespa</em>—the Italian scooter!</p>
-    <img src="images/vespa-cartoon.png" alt="Cartoon Vespa scooter">
+    <img src="images/vespa-cartoon.png" alt="Cartoon Vespa scooter" class="vespa-img">
   </div>
 </div>
 <style>
 .pronunciation {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 20px;
+  margin: 0;
+  padding: 0;
 }
-
 .pronunciation-answer {
   display: flex;
   flex-direction: column;
+}
+.vespa-img {
+  max-width: 120px;
+  height: auto;
+  display: block;
 }
 </style>
       <p>WESTPA (The Weighted Ensemble Simulation Toolkit with Parallelization and Analysis) is a high-performance Python framework for applying the weighted ensemble (WE) path sampling strategy, which enables simulations of processes that are orders of magnitude longer than the simulations themselves. See <a href="overview.html">Overview</a> of WE simulations. The WESTPA software package includes (1) binned/binless WE strategies, including the <a href="https://www.cell.com/biophysj/pdf/S0006-3495(96)79552-8.pdf">Huber & Kim algorithm</a>, (2) options for <a href="http://pubs.acs.org/doi/abs/10.1021/ct401065r">reweighting</a> to a steady state to estimate rates and/or state populations from shorter trajectories, and (3) plugins/extensions for advanced customisation. </p>
