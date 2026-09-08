@@ -18,7 +18,11 @@ from .processes import ProcessWorkManager
 
 log = logging.getLogger(__name__)
 
-_available_work_managers = {'serial': SerialWorkManager, 'threads': ThreadsWorkManager, 'processes': ProcessWorkManager}
+_available_work_managers = {
+    'serial': SerialWorkManager,
+    'threads': ThreadsWorkManager,
+    'processes': ProcessWorkManager,
+}
 
 # Import ZeroMQ work manager if available
 try:
@@ -39,6 +43,16 @@ except ImportError:
     log.debug('traceback follows', exc_info=True)
 else:
     _available_work_managers['mpi'] = MPIWorkManager
+
+# Import Dask work manager if available
+try:
+    from . import dask  # noqa
+    from .dask import DaskWorkManager
+except ImportError:
+    log.info('Dask work manager not available')
+    log.debug('traceback follows', exc_info=True)
+else:
+    _available_work_managers['dask'] = DaskWorkManager
 
 from . import environment  # noqa
 from .environment import make_work_manager  # noqa
