@@ -139,7 +139,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
             else:
                 self.traj_exc_exts.append(i)
         self.output_bstates_dir = args.output_bstates_dir
-        self.output_bstates_file = str(args.output_bstates_file)
+        self.output_bstates_file = args.output_bstates_file
         self.use_weights = args.use_weights
         self.seed = args.seed
         log.info(f'Using seed: {self.seed}')
