@@ -119,7 +119,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         self.first_iter = args.first_iter
         self.last_iter = args.last_iter or self.h5.attrs['west_current_iteration'] - 1
         # Look at the data_refs from the config file
-        self.data_refs_dic = self.config['west']['data']['data_refs']
+        self.data_refs_dic = self.config.get(['west', 'data', 'data_refs'], {})
         # Default to not using HDF5 framework
         self.h5_framework = True if 'iteration' in self.data_refs_dic else False
         dict_key = 'iteration' if self.h5_framework else 'segment'
