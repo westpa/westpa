@@ -113,7 +113,7 @@ class Test_W_Reverse(unittest.TestCase):
         ):
             entry_point()
         assert os.path.isfile('./bstates_reverse/bstates.txt'), "The bstates.txt file was not generated."
-        for iiter in range(1,4):
+        for iiter in range(1, 4):
             assert os.path.isfile(f'./bstates_reverse/{iiter:06d}_000000.xml'), "The {iiter:06d}_000000.xml file was not generated."
             assert os.path.getsize(f'./bstates_reverse/{iiter:06d}_000000.xml') > 0, f"The {iiter:06d}_000000.xml file is empty."
         assert cmp(
