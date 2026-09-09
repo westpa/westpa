@@ -270,7 +270,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
                         files = sorted(files, key=lambda file: os.path.getctime(file))
                         rst_dest_name = files[-1]
                         log.warning(
-                            f'Muliple files starting with {iteration:06d}_{walker:06d} are in the output directory. Using {rst_dest_name}. if this is incorrect, provide a file name using flag --rst-file so that the correct extension can be used'
+                            f'Muliple files starting with {iteration:06d}_{walker:06d} are in the output directory. Using {rst_dest_name=}. if this is incorrect, provide a file name using flag `--rst-file` so that the correct extension can be used'
                         )
                 elif len(files) == 1:
                     rst_dest_name = files[0]
