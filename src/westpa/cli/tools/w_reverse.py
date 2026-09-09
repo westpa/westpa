@@ -117,7 +117,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         self.config = self.westrc.config
         # Read the west.h5 file
         self.h5 = WESTPAH5File(args.we_h5filename, 'r')
-        self.first_iter = int(args.first_iter)
+        self.first_iter = args.first_iter
         # default to last
         if args.last_iter is not None:
             self.last_iter = int(args.last_iter)
