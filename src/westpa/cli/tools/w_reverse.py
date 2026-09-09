@@ -234,7 +234,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         succ_pairs_used = rng.choice(
             succ_pairs, size=total_pairs, p=succ_pairs[:, 2] / np.sum(succ_pairs[:, 2], dtype=float), replace=False
         )
-        total_weight = 0
+        total_weight = 0.
         for idx, succ_pair_used in tqdm(enumerate(succ_pairs_used), total=total_pairs, desc="New bstates"):
             iteration = int(succ_pair_used[0])
             walker = int(succ_pair_used[1])
