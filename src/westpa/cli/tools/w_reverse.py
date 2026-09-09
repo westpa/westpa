@@ -138,7 +138,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
                 self.traj_or_top_exts.append(i)
             else:
                 self.traj_exc_exts.append(i)
-        self.output_bstates_dir = str(args.output_bstates_dir)
+        self.output_bstates_dir = args.output_bstates_dir
         self.output_bstates_file = str(args.output_bstates_file)
         self.use_weights = args.use_weights
         self.seed = args.seed
