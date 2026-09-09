@@ -191,7 +191,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
             rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
             shutil.copyfile(os.path.join(search_folder, self.rst_file), os.path.join(self.output_bstates_dir, rst_dest_name))
             return rst_dest_name
-        if self.rst_extension:
+        elif self.rst_extension:
             possible_hits = [file for file in files if file.endswith(self.rst_extension)]
             if len(possible_hits) > 1:
                 possible_hits = sorted(possible_hits, key=lambda file: os.path.getctime(file))
