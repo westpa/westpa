@@ -194,7 +194,8 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         Returns
         -------
         rst_dest_name: string describing the name of the copied trajectory in the output_bstates_dir
-        '''
+        
+        """
         files = [file for file in os.listdir(search_folder) if not file.startswith('.')]
         if self.rst_file in files:
             rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
