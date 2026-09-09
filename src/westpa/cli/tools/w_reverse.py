@@ -117,11 +117,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         # Read the west.h5 file
         self.h5 = WESTPAH5File(args.we_h5filename, 'r')
         self.first_iter = args.first_iter
-        # default to last
-        if args.last_iter is not None:
-            self.last_iter = int(args.last_iter)
-        elif args.last_iter is None:
-            self.last_iter = self.h5.attrs['west_current_iteration'] - 1
+        self.last_iter = args.last_iter or self.h5.attrs['west_current_iteration'] - 1
         # Look at the data_refs from the config file
         self.data_refs_dic = self.config['west']['data']['data_refs']
         # Default to not using HDF5 framework
