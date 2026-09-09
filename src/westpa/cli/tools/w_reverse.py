@@ -156,7 +156,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         for iteration_index, iteration in tqdm(
             enumerate(self.h5['iterations'].keys()), total=len(self.h5['iterations'].keys()), desc="w_succ"
         ):
-            endpoint_type = self.h5['iterations'][iteration]['seg_index']['endpoint_type']
+            endpoint_type = self.h5[f'iterations/{iteration}/seg_index']['endpoint_type', :]
             indices = np.flatnonzero(endpoint_type == Segment.SEG_ENDPOINT_RECYCLED)
             temp_array = [
                 [
