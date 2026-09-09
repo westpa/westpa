@@ -100,7 +100,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
             "--use-weights",
             "-nw",
             type=bool,
-            default=True,
+            action='store_false',
             dest="use_weights",
             help="Include the recycled event weight when making the bstates.txt file",
         )
