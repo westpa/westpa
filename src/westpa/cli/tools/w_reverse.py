@@ -128,7 +128,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         )
         # Proves that WEST_SIM_ROOT is not on os.environ, not replaced
         self.traj_seg_path = self.traj_seg_path.replace('$WEST_SIM_ROOT', '.')
-        self.max_n_bstates = int(args.max_n_bstates)
+        self.max_n_bstates = args.max_n_bstates
         if args.rst_file:
             self.rst_file = str(args.rst_file).lower()
             # Get the restart file extension being used
