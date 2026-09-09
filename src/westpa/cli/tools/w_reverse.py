@@ -221,9 +221,8 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         return rst_dest_name
 
     def go(self):
-        """
-        Main public method for running w_reverse. Runs w_succ to find the successful trajectories then iterates over them to copy the trajectories to the output_bstates_dir. Then it iterates over the trajectories again to make the output_bstates_file.
-        """
+        '''Main public method for running w_reverse. Runs w_succ to find the successful trajectories then iterates over them to copy the trajectories to the output_bstates_dir. Then it iterates over the trajectories again to make the output_bstates_file.
+        '''
         succ_pairs = self.w_succ()
         # make directory for bstates_reverse if it doesn't already exist
         os.makedirs(self.output_bstates_dir, exist_ok=True)
