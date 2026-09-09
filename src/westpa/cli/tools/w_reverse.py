@@ -162,7 +162,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
                 [
                     iteration_index if self.h5_framework else iteration_index + 1,
                     index,
-                    self.h5['iterations'][iteration]['seg_index']['weight'][index],
+                    self.h5[f'iterations/{iteration}/'seg_index']['weight', index],
                 ]
                 for index in indices
             ]
