@@ -170,7 +170,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         return np.asarray(succ)
 
     def copy_traj(self, search_folder, iteration, walker):
-        '''
+        """
         Find the correct trajectory file in the serch_folder and copy it to the output_bstates_dir with the name {iteration:06d}_{walker:06d} and keeping the same extension
 
         Arguments
