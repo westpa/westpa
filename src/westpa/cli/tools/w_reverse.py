@@ -96,7 +96,6 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
             default="bstates.txt",
             help="Name of the output bstates file",
         )
-        # TODO: may need to be adjusted to store False when included
         rgroup.add_argument(
             "--use-weights",
             "-nw",
