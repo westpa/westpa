@@ -162,7 +162,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
                 [
                     iteration_index if self.h5_framework else iteration_index + 1,
                     index,
-                    self.h5[f'iterations/{iteration}/'seg_index']['weight', index],
+                    self.h5[f'iterations/{iteration}/seg_index']['weight', index],
                 ]
                 for index in indices
             ]
@@ -221,8 +221,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         return rst_dest_name
 
     def go(self):
-        '''Main public method for running w_reverse. Runs w_succ to find the successful trajectories then iterates over them to copy the trajectories to the output_bstates_dir. Then it iterates over the trajectories again to make the output_bstates_file.
-        '''
+        '''Main public method for running w_reverse. Runs w_succ to find the successful trajectories then iterates over them to copy the trajectories to the output_bstates_dir. Then it iterates over the trajectories again to make the output_bstates_file.'''
         succ_pairs = self.w_succ()
         # make directory for bstates_reverse if it doesn't already exist
         os.makedirs(self.output_bstates_dir, exist_ok=True)
@@ -234,7 +233,7 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         succ_pairs_used = rng.choice(
             succ_pairs, size=total_pairs, p=succ_pairs[:, 2] / np.sum(succ_pairs[:, 2], dtype=float), replace=False
         )
-        total_weight = 0.
+        total_weight = 0.0
         for idx, succ_pair_used in enumerate(tqdm(succ_pairs_used, total=total_pairs, desc="New bstates")):
             iteration = int(succ_pair_used[0])
             walker = int(succ_pair_used[1])
