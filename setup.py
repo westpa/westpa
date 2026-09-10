@@ -88,7 +88,6 @@ console_scripts_tools = [
     'w_pdist = westpa.cli.tools.w_pdist:entry_point',
     'w_ipa = westpa.cli.tools.w_ipa:entry_point',
     'w_bins = westpa.cli.tools.w_bins:entry_point',
-    'w_reverse = westpa.cli.tools.w_reverse:entry_point',
     'w_stateprobs = westpa.cli.tools.w_stateprobs:entry_point',
     'w_postanalysis_reweight = westpa.cli.tools.w_postanalysis_reweight:entry_point',
     'ploterr = westpa.cli.tools.ploterr:entry_point',
@@ -96,6 +95,7 @@ console_scripts_tools = [
     'w_multi_west = westpa.cli.tools.w_multi_west:entry_point',
     'w_red = westpa.cli.tools.w_red:entry_point',
     'w_timings = westpa.cli.tools.w_timings:entry_point',
+    'w_reverse = westpa.cli.tools.w_reverse:entry_point',
 ]
 
 

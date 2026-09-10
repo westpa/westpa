@@ -13,7 +13,15 @@ class Test_W_Reverse(unittest.TestCase):
         '''Testing if w_reverse runs as expected and the h5 files looks good.'''
 
         ref_dir = os.path.join(os.path.dirname(__file__), '../refs')
-        shutil.copy2(os.path.join(ref_dir, 'west_reverse_no_hdf5.cfg'), './west.cfg')
+        shutil.copy2(os.path.join(ref_dir, 'west_reverse_hdf5.cfg'), './tmp_west.cfg')
+        rclines = []
+        with open('tmp_west.cfg', 'w') as rcfile_in:
+            rclines += rcfile_in.readlines()
+        os.remove('tmp_west.cfg')
+        rclines = rclines[:32] + rclines[33:]
+        with open('west.cfg', 'w') as rcfile_out:
+            for line in rclines:
+                rcfile_out.write(line)
         shutil.copy2(os.path.join(ref_dir, 'west_reverse_no_hdf5.h5'), './west.h5')
         shutil.copytree(os.path.join(ref_dir, 'traj_segs_reverse_no_hdf5'), './traj_segs')
         with unittest.mock.patch(
@@ -34,13 +42,10 @@ class Test_W_Reverse(unittest.TestCase):
             ),
         ):
             entry_point()
+        for iiter in range(1, 4):
+            assert os.path.isfile(f'./bstates_reverse/{iiter:06d}_000000.xml'), "The {iiter:06d}_000000.xml file was not generated."
+            assert os.path.getsize(f'./bstates_reverse/{iiter:06d}_000000.xml') > 0, f"The {iiter:06d}_000000.xml file is empty."
         assert os.path.isfile('./bstates_reverse/bstates.txt'), "The bstates.txt file was not generated."
-        assert os.path.isfile('./bstates_reverse/000001_000000.xml'), "The 000001_000000.xml file was not generated."
-        assert os.path.getsize('./bstates_reverse/000001_000000.xml') > 0, "The 000001_000000.xml file is empty."
-        assert os.path.isfile('./bstates_reverse/000002_000000.xml'), "The 000002_000000.xml file was not generated."
-        assert os.path.getsize('./bstates_reverse/000002_000000.xml') > 0, "The 000002_000000.xml file is empty."
-        assert os.path.isfile('./bstates_reverse/000003_000000.xml'), "The 000003_000000.xml file was not generated."
-        assert os.path.getsize('./bstates_reverse/000003_000000.xml') > 0, "The 000003_000000.xml file is empty."
         assert cmp(
             os.path.join(ref_dir, 'bstates.txt'), './bstates_reverse/bstates.txt'
         ), 'The reference bstates.txt and the produced bstates.txt are not the same'
@@ -73,13 +78,10 @@ class Test_W_Reverse(unittest.TestCase):
             ),
         ):
             entry_point()
+        for iiter in range(1, 4):
+            assert os.path.isfile(f'./bstates_reverse/{iiter:06d}_000000.xml'), "The {iiter:06d}_000000.xml file was not generated."
+            assert os.path.getsize(f'./bstates_reverse/{iiter:06d}_000000.xml') > 0, f"The {iiter:06d}_000000.xml file is empty."
         assert os.path.isfile('./bstates_reverse/bstates.txt'), "The bstates.txt file was not generated."
-        assert os.path.isfile('./bstates_reverse/000001_000000.xml'), "The 000001_000000.xml file was not generated."
-        assert os.path.getsize('./bstates_reverse/000001_000000.xml') > 0, "The 000001_000000.xml file is empty."
-        assert os.path.isfile('./bstates_reverse/000002_000000.xml'), "The 000002_000000.xml file was not generated."
-        assert os.path.getsize('./bstates_reverse/000002_000000.xml') > 0, "The 000002_000000.xml file is empty."
-        assert os.path.isfile('./bstates_reverse/000003_000000.xml'), "The 000003_000000.xml file was not generated."
-        assert os.path.getsize('./bstates_reverse/000003_000000.xml') > 0, "The 000003_000000.xml file is empty."
         assert cmp(
             os.path.join(ref_dir, 'bstates.txt'), './bstates_reverse/bstates.txt'
         ), 'The reference bstates.txt and the produced bstates.txt are not the same'
@@ -112,10 +114,10 @@ class Test_W_Reverse(unittest.TestCase):
             ),
         ):
             entry_point()
-        assert os.path.isfile('./bstates_reverse/bstates.txt'), "The bstates.txt file was not generated."
         for iiter in range(1, 4):
             assert os.path.isfile(f'./bstates_reverse/{iiter:06d}_000000.xml'), "The {iiter:06d}_000000.xml file was not generated."
             assert os.path.getsize(f'./bstates_reverse/{iiter:06d}_000000.xml') > 0, f"The {iiter:06d}_000000.xml file is empty."
+        assert os.path.isfile('./bstates_reverse/bstates.txt'), "The bstates.txt file was not generated."
         assert cmp(
             os.path.join(ref_dir, 'bstates.txt'), './bstates_reverse/bstates.txt'
         ), 'The reference bstates.txt and the produced bstates.txt are not the same'
