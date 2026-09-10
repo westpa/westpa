@@ -95,6 +95,7 @@ console_scripts_tools = [
     'w_multi_west = westpa.cli.tools.w_multi_west:entry_point',
     'w_red = westpa.cli.tools.w_red:entry_point',
     'w_timings = westpa.cli.tools.w_timings:entry_point',
+    'w_reverse = westpa.cli.tools.w_reverse:entry_point',
 ]
 
 
