@@ -17,7 +17,7 @@ def extensions():
     ]
 
     # Flag to prevent nvc from throwing `nvc-Error-Unknown switch` errors
-    common_cflags += ['-noswitcherror'] if os.environ.get("CC", "").rsplit('/', maxsplit=1)[-1] == 'nvc' else []
+    common_cflags += ['-noswitcherror'] if os.environ.get("CC", "").endswith('nvc') else []
 
     fasthist_module = Extension(
         'westpa.fasthist._fasthist',
