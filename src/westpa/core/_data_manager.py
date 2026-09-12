@@ -224,6 +224,7 @@ class DataManager(WESTDataManager):
             Set of segments belonging to iteration `n_iter`.
 
         """
+        segments = sorted(segments, key=attrgetter('seg_id'))
         arrays = [state_to_numpy(s.initial_state) for s in segments]
         dtype = arrays[0].dtype  # infer dtype from first segment
         entries = np.fromiter(arrays, dtype=dtype)
@@ -255,6 +256,7 @@ class DataManager(WESTDataManager):
             Set of segments belonging to iteration `n_iter`.
 
         """
+        segments = sorted(segments, key=attrgetter('seg_id'))
         arrays = [state_to_numpy(s.final_state) for s in segments]
         dtype = arrays[0].dtype  # infer dtype from first segment
         entries = np.fromiter(arrays, dtype=dtype)
@@ -286,6 +288,7 @@ class DataManager(WESTDataManager):
             Set of segments belonging to iteration `n_iter`.
 
         """
+        segments = sorted(segments, key=attrgetter('seg_id'))
         # infer shape and dtype from first segment
         pcoord_len, pcoord_ndim = segments[0].pcoord.shape
         pcoord_dtype = segments[0].pcoord.dtype
