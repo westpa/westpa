@@ -1,15 +1,8 @@
-Analyzing a simulation
-======================
-
-.. autosummary::
-   :nosignatures:
-
-   ~westpa.TrajectoryTree
-   ~westpa.Trajectory
+Analysis
+========
 
 .. autoclass:: westpa.TrajectoryTree
    :members:
 
-.. autoclass:: westpa.Trajectory
-   :show-inheritance:
+.. autoclass:: westpa.TrajectoryTreeView
    :members:

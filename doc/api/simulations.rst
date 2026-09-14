@@ -1,5 +1,5 @@
-Running a simulation
-====================
+Simulations
+===========
 
 .. autoclass:: westpa.Simulation
    :members:

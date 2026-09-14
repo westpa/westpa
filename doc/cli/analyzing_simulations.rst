@@ -1,5 +1,5 @@
-Analyzing a simulation
-----------------------
+Analyzing simulations
+---------------------
 
 .. toctree::
    :maxdepth: 1

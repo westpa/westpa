@@ -61,7 +61,7 @@ extensions = [
 autosummary_generate = True
 autoclass_content = "both"
 autodoc_member_order = "bysource"
-autodoc_typehints = "none"
+# autodoc_typehints = "none"
 numpydoc_show_class_members = False
 
 # Add any paths that contain templates here, relative to this directory.

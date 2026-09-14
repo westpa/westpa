@@ -1,5 +1,5 @@
-Setting up and running a simulation
------------------------------------
+Setting up and running simulations
+----------------------------------
 
 .. toctree::
    :maxdepth: 1

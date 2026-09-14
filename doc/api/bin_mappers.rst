@@ -1,21 +1,10 @@
 Bin mappers
 ===========
 
-.. autosummary::
-   :nosignatures:
+.. autoclass:: westpa.BinMapper()
+   :members: __call__
 
-   ~westpa.VoronoiBinMapper
-   ~westpa.RecursiveBinMapper
-   ~westpa.RectilinearBinMapper
-   ~westpa.MABBinMapper
-   ~westpa.AdaptiveVoronoiBinMapper
-   ~westpa.BinMapper
-
-.. autoclass:: westpa.VoronoiBinMapper
-.. autoclass:: westpa.RecursiveBinMapper
 .. autoclass:: westpa.RectilinearBinMapper
 .. autoclass:: westpa.MABBinMapper
+.. autoclass:: westpa.VoronoiBinMapper
 .. autoclass:: westpa.AdaptiveVoronoiBinMapper
-
-.. autoclass:: westpa.BinMapper
-   :members:

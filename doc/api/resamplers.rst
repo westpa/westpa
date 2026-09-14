@@ -1,17 +1,14 @@
 Resamplers
 ==========
 
-.. autosummary::
-   :nosignatures:
+.. autoclass:: westpa.Resampler()
+   :members: __call__
 
-   ~westpa.HuberKimResampler
-   ~westpa.MultinomialResampler
-   ~westpa.ResidualResampler
-   ~westpa.Resampler
+.. autoclass:: westpa.ResamplerBase
+   :members:
 
 .. autoclass:: westpa.HuberKimResampler
 .. autoclass:: westpa.MultinomialResampler
 .. autoclass:: westpa.ResidualResampler
-
-.. autoclass:: westpa.Resampler
-   :members:
+.. autoclass:: westpa.StratifiedResampler
+.. autoclass:: westpa.SystematicResampler

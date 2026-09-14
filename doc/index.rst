@@ -20,4 +20,3 @@ see the `wiki <https://github.com/westpa/westpa/wiki>`_.
    cli/index
    api/index
    hdf5
-
