@@ -1,62 +1,110 @@
 import os
+import shutil
+import subprocess
 
 import numpy as np
 
-from .subprocess import SubprocessPropagator
+from .base import SerialPropagator
+from ..state import State
 
 
-class GromacsPropagator(SubprocessPropagator):
-    """Molecular dynamics propagator built on the `GROMACS <https://www.gromacs.org/>`_ package.
+class GROMACSPropagator(SerialPropagator):
+    """`GROMACS <https://www.gromacs.org/>`_ molecular dynamics propagator.
+
+    To create an initial state for this propagator, pass the absolute path of
+    a GROMACS coordinate file to the :class:`State` constructor's `file` parameter::
+
+        state = westpa.State(file=os.path.abspath('conf.gro'))
 
     Parameters
     ----------
-    topology_file : str
-    md_parameters : Mapping[str, Any]
-    ref_structure_file : str, optional
-    ref_b_structure_file : str, optional
-    index_file : str, optional
-    final_state_filename : str, optional
+    top_file : path-like
+        Topology file.
+    mdp_file : path-like
+        MD parameter file. The ``ld-seed`` option is dynamically overridden
+        for each input segment.
+    grompp_args : sequence of str, optional
+        Optional arguments to pass to ``gmx grompp``. The ``-p``, ``-c`` and
+        ``-o`` arguments are reserved and cannot be overridden.
+    mdrun_args : sequence of str, optional
+        Optional arguments to pass to ``gmx mdrun``. The ``-s`` argument is
+        reserved and cannot be overridden.
     **kwargs
+        Keyword arguments to pass to the :class:`SerialPropagator` base class.
+
+    Examples
+    --------
+    >>> import westpa
+    >>> propagator = westpa.GROMACSPropagator('topol.top', 'grompp.mdp')
 
     """
 
-    DEFAULT_FINAL_STATE_FILENAME = 'confout.gro'
-
     def __init__(
         self,
-        topology_file,
-        md_parameters,
-        ref_coordinate_file=None,
-        ref_b_coordinate_file=None,
-        index_file=None,
-        final_state_filename=None,
+        top_file,
+        mdp_file,
+        grompp_args=None,
+        mdrun_args=None,
         **kwargs,
     ):
-        self.topology_file = os.path.abspath(topology_file)
-        self.md_parameters = dict(md_parameters)
+        super().__init__(**kwargs)
 
-        self.ref_coordinate_file = os.path.abspath(ref_coordinate_file) if ref_coordinate_file else None
-        self.ref_b_coordinate_file = os.path.abspath(ref_b_coordinate_file) if ref_b_coordinate_file else None
-        self.index_file = os.path.abspath(index_file) if index_file else None
+        if not shutil.which('gmx'):
+            raise RuntimeError("couldn't find 'gmx' executable")
 
-        final_state_filename = final_state_filename or self.DEFAULT_FINAL_STATE_FILENAME
-        super().__init__(final_state_filename=final_state_filename, **kwargs)
+        grompp_args = list(grompp_args) if grompp_args is not None else []
+        if {'-p', '-c', '-o'}.intersection(grompp_args):
+            raise ValueError("invalid 'grompp_args' input: the -p, -c, and -o flags are not supported")
 
-    def get_command(self, segment, rng):
-        md_parameters = self.md_parameters | {'ld-seed': rng.integers(2**16, dtype=np.uint16)}
-        grompp_args = {
-            'c': segment.initial_state.file,
-            'p': self.topology_file,
-            'r': self.ref_coordinate_file,
-            'rb': self.ref_b_coordinate_file,
-            'ndx': self.index_file,
-        }
+        mdrun_args = list(mdrun_args) if mdrun_args is not None else []
+        if '-s' in mdrun_args:
+            raise ValueError("invalid 'mdrun_args' input: the -s flag is not supported")
 
-        md_parameters = '\n'.join(f'{k} = {v}' for k, v in md_parameters.items())
-        grompp_args = ' '.join(f'-{k} {v}' for k, v in grompp_args.items() if v is not None)
+        self.top_file = os.path.abspath(top_file)
+        self.mdp_file = os.path.abspath(mdp_file)
+        self.grompp_args = grompp_args
+        self.mdrun_args = mdrun_args
 
-        return f"""\
-printf "{md_parameters}" >grompp.mdp
-gmx grompp {grompp_args}
-gmx mdrun -c {self.final_state_filename} -nt 1
-"""
+    def propagate(self, segment, rng):
+        segment_dir = self.make_segment_dir(segment)
+
+        # copy .mdp file to segment directory
+        try:
+            idx = self.grompp_args.index('-f')
+        except ValueError:
+            mdp_file = os.path.join(segment_dir, 'grompp.mdp')  # gmx default
+        else:
+            mdp_file = os.path.join(segment_dir, self.args[idx + 1])
+        shutil.copyfile(self.mdp_file, mdp_file)
+
+        # override 'ld-seed' option
+        ld_seed = rng.integers(2**16, dtype=np.uint16)
+        with open(mdp_file, 'a') as f:
+            f.write(f'\nld-seed = {ld_seed}\n')
+
+        # assemble grompp and mdrun commands
+        grompp_cmd = ['gmx', 'grompp', '-p', self.top_file, '-c', segment.initial_state.file, *self.grompp_args]
+        mdrun_cmd = ['gmx', 'mdrun', *self.mdrun_args]
+
+        # call grompp and mdrun
+        for cmd in grompp_cmd, mdrun_cmd:
+            completed_process = subprocess.run(
+                cmd,
+                cwd=segment_dir,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            with open(os.path.join(segment_dir, 'stderr.txt'), 'a') as f:
+                f.write(completed_process.stderr)
+
+        # retrieve the final state
+        try:
+            idx = self.mdrun_args.index('-c')
+        except ValueError:
+            filename = 'confout.gro'  # gmx default
+        else:
+            filename = self.mdrun_args[idx + 1]
+        segment.final_state = State(file=os.path.join(segment_dir, filename))
+
+        return segment

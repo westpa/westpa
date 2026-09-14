@@ -2,14 +2,11 @@ import logging
 import os
 import secrets
 import time
-import traceback
 from abc import ABC, abstractmethod
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
-
-# class PropagatorError()
 
 
 class _PropagatorBase(ABC):
@@ -17,29 +14,15 @@ class _PropagatorBase(ABC):
 
     def __init__(
         self,
-        block_size=None,
         root_seed=None,
         bit_generator_type=None,
         segment_dir_template=None,
+        block_size=None,
     ):
-        self.block_size = block_size
         self.root_seed = root_seed if root_seed is not None else secrets.randbits(128)
         self.bit_generator_type = bit_generator_type or np.random.PCG64
         self.segment_dir_template = segment_dir_template or self.DEFAULT_SEGMENT_DIR_TEMPLATE
-
-    @property
-    def block_size(self):
-        """Batch size for propagation tasks."""
-        return self._block_size
-
-    @block_size.setter
-    def block_size(self, value):
-        if value is not None:
-            if not isinstance(value, int):
-                raise TypeError("'block_size' must be an integer or None")
-            if value < 1:
-                raise ValueError("'block_size' must be positive")
-        self._block_size = value
+        self.block_size = block_size
 
     @property
     def root_seed(self):
@@ -75,6 +58,20 @@ class _PropagatorBase(ABC):
     def segment_dir_template(self, value):
         self._segment_dir_template = os.path.abspath(value)
 
+    @property
+    def block_size(self):
+        """Batch size for propagation tasks."""
+        return self._block_size
+
+    @block_size.setter
+    def block_size(self, value):
+        if value is not None:
+            if not isinstance(value, int):
+                raise TypeError("'block_size' must be an integer or None")
+            if value < 1:
+                raise ValueError("'block_size' must be positive")
+        self._block_size = value
+
     def _get_rng(self, segment):
         seed = [segment.seg_id, segment.n_iter, self.root_seed]
         bit_generator = self._bit_generator_type(seed)
@@ -108,10 +105,6 @@ class SerialPropagator(_PropagatorBase):
     """Base class for propagators that propagate one segment at a time.
     Subclasses must implement the :meth:`propagate` method.
 
-    The ``SerialPropagator`` base class provides built-in functionality for
-    reproducible random seeding, segment failure detection, and performance
-    timing.
-
     Parameters
     ----------
     root_seed : int, optional
@@ -127,12 +120,15 @@ class SerialPropagator(_PropagatorBase):
         relative path is provided, it is assumed to be relative to the
         current working directory.
         Defaults to ``'traj_segs/{n_iter:06d}/{seg_id:06d}'``.
+    block_size : int, default 1
+        Maximum number of segments to pass to the propagator in a given call.
 
     Attributes
     ----------
     root_seed : int
     bit_generator_type : type
     segment_dir_template : str
+    block_size : int or None
 
     Methods
     -------
@@ -159,7 +155,8 @@ class SerialPropagator(_PropagatorBase):
 
     Propagate a test segment:
 
-    >>> segment = westpa.Segment(1, 0, initial_state=westpa.State([0]))
+    >>> segment = westpa.Segment(1, 0)
+    >>> segment.initial_state = westpa.State(coord=[0]))
     >>> segment, = propagator([segment])
     >>> segment.final_state.coord
     array([-8])
@@ -167,6 +164,20 @@ class SerialPropagator(_PropagatorBase):
     0.00029450003057718277
 
     """
+
+    def __init__(
+        self,
+        root_seed=None,
+        bit_generator_type=None,
+        segment_dir_template=None,
+        block_size=1,
+    ):
+        super().__init__(
+            root_seed=root_seed,
+            bit_generator_type=bit_generator_type,
+            segment_dir_template=segment_dir_template,
+            block_size=block_size,
+        )
 
     @abstractmethod
     def propagate(self, segment, rng):
@@ -179,7 +190,7 @@ class SerialPropagator(_PropagatorBase):
         rng : numpy.random.Generator
             PRNG initialized as follows::
 
-                seed = [segments[0].seg_id, segments[0].n_iter, self.root_seed]
+                seed = [segment.seg_id, segment.n_iter, self.root_seed]
                 bit_generator = self.bit_generator_type(seed)
                 rng = numpy.random.default_rng(bit_generator)
 
@@ -197,23 +208,15 @@ class SerialPropagator(_PropagatorBase):
 
     def __call__(self, segments):
         for segment in segments:
-            rng = self._get_rng(segment)
             start_walltime = time.perf_counter()
-            try:
-                segment = self.propagate(segment, rng)
-            except Exception:
-                segment.mark_as_failed(traceback.format_exc())
-            else:
-                segment.walltime = time.perf_counter() - start_walltime
+            segment = self.propagate(segment, self._get_rng(segment))
+            segment.walltime = time.perf_counter() - start_walltime
         return segments
 
 
 class VectorizedPropagator(_PropagatorBase):
     """Base class for propagators that propagate multiple segments at the same time.
     Subclasses must implement the :meth:`propagate` method.
-
-    The ``VectorizedPropagator`` base class provides built-in functionality
-    for reproducible random seeding and segment failure detection.
 
     Parameters
     ----------
@@ -230,12 +233,15 @@ class VectorizedPropagator(_PropagatorBase):
         relative path is provided, it is assumed to be relative to the
         current working directory.
         Defaults to ``'traj_segs/{n_iter:06d}/{seg_id:06d}'``.
+    block_size : int, optional
+        Maximum number of segments to pass to the propagator in a given call.
 
     Attributes
     ----------
     root_seed : int
     bit_generator_type : type
     segment_dir_template : str
+    block_size : int or None
 
     Methods
     -------
@@ -265,7 +271,8 @@ class VectorizedPropagator(_PropagatorBase):
 
     Propagate a test segment:
 
-    >>> segment = westpa.Segment(1, 0, initial_state=westpa.State([0]))
+    >>> segment = westpa.Segment(1, 0)
+    >>> segment.initial_state = westpa.State(coord=[0]))
     >>> segment, = propagator([segment])
     >>> segment.final_state.coord
     array([-8])
@@ -293,7 +300,7 @@ class VectorizedPropagator(_PropagatorBase):
 
         Returns
         -------
-        segments : iterable of Segment
+        segments : sequence of Segment
             Propagated segments.
 
         """

@@ -20,14 +20,14 @@ class Report:
 
 
 class OpenMMPropagator(SerialPropagator):
-    """Molecular dynamics propagator built on the `OpenMM <https://openmm.org/>`_ toolkit.
+    """`OpenMM <https://openmm.org/>`_ molecular dynamics propagator.
 
     To create an initial state for this propagator,
     `save <https://docs.openmm.org/latest/api-python/generated/openmm.app.simulation.Simulation.html#openmm.app.simulation.Simulation.saveState>`_
-    an OpenMM State object to an XML file (e.g., ``state.xml``), and pass the
-    absolute path to the `file` parameter::
+    an OpenMM state to an XML file, and pass the absolute file path to the
+    :class:`State` constructor's `file` parameter::
 
-        state = westpa.State(file='/path/to/state.xml')
+        state = westpa.State(file=os.path.abspath('state.xml'))
 
     Parameters
     ----------
@@ -47,7 +47,7 @@ class OpenMMPropagator(SerialPropagator):
         Name of the XML file used to store the final state of a segment.
         Defaults to ``'final_state.xml'``.
     **kwargs
-        Arguments to pass to the :class:`SerialPropagator` base class constructor.
+        Keyword arguments to pass to the :class:`SerialPropagator` base class.
 
     Examples
     --------
@@ -139,8 +139,8 @@ class OpenMMPropagator(SerialPropagator):
         Parameters
         ----------
         reporter_type : type
-            Class compatible with the OpenMM reporter protocol. It must be
-            possible to create a reporter by calling
+            Class that implements the OpenMM reporter protocol. It must be
+            possible to create a reporter instance by calling
             ``reporter_type(filename, report_interval, **options)``.
         filename : str
             Name of the file to write output to.

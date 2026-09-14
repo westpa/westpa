@@ -1,98 +1,123 @@
 import logging
-from .subprocess import SubprocessPropagator
 import os
-import numpy as np
 import shutil
+import subprocess
 
-# Todo: Suggest adding a propagatorerror
-# from .base import Propagator, PropagatorError
-# Reads as: westpa.core.propagators.base.PropagatorError: Engine None was not found.
-from ..sim_manager import PropagationError
+import f90nml
+import numpy as np
 
-# Reads as: westpa.core.sim_manager.PropagationError: Engine None was not found.
+from .base import SerialPropagator
+from ..state import State
 
 logger = logging.getLogger(__name__)
 
 
-class AmberPropagator(SubprocessPropagator):
-    """Molecular dynamics propagator built for the `Amber <https://ambermd.org/>`_ molecular simulation package.
+class AmberPropagator(SerialPropagator):
+    """`Amber <https://ambermd.org/>`_ molecular dynamics propagator.
+
+    To create an initial state for this propagator, pass the absolute path of
+    an Amber coordinate file to the :class:`State` constructor's `file` parameter::
+
+        state = westpa.State(file=os.path.abspath('inpcrd'))
 
     Parameters
     ----------
-    md_parameters : dict
-        Dictionary of control parameters written to the Amber control input
-        (``mdin``) file.
-
-    prmtop_file : str
-        Path to the Amber topology (``.prmtop``) file.
-
+    prmtop_file : path-like
+        Parameter-topology file.
+    mdin_file : path-like
+        MD input file. The ``ig``, ``irest``, and ``ntx`` options are
+        dynamically overridden for each input segment.
     engine : str, optional
-        Amber molecular dynamics engine to use for propagation. Supported
-        values are:
+        Amber program to execute. Defaults to ``'pmemd.cuda'``, ``'pmemd'``,
+        or ``'sander'``, whichever is found first.
+    args : sequence of str, optional
+        Optional arguments to pass to `engine`.
+        The ``-p`` and ``-c`` arguments are reserved and cannot be overridden.
+    **kwargs
+        Keyword arguments to pass to the :class:`SerialPropagator` base class.
 
-        - ``sander``
-        - ``pmemd``
-        - ``pmemd.cuda``
+    Examples
+    --------
 
-        Default is ``"sander"``.
+    >>> import westpa
+    >>> propagator = westpa.AmberPropagator('prmtop', 'mdin')
+
     """
-
-    DEFAULT_FINAL_STATE_FILENAME = 'restrt'
 
     def __init__(
         self,
-        md_parameters: dict,  # dictionary of md input parameters that go in the mdin file
-        prmtop_file: str,  # path to topology file
-        engine: str = "sander",
+        prmtop_file,
+        mdin_file,
+        engine=None,
+        args=None,
         **kwargs,
     ):
-        super().__init__(final_state_filename=self.DEFAULT_FINAL_STATE_FILENAME, **kwargs)
-        self.md_parameters = md_parameters
+        super().__init__(**kwargs)
+
+        if engine is None:
+            for engine in ('pmemd.cuda', 'pmemd', 'sander'):
+                if shutil.which(engine):
+                    break
+            else:
+                raise RuntimeError('default Amber engine (pmemd.cuda, pmemd, or sander) not found')
+        elif not shutil.which(engine):
+            raise RuntimeError(f"couldn't find {engine!r} executable")
+
+        args = list(args) if args is not None else []
+        if '-p' in args or '-c' in args:
+            raise ValueError("invalid 'args' input: the -p and -c flags are not supported")
+
         self.prmtop_file = os.path.abspath(prmtop_file)
-        self.engine = engine.lower()
+        self.mdin_file = os.path.abspath(mdin_file)
+        self.engine = engine
+        self.args = args
 
-    def get_command(self, segment, rng):
+    def propagate(self, segment, rng):
+        segment_dir = self.make_segment_dir(segment)
 
-        md_parameters = self.md_parameters.copy()  # Make a copy to avoid modifying the original dictionary
+        # read user-provided mdin file
+        with open(self.mdin_file, 'r') as f:
+            title_line = f.readline()
+            mdin = f90nml.read(f)
 
-        # Check engine option is allowed
-        if self.engine.lower() not in ["sander", "pmemd", "pmemd.cuda"]:
-            raise PropagationError(f"Engine {self.engine} is not a valid engine option.")
-            raise PropagatorError(f"Engine {self.engine} was not found.")
-
-        # ===== start command construction handling =====
-        if not shutil.which(self.engine):
-            raise PropagationError(f"Engine {self.engine} not found in PATH.")
-            # raise PropagatorError(f"Engine {self.engine} was not found.")
-
-        cmd = self.engine
-        topology_flag = f"-p {self.prmtop_file}"
-        input_coord_flag = f"-c {segment.initial_state.file}"
-        cmd = cmd + " " + topology_flag + " " + input_coord_flag
-        # ===== end command construction handling =====
-
-        # ===== start mdin handling =====
-        md_parameters['ig'] = rng.integers(2**16, dtype=np.uint16)
+        # override 'ig', 'irest', and 'ntx' options
+        ig = rng.integers(2**16, dtype=np.uint16).item()
         if segment.initpoint_type == segment.InitPointType.NEWTRAJ:
-            md_parameters['irest'] = 0
-            md_parameters['ntx'] = 1
-        elif segment.initpoint_type == segment.InitPointType.CONTINUES:
-            md_parameters['irest'] = 1
-            md_parameters['ntx'] = 5
+            irest, ntx = 0, 1
+        else:
+            irest, ntx = 1, 5
+        mdin['cntrl'].update(ig=ig, irest=irest, ntx=ntx)
 
-        md_parameters_string = ',\n'.join(f'{k} = {v}' for k, v in md_parameters.items())
-        title = f"Segment run n_iter={segment.n_iter}, seg_id={segment.seg_id}"
-        md_parameters_string = f"{title}\n&cntrl\n{md_parameters_string}\n/\n"
-        # ===== end mdin handling =====
+        # write mdin file to segment directory
+        try:
+            idx = self.args.index('-i')
+        except ValueError:
+            mdin_file = os.path.join(segment_dir, 'mdin')  # Amber default
+        else:
+            mdin_file = os.path.join(segment_dir, self.args[idx + 1])
+        with open(mdin_file, 'w') as f:
+            f.write(title_line)
+            f90nml.write(mdin, f)
 
-        bash_script = f"""
-printf "{md_parameters_string}" > mdin
-{cmd}
-"""
-        # returning a bash script that will be run
-        return bash_script
+        # run amber
+        cmd = [self.engine, '-p', self.prmtop_file, '-c', segment.initial_state.file, *self.args]
+        completed_process = subprocess.run(
+            cmd,
+            cwd=segment_dir,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        with open(os.path.join(segment_dir, 'stderr.txt'), 'a') as f:
+            f.write(completed_process.stderr)
 
+        # retrieve the final state
+        try:
+            idx = self.args.index('-r')
+        except ValueError:
+            filename = 'restrt'  # Amber default
+        else:
+            filename = self.args[idx + 1]
+        segment.final_state = State(file=os.path.join(segment_dir, filename))
 
-# Todo: Basic tests tbd:'
-# utilize test ref,
-# utilize dummy segment, and use the input flags, to check if outputs are produced (do in tmp directory)
+        return segment
