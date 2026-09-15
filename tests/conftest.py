@@ -1,7 +1,7 @@
 import pytest
 import os
 import glob
-from shutil import copyfile, copy
+from shutil import copyfile, copy, copytree
 
 import numpy as np
 from scipy.io import netcdf_file
@@ -307,3 +307,41 @@ def nacl_restart_files(request, tmp_path):
 
     for file in request.cls.nacl_restart_files:
         copyfile(os.path.join(REFERENCE_PATH, file), request.cls.return_dir / file)
+
+
+@pytest.fixture
+def w_reverse_bstate_hdf5_files(request, tmp_path):
+    test_dir = str(tmp_path)
+    os.chdir(test_dir)
+    copyfile(os.path.join(REFERENCE_PATH, 'west_reverse_hdf5.cfg'), CFG_FILENAME)
+    copyfile(os.path.join(REFERENCE_PATH, 'west_reverse_hdf5.h5'), H5_FILENAME)
+    copyfile(os.path.join(REFERENCE_PATH, 'bstates.txt'), 'bstates.txt')
+    copytree(os.path.join(REFERENCE_PATH, 'traj_segs_reverse_hdf5'), 'traj_segs')
+    request.cls.cfg_filepath = CFG_FILENAME
+    request.cls.h5_filepath = H5_FILENAME
+    os.environ['WEST_SIM_ROOT'] = test_dir
+    westpa.rc = westpa.core._rc.WESTRC()
+    request.addfinalizer(clear_state)
+
+
+@pytest.fixture
+def w_reverse_bstate_no_hdf5_files(request, tmp_path):
+    test_dir = str(tmp_path)
+    os.chdir(test_dir)
+    copyfile(os.path.join(REFERENCE_PATH, 'west_reverse_hdf5.cfg'), 'tmp_west.cfg')
+    rclines = []
+    with open('tmp_west.cfg', 'r') as rcfile_in:
+        rclines += rcfile_in.readlines()
+    os.remove('tmp_west.cfg')
+    rclines = rclines[:32] + rclines[33:]
+    with open(CFG_FILENAME, 'w') as rcfile_out:
+        for line in rclines:
+            rcfile_out.write(line)
+    copyfile(os.path.join(REFERENCE_PATH, 'west_reverse_no_hdf5.h5'), H5_FILENAME)
+    copyfile(os.path.join(REFERENCE_PATH, 'bstates.txt'), 'bstates.txt')
+    copytree(os.path.join(REFERENCE_PATH, 'traj_segs_reverse_no_hdf5'), 'traj_segs')
+    request.cls.cfg_filepath = CFG_FILENAME
+    request.cls.h5_filepath = H5_FILENAME
+    os.environ['WEST_SIM_ROOT'] = test_dir
+    westpa.rc = westpa.core._rc.WESTRC()
+    request.addfinalizer(clear_state)
