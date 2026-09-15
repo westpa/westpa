@@ -1,6 +1,5 @@
 import argparse
 import os
-import shutil
 from filecmp import cmp
 from westpa.cli.tools.w_reverse import entry_point
 from unittest import mock
@@ -37,9 +36,6 @@ class Test_W_Reverse:
         assert cmp(
             'bstates.txt', './bstates_reverse/bstates.txt'
         ), 'The reference bstates.txt and the produced bstates.txt are not the same'
-        shutil.rmtree('traj_segs')
-        os.remove('west.h5')
-        os.remove('west.cfg')
 
     def test_run_w_reverse_hdf5_no_rst_file(selfi, w_reverse_bstate_hdf5_files):
         '''Testing if w_reverse runs as expected and the h5 files looks good.'''
@@ -69,9 +65,6 @@ class Test_W_Reverse:
         assert cmp(
             'bstates.txt', './bstates_reverse/bstates.txt'
         ), 'The reference bstates.txt and the produced bstates.txt are not the same'
-        shutil.rmtree('traj_segs')
-        os.remove('west.h5')
-        os.remove('west.cfg')
 
     def test_run_w_reverse_hdf5_rst_file(self, w_reverse_bstate_hdf5_files):
         '''Testing if w_reverse runs as expected and the h5 files looks good.'''
@@ -101,6 +94,3 @@ class Test_W_Reverse:
         assert cmp(
             'bstates.txt', './bstates_reverse/bstates.txt'
         ), 'The reference bstates.txt and the produced bstates.txt are not the same'
-        shutil.rmtree('traj_segs')
-        os.remove('west.h5')
-        os.remove('west.cfg')
