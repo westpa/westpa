@@ -1,11 +1,6 @@
 Python API
 ==========
 
-The public API is exported at the package level::
-
-   import westpa
-
-
 Data types
 ----------
 
@@ -19,8 +14,8 @@ Data types
    ~westpa.Sink
 
 
-Simulations
------------
+Simulation
+----------
 
 .. autosummary::
    :nosignatures:
@@ -28,8 +23,8 @@ Simulations
    ~westpa.Simulation
 
 
-Analysis
---------
+Analysis and visualization
+--------------------------
 
 .. autosummary::
    :nosignatures:

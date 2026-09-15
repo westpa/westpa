@@ -1,5 +1,5 @@
-Analysis
-========
+Analysis and visualization
+==========================
 
 .. autoclass:: westpa.TrajectoryTree
    :members:

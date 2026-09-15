@@ -21,17 +21,24 @@ Overall structure
 
 ::
 
-    /
-        iterations/
-            iter_00000001/
-                auxdata/
-                final_states
-                initial_states
-                pcoord
-                seg_index
-                wtgraph
-            ...
-        summary
+    / (root)
+    ├── @westpa_fileformat_version
+    ├── @westpa_iter_prec
+    │
+    ├── iterations/
+    │   ├── iter_00000001/
+    │   │   ├── auxdata/ (optional)
+    │   │   ├── final_states
+    │   │   ├── initial_states
+    │   │   ├── pcoord
+    │   │   ├── seg_index
+    │   │   └── wtgraph
+    │   │
+    │   └── iter_00000002/
+    │       ...
+    │
+    └── summary
+
 
 Root group (/)
 --------------

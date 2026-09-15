@@ -5,15 +5,15 @@ Data types
 
 .. autoclass:: westpa.Segment
    :members:
-   :exclude-members: to_dict, from_dict, Status, InitPointType, EndPointType
+   :exclude-members: to_dict, from_dict, Status, InitPoint, EndPoint
 
 .. autoclass:: westpa.Segment.Status()
    :noindex:
    :members:
-.. autoclass:: westpa.Segment.InitPointType()
+.. autoclass:: westpa.Segment.InitPoint()
    :noindex:
    :members:
-.. autoclass:: westpa.Segment.EndPointType()
+.. autoclass:: westpa.Segment.EndPoint()
    :noindex:
    :members:
 
