@@ -26,6 +26,7 @@ class Test_W_Reverse:
                 use_weights=True,
                 seed=12345,
                 verbosity=10,
+                rcfile='west.cfg',
             ),
         ):
             entry_point()
@@ -57,6 +58,7 @@ class Test_W_Reverse:
                 use_weights=True,
                 seed=12345,
                 verbosity=10,
+                rcfile='west.cfg',
             ),
         ):
             entry_point()
@@ -88,6 +90,7 @@ class Test_W_Reverse:
                 use_weights=True,
                 seed=12345,
                 verbosity=10,
+                rcfile='west.cfg',
             ),
         ):
             entry_point()
