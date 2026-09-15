@@ -98,9 +98,8 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         )
         rgroup.add_argument(
             "--use-weights",
-            "-nw",
-            type=bool,
-            action='store_false',
+            "-uw",
+            action='store_true',
             dest="use_weights",
             help="Include the recycled event weight when making the bstates.txt file",
         )
@@ -276,9 +275,9 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
                         f'A restart file starting with {iteration:06d}_{walker:06d} should be present in the output directory but is not!!!'
                     )
                 if self.use_weights:
-                    bstates_f.write(f"{idx} {weight / total_weight:.3e} {rst_dest_name}\n")
+                    bstates_f.write(f"{idx} {(weight / total_weight):.3e} {rst_dest_name}\n")
                 else:
-                    bstates_f.write(f"{idx} {1 / total_pairs:.3e)} {rst_dest_name}\n")
+                    bstates_f.write(f"{idx} {(1 / total_pairs):.3e} {rst_dest_name}\n")
 
 
 def entry_point():
