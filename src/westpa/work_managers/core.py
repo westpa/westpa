@@ -22,6 +22,7 @@ class WorkManager:
 
     @classmethod
     def from_environ(cls, wmenv=None):
+        '''Method for pulling environment variables.'''
         raise NotImplementedError
 
     @classmethod
@@ -37,10 +38,12 @@ class WorkManager:
         self.running = False
 
     def __enter__(self):
+        '''What is executed when entering a context manager.'''
         self.startup()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_traceback):
+        '''What is executed when exiting a context manager.'''
         self.shutdown()
         return False
 
@@ -59,11 +62,13 @@ class WorkManager:
             self.prior_sigint_handler = signal.signal(signal.SIGINT, self.sigint_handler)
 
     def startup(self):
-        '''Perform any necessary startup work, such as spawning clients.'''
+        '''Perform any necessary startup work, such as spawning clients. Called
+        as part of entering a context manager or to be called manually by the CLI tool.'''
         self.running = True
 
     def shutdown(self):
-        '''Cleanly shut down any active workers.'''
+        '''Cleanly shut down any active workers. Automatically called as part of
+        exiting a context manager or to be called manually by the CLI tool.'''
         self.running = False
 
     def run(self):

@@ -16,6 +16,8 @@ dependencies:
   - tqdm
   - mdtraj
   - mdanalysis
+  - dask
+  - distributed
   # testing
   - pytest
   - pytest-cov

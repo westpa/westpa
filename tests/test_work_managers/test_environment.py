@@ -1,10 +1,21 @@
 import argparse
 import os
+import pytest
 import unittest
 
 import westpa.work_managers.environment
 from westpa.work_managers.environment import make_work_manager, add_wm_args, process_wm_args
-from westpa.work_managers import SerialWorkManager, ThreadsWorkManager, ProcessWorkManager, ZMQWorkManager
+from westpa.work_managers import (
+    SerialWorkManager,
+    ThreadsWorkManager,
+    ProcessWorkManager,
+    ZMQWorkManager,
+)
+
+try:
+    from westpa.work_managers import DaskWorkManager
+except ImportError:
+    pass
 
 from .tsupport import will_succeed, will_wait
 
@@ -89,3 +100,31 @@ class TestInstantiations(unittest.TestCase):
                 assert result
 
             assert work_manager.n_workers == 3
+
+    def testDask(self):
+        pytest.importorskip('dask')
+        pytest.importorskip('dask.distributed')
+
+        os.environ['WM_WORK_MANAGER'] = 'dask'
+        os.environ['WM_N_WORKERS'] = str(3)
+        os.environ['WM_DASK_THREADS_PER_WORKER'] = str(1)
+        os.environ['WM_DASK_MEMORY_LIMIT'] = '1GiB'
+
+        work_manager = make_work_manager()
+        assert isinstance(work_manager, DaskWorkManager)
+
+        assert work_manager.kwargs['n_workers'] == 3
+        assert work_manager.kwargs['threads_per_worker'] == 1
+        assert work_manager.kwargs['memory_limit'] == '1GiB'
+
+        with work_manager:
+            future = work_manager.submit(will_succeed)
+            result = future.get_result(discard=True)
+            assert result
+
+            assert work_manager.running
+            assert work_manager.n_workers == 3
+
+        assert work_manager.running is False
+        assert work_manager.client.status == 'closed'
+        assert work_manager.cluster is None
