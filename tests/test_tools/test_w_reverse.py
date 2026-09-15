@@ -25,6 +25,7 @@ class Test_W_Reverse:
                 output_bstates_file='bstates.txt',
                 use_weights=True,
                 seed=12345,
+                verbosity=10,
             ),
         ):
             entry_point()
@@ -55,6 +56,7 @@ class Test_W_Reverse:
                 output_bstates_file='bstates.txt',
                 use_weights=True,
                 seed=12345,
+                verbosity=10,
             ),
         ):
             entry_point()
@@ -85,6 +87,7 @@ class Test_W_Reverse:
                 output_bstates_file='bstates.txt',
                 use_weights=True,
                 seed=12345,
+                verbosity=10,
             ),
         ):
             entry_point()
