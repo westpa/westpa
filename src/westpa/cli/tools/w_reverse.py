@@ -190,7 +190,6 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
         if self.rst_file in files:
             rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
             shutil.copyfile(os.path.join(search_folder, self.rst_file), os.path.join(self.output_bstates_dir, rst_dest_name))
-            return rst_dest_name
         elif self.rst_extension:
             possible_hits = [file for file in files if file.endswith(self.rst_extension)]
             if len(possible_hits) > 1:
@@ -200,25 +199,24 @@ The output directory (--output-bstates-dir,-obd, by default "bstates_reverse") c
                 )
             rst_dest_name = f"{iteration:06d}_{walker:06d}.{self.rst_extension}"
             shutil.copyfile(os.path.join(search_folder, possible_hits[-1]), os.path.join(self.output_bstates_dir, rst_dest_name))
-            return rst_dest_name
-        possible_hits = []
-        for test_extension in self.traj_exc_exts:
-            possible_hits += [file for file in files if file.endswith(test_extension)]
-        if len(possible_hits) < 1:
-            for test_extension in self.traj_or_top_exts:
+        else:
+            possible_hits = []
+            for test_extension in self.traj_exc_exts:
                 possible_hits += [file for file in files if file.endswith(test_extension)]
-        if len(possible_hits) == 1:
-            log.warning(
-                f'Found {possible_hits[-1]} as restart file for iteration {iteration} and walker {walker} based on mdtraj extensions. if this is incorrect, provide a file name using flag --rst-file'
-            )
-        if len(possible_hits) > 1:
-            possible_hits = sorted(possible_hits, key=lambda file: os.path.getctime(os.path.join(search_folder, file)))
-            log.warning(
-                f'Found {possible_hits[-1]} as restart file for iteration {iteration} and walker {walker} based on file creation times. if this is incorrect, provide a file name using flag --rst-file'
-            )
-        rst_dest_name = f"{iteration:06d}_{walker:06d}.{possible_hits[-1].split('.')[-1]}"
-        shutil.copyfile(os.path.join(search_folder, possible_hits[-1]), os.path.join(self.output_bstates_dir, rst_dest_name))
-        return rst_dest_name
+            if len(possible_hits) < 1:
+                for test_extension in self.traj_or_top_exts:
+                    possible_hits += [file for file in files if file.endswith(test_extension)]
+            if len(possible_hits) == 1:
+                log.warning(
+                    f'Found {possible_hits[-1]} as restart file for iteration {iteration} and walker {walker} based on mdtraj extensions. if this is incorrect, provide a file name using flag --rst-file'
+                )
+            if len(possible_hits) > 1:
+                possible_hits = sorted(possible_hits, key=lambda file: os.path.getctime(os.path.join(search_folder, file)))
+                log.warning(
+                    f'Found {possible_hits[-1]} as restart file for iteration {iteration} and walker {walker} based on file creation times. if this is incorrect, provide a file name using flag --rst-file'
+                )
+            rst_dest_name = f"{iteration:06d}_{walker:06d}.{possible_hits[-1].split('.')[-1]}"
+            shutil.copyfile(os.path.join(search_folder, possible_hits[-1]), os.path.join(self.output_bstates_dir, rst_dest_name))
 
     def go(self):
         '''Main public method for running w_reverse. Runs w_succ to find the successful trajectories then iterates over them to copy the trajectories to the output_bstates_dir. Then it iterates over the trajectories again to make the output_bstates_file.'''

@@ -15,8 +15,8 @@ class Test_W_Reverse(unittest.TestCase):
         ref_dir = os.path.join(os.path.dirname(__file__), '../refs')
         shutil.copy2(os.path.join(ref_dir, 'west_reverse_hdf5.cfg'), './tmp_west.cfg')
         rclines = []
-        with open('tmp_west.cfg', 'w') as rcfile_in:
-            rclines = rcfile_in.readlines()
+        with open('tmp_west.cfg', 'r') as rcfile_in:
+            rclines += rcfile_in.readlines()
         os.remove('tmp_west.cfg')
         rclines = rclines[:32] + rclines[33:]
         with open('west.cfg', 'w') as rcfile_out:
