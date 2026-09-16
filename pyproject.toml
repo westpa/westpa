@@ -35,7 +35,7 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "numpy >= 2.0.0,<3",
+    "numpy >= 2.0.0, <3",
     "scipy >= 1.13.0",
     "h5py >= 3.0.0",
     "mdtraj >= 1.10.2",
@@ -50,6 +50,7 @@ dependencies = [
     "sortedcontainers",
     "networkx",
     "pygraphviz >= 2.0.0",
+    "f90nml",
 ]
 
 [project.optional-dependencies]

@@ -110,13 +110,8 @@ class DataManager(WESTDataManager):
             # the changes out to HDF5
             seg_index_table_ds[:] = seg_index_table
 
-            prepared_segments = [s for s in segments if s.initial_state is not None]
-            if prepared_segments:
+            if prepared_segments := [seg for seg in segments if seg.status == seg.Status.PREPARED]:
                 self.write_initial_states(n_iter, prepared_segments)
-
-    def finalize_iteration(self, n_iter, segments):
-        self.update_seg_index(n_iter, segments)
-        self.write_auxdata(n_iter, segments)
 
     def update_seg_index(self, n_iter, segments):
         """Update the ``seg_index`` dataset for a given iteration. All prior
@@ -233,7 +228,11 @@ class DataManager(WESTDataManager):
             iter_group = self.get_iter_group(n_iter)
             n_total_segments = iter_group['seg_index'].shape[0]
 
-            ds = iter_group.require_dataset('initial_states', (n_total_segments,), dtype=dtype)
+            dsname = 'initial_states'
+            if dsname in iter_group:
+                ds = iter_group[dsname]
+            else:
+                ds = iter_group.create_dataset(dsname, (n_total_segments,), dtype=dtype)
             dsid = ds.id
 
             msel = h5s.create_simple(entries.shape, (h5s.UNLIMITED,))
@@ -265,7 +264,11 @@ class DataManager(WESTDataManager):
             iter_group = self.get_iter_group(n_iter)
             n_total_segments = iter_group['seg_index'].shape[0]
 
-            ds = iter_group.require_dataset('final_states', (n_total_segments,), dtype=dtype)
+            dsname = 'final_states'
+            if dsname in iter_group:
+                ds = iter_group[dsname]
+            else:
+                ds = iter_group.create_dataset(dsname, (n_total_segments,), dtype=dtype)
             dsid = ds.id
 
             msel = h5s.create_simple(entries.shape, (h5s.UNLIMITED,))

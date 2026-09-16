@@ -1,6 +1,6 @@
 import logging
 import operator
-from collections.abc import MutableSet
+from collections.abc import MutableSet, Sequence
 
 import numpy as np
 from sortedcontainers import SortedSet
@@ -10,38 +10,41 @@ logger = logging.getLogger(__name__)
 EPS = np.finfo(np.float64).eps
 
 
-# Under the hood,
-class Bin(MutableSet):
-    """A mutable, sorted set of :class:`Segment` objects. The segments in a bin
-    are sorted in increasing order of weight, and the order is automatically
-    maintained as the bin is updated.
+class Bin(MutableSet, Sequence):
+    """Mutable set of segments, sorted in increasing order of weight.
+    The order is automatically maintained as the bin is updated.
 
     Parameters
     ----------
-    segments : iterable of :class:`Segment`, optional
-        Segments to add to the bin.
+    segments : iterable of Segment, optional
+        Initial set of segments.
     label : str, optional
         Bin label.
 
     Attributes
     ----------
     label : str or None
+        Bin label.
     weight : float
+        Total weight of all the segments in the bin.
 
-    Methods
-    -------
-    __contains__
-    __getitem__
-    __iter__
-    __len__
-    add
-    discard
-    clear
-    weights
-    bisect_weights
-    reweight
-    split
-    merge
+    Examples
+    --------
+
+    Create a bin containing three segments:
+
+    >>> import westpa
+    >>> segments = [westpa.Segment(weight=weight) for weight in [0.3, 0.1, 0.2]]
+    >>> bin_ = westpa.Bin(segments)
+    >>> bin_.weights()
+    array([0.1, 0.2, 0.3])
+
+    Get the segment with the smallest or largest weight:
+
+    >>> bin_[0]
+    <Segment n_iter=None, seg_id=None, weight=0.1, parent_id=None at 0x1056d2990>
+    >>> bin_[-1]
+    <Segment n_iter=None, seg_id=None, weight=0.3, parent_id=None at 0x16a4f5580>
 
     """
 
@@ -92,12 +95,10 @@ class Bin(MutableSet):
 
     @property
     def label(self):
-        """Bin label."""
         return self._label
 
     @property
     def weight(self):
-        """Total weight of all segments in the bin."""
         return sum(map(self._segments.key, self))
 
     def weights(self):
@@ -105,8 +106,8 @@ class Bin(MutableSet):
 
         Returns
         -------
-        weights : numpy.ndarray
-            Sorted array of weights.
+        weights : 1-D numpy.ndarray
+            Sorted array of segment weights.
 
         """
         return np.array(list(map(self._segments.key, self)))
@@ -143,7 +144,7 @@ class Bin(MutableSet):
         Parameters
         ----------
         new_weight : float
-            New :attr:`weight` of the bin after reweighting. Must be between 0 and 1.
+            New bin weight after reweighting. Must be between 0 and 1.
 
         Returns
         -------
@@ -160,79 +161,5 @@ class Bin(MutableSet):
             return
 
         ratio = new_weight / self.weight
-        segments = [segment.replace(weight=ratio * segment.weight) for segment in self]
+        segments = [segment.copy(weight=ratio * segment.weight) for segment in self]
         self._segments = SortedSet(segments, key=operator.attrgetter('weight'))
-
-    def split(self, segment, m=2):
-        """Split a segment into two or more copies.
-
-        This method modifies the bin by replacing the given `segment` with the
-        returned `new_segments`.
-
-        Parameters
-        ----------
-        segment : :class:`Segment`
-            Segment to split.
-        m : int, default 2
-            Number of copies to split `segment` into.
-
-        Returns
-        -------
-        new_segments : set of :class:`Segment`
-            New segments created by splitting `segment`.
-
-        """
-        if not isinstance(m, int):
-            raise TypeError("'m' must be an integer")
-        if not m >= 2:
-            raise ValueError("'m' must be greater than or equal to 2")
-
-        new_weight = segment.weight / m
-        new_segments = {segment.replace(weight=new_weight) for _ in range(m)}
-
-        self._segments.remove(segment)
-        self._segments |= new_segments
-
-        return new_segments
-
-    def merge(self, segments, cumulative_weight=None, rng=None):
-        """Merge multiple segments into a single segment. The surviving walker
-        is chosen randomly according to weight.
-
-        This method modifies the bin by replacing the given `segments` with the
-        returned `new_segment`.
-
-        Parameters
-        ----------
-        segments : iterable of :class:`Segment`
-            Segments to merge.
-        cumulative_weight : float, optional
-            Cumulative weight of `segments`. If not passed, the value will be
-            computed by this function.
-        rng : numpy.random.Generator, optional
-            Pseudo-random number generator to use. Defaults to
-            ``numpy.random.default_rng()``.
-
-        Returns
-        -------
-        new_segment : :class:`Segment`
-            New segment created by merging `segments`.
-
-        """
-        segments = list(segments)
-        weights = np.array(list(map(operator.attrgetter('weight'), segments)))
-
-        if cumulative_weight is None:
-            cumulative_weight = weights.sum()
-
-        rng = np.random.default_rng(rng)
-        segment = rng.choice(segments, p=weights / cumulative_weight)
-        new_segment = segment.replace(
-            weight=cumulative_weight,
-            wtg_parent_ids=set.union(*(segment.wtg_parent_ids for segment in segments)),
-        )
-
-        self._segments -= segments
-        self._segments.add(new_segment)
-
-        return new_segment

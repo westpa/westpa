@@ -1,10 +1,17 @@
 __all__ = [
-    "Resampler",
-    "HuberKimResampler",
-    "MultinomialResampler",
-    "ResidualResampler",
+    'ResamplerBase',
+    'HuberKimResampler',
+    'MultinomialResampler',
+    'ResidualResampler',
+    'StratifiedResampler',
+    'SystematicResampler',
 ]
 
-from .base import Resampler
+from .base import ResamplerBase
 from .huber_kim import HuberKimResampler
-from .equal_weight import MultinomialResampler, ResidualResampler
+from .equal_weight import (
+    MultinomialResampler,
+    ResidualResampler,
+    StratifiedResampler,
+    SystematicResampler,
+)

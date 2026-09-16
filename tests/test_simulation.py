@@ -4,7 +4,6 @@ import pytest
 import numpy as np
 import westpa
 
-from westpa.core.sim_manager import PropagationError
 from westpa.core.binning import NopMapper
 from westpa.work_managers import SerialWorkManager
 
@@ -27,11 +26,10 @@ class TrivialPropagator(westpa.SerialPropagator):
 
 
 class FailingPropagator(westpa.SerialPropagator):
-    """Always marks segments as failed."""
+    """Always raises an exception."""
 
-    def propagate(self, segment):
-        segment.mark_as_failed("deliberate test failure")
-        return segment
+    def propagate(self, segment, rng):
+        raise RuntimeError("deliberate test failure")
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +91,7 @@ class TestSimulationConstructor:
         assert sim.istate_generator is None
 
     def test_invalid_propagator_type(self, datafile):
-        with pytest.raises(TypeError, match="'propagator' must be callable or None"):
+        with pytest.raises(TypeError, match="'propagator' must be callable"):
             westpa.Simulation(
                 datafile=datafile,
                 propagator="not_a_propagator",
@@ -108,7 +106,7 @@ class TestSimulationConstructor:
             )
 
     def test_invalid_resampler_type(self, datafile, propagator):
-        with pytest.raises(TypeError, match="'resampler' must be a Resampler object"):
+        with pytest.raises(TypeError, match="'resampler' must be callable"):
             westpa.Simulation(
                 datafile=datafile,
                 propagator=propagator,
@@ -125,7 +123,7 @@ class TestSimulationConstructor:
 
     def test_source_without_sink_raises(self, datafile, propagator):
         source = westpa.Source(westpa.State(coord=[0.0]))
-        with pytest.raises(ValueError, match="'source' and 'sinks' must be provided together"):
+        with pytest.raises(ValueError, match="'source' and 'sink' must be provided together"):
             westpa.Simulation(
                 datafile=datafile,
                 propagator=propagator,
@@ -134,11 +132,11 @@ class TestSimulationConstructor:
 
     def test_sink_without_source_raises(self, datafile, propagator):
         sink = westpa.Sink(lambda seg: seg.pcoord[-1, 0] > 1.0)
-        with pytest.raises(ValueError, match="'source' and 'sinks' must be provided together"):
+        with pytest.raises(ValueError, match="'source' and 'sink' must be provided together"):
             westpa.Simulation(
                 datafile=datafile,
                 propagator=propagator,
-                sinks=[sink],
+                sink=sink,
             )
 
     def test_source_and_sink_together(self, datafile, propagator):
@@ -148,29 +146,22 @@ class TestSimulationConstructor:
             datafile=datafile,
             propagator=propagator,
             source=source,
-            sinks=[sink],
+            sink=sink,
         )
         assert sim.source is source
         assert sim.sinks[0] is sink
 
     def test_invalid_istate_generator_type(self, datafile, propagator):
+        source = westpa.Source(westpa.State(coord=[0.0]))
+        sink = westpa.Sink(lambda seg: seg.pcoord[-1, 0] > 1.0)
         with pytest.raises(TypeError, match="'istate_generator' must be callable"):
             westpa.Simulation(
                 datafile=datafile,
                 propagator=propagator,
+                source=source,
+                sink=sink,
                 istate_generator="not_callable",
             )
-
-    def test_plugins_added_in_priority_order(self, datafile, propagator):
-        p_low = westpa.Plugin(priority=0)
-        p_mid = westpa.Plugin(priority=5)
-        p_high = westpa.Plugin(priority=10)
-        sim = westpa.Simulation(
-            datafile=datafile,
-            propagator=propagator,
-            plugins=[p_high, p_low, p_mid],
-        )
-        assert list(sim.plugins) == [p_low, p_mid, p_high]
 
     def test_custom_bin_mapper_and_target_counts(self, datafile, propagator):
         mapper = westpa.RectilinearBinMapper([[-np.inf, 0.5, np.inf]])  # 2 bins
@@ -185,89 +176,32 @@ class TestSimulationConstructor:
 
 
 # ---------------------------------------------------------------------------
-# update_bins tests
+# configure_recycling + disable_recycling tests
 # ---------------------------------------------------------------------------
 
 
-class TestUpdateBins:
-    def test_integer_target_counts_broadcast(self, sim):
-        mapper = westpa.RectilinearBinMapper([[-np.inf, 0.5, np.inf]])  # 2 bins
-        sim.update_bins(mapper, target_counts=5)
-        np.testing.assert_array_equal(sim.bin_target_counts, [5, 5])
-
-    def test_sequence_target_counts(self, sim):
-        mapper = westpa.RectilinearBinMapper([[-np.inf, 0.5, np.inf]])  # 2 bins
-        sim.update_bins(mapper, target_counts=[3, 7])
-        np.testing.assert_array_equal(sim.bin_target_counts, [3, 7])
-        assert sim.bin_mapper is mapper
-
-    def test_invalid_mapper_type(self, sim):
-        with pytest.raises(TypeError, match="'mapper' must be a BinMapper"):
-            sim.update_bins("not_a_mapper", target_counts=1)
-
-    def test_target_counts_length_mismatch(self, sim):
-        mapper = westpa.RectilinearBinMapper([[-np.inf, 0.5, np.inf]])  # 2 bins
-        with pytest.raises(ValueError, match="length of 'target_counts' must equal"):
-            sim.update_bins(mapper, target_counts=[1, 2, 3])
-
-    def test_target_counts_zero_raises(self, sim):
-        mapper = westpa.RectilinearBinMapper([[-np.inf, 0.5, np.inf]])  # 2 bins
-        with pytest.raises(ValueError, match="'target_counts' must be positive"):
-            sim.update_bins(mapper, target_counts=[0, 1])
-
-    def test_target_counts_negative_raises(self, sim):
-        mapper = westpa.RectilinearBinMapper([[-np.inf, 0.5, np.inf]])  # 2 bins
-        with pytest.raises(ValueError, match="'target_counts' must be positive"):
-            sim.update_bins(mapper, target_counts=[-1, 1])
-
-
-# ---------------------------------------------------------------------------
-# update_source_and_sinks tests
-# ---------------------------------------------------------------------------
-
-
-class TestUpdateSourceAndSinks:
-    def test_valid_update(self, sim):
-        source = westpa.Source(westpa.State(coord=[0.0]))
+class TestConfigureRecycling:
+    def test_valid_config(self, sim):
+        source = westpa.Source(westpa.State([0.0]))
         sink = westpa.Sink(lambda seg: seg.pcoord[-1, 0] > 1.0)
-        sim.update_source_and_sinks(source, [sink])
+
+        sim.configure_recycling(source, sink)
         assert sim.source is source
         assert sim.sinks[0] is sink
+
+        sim.disable_recycling()
+        assert sim.source is None
+        assert sim.sinks == ()
 
     def test_invalid_source_type(self, sim):
         sink = westpa.Sink(lambda seg: seg.pcoord[-1, 0] > 1.0)
         with pytest.raises(TypeError, match="'source' must be a Source object"):
-            sim.update_source_and_sinks("not_a_source", [sink])
+            sim.configure_recycling("not_a_source", sink)
 
     def test_invalid_sink_type(self, sim):
-        source = westpa.Source(westpa.State(coord=[0.0]))
-        with pytest.raises(TypeError, match="'sinks' must be a Sink object or an iterable of Sink objects"):
-            sim.update_source_and_sinks(source, ["not_a_sink"])
-
-
-# ---------------------------------------------------------------------------
-# add_plugin tests
-# ---------------------------------------------------------------------------
-
-
-class TestAddPlugin:
-    def test_add_valid_plugin(self, sim):
-        plugin = westpa.Plugin(priority=0)
-        sim.add_plugin(plugin)
-        assert plugin in sim.plugins
-
-    def test_add_invalid_plugin_type(self, sim):
-        with pytest.raises(TypeError, match="'plugin' must be a Plugin"):
-            sim.add_plugin("not_a_plugin")
-
-    def test_plugins_sorted_by_priority(self, sim):
-        p_high = westpa.Plugin(priority=10)
-        p_low = westpa.Plugin(priority=0)
-        sim.add_plugin(p_high)
-        sim.add_plugin(p_low)
-        ordered = list(sim.plugins)
-        assert ordered[0] is p_low
-        assert ordered[1] is p_high
+        source = westpa.Source(westpa.State([0.0]))
+        with pytest.raises(TypeError, match="'sink' must be a Sink object or an iterable of Sink objects"):
+            sim.configure_recycling(source, "not_a_sink")
 
 
 # ---------------------------------------------------------------------------
@@ -279,23 +213,23 @@ class TestInitialize:
     def test_initialize_single_state(self, sim, tmp_path):
         sim.initialize(westpa.State(coord=[0.5]))
         assert (tmp_path / "west.h5").exists()
-        assert len(sim.get_segments()) == 1
+        assert len(sim.segments) == 1
 
     def test_initialize_multiple_states(self, sim):
         states = [westpa.State(coord=[float(i)]) for i in range(4)]
         sim.initialize(states)
-        assert len(sim.get_segments()) == 4
+        assert len(sim.segments) == 4
 
     def test_initialize_uniform_weights(self, sim):
         states = [westpa.State(coord=[float(i)]) for i in range(4)]
         sim.initialize(states)
-        weights = [seg.weight for seg in sim.get_segments()]
+        weights = [seg.weight for seg in sim.segments]
         assert all(pytest.approx(w) == 0.25 for w in weights)
 
     def test_initialize_custom_weights_normalized(self, sim):
         states = [westpa.State(coord=[float(i)]) for i in range(3)]
         sim.initialize(states, weights=[1, 2, 1])
-        weights = [seg.weight for seg in sim.get_segments()]
+        weights = [seg.weight for seg in sim.segments]
         assert pytest.approx(sum(weights)) == 1.0
         # The segment with weight=2 gets 2/4 = 0.5
         assert pytest.approx(max(weights)) == 0.5
@@ -314,19 +248,19 @@ class TestInitialize:
     def test_initialize_segments_are_prepared(self, sim):
         states = [westpa.State(coord=[float(i)]) for i in range(2)]
         sim.initialize(states)
-        for seg in sim.get_segments():
+        for seg in sim.segments:
             assert seg.status == westpa.Segment.Status.PREPARED
 
     def test_initialize_segment_initial_states_match(self, sim):
         states = [westpa.State(coord=[0.0]), westpa.State(coord=[1.0])]
         sim.initialize(states)
-        init_coords = {tuple(seg.initial_state.coord) for seg in sim.get_segments()}
+        init_coords = {tuple(seg.initial_state.coord) for seg in sim.segments}
         assert (0.0,) in init_coords
         assert (1.0,) in init_coords
 
     def test_initialize_sets_iteration_to_one(self, sim):
         sim.initialize(westpa.State(coord=[0.5]))
-        assert sim.current_iteration == 1
+        assert sim.n_iter == 1
 
 
 # ---------------------------------------------------------------------------
@@ -338,18 +272,18 @@ class TestRun:
     def test_run_one_iteration(self, sim):
         sim.initialize(westpa.State(coord=[0.0]))
         sim.run(n_iters=1)
-        assert len(sim.get_segments()) == 1  # NopMapper with target_count=1
+        assert len(sim.segments) == 1  # NopMapper with target_count=1
 
     def test_run_multiple_iterations(self, sim):
         sim.initialize(westpa.State(coord=[0.0]))
         sim.run(n_iters=3)
-        assert sim.current_iteration == 4  # started at 1, ran 3 iterations
+        assert sim.n_iter == 4  # started at 1, ran 3 iterations
 
     def test_run_preserves_total_probability(self, sim):
         states = [westpa.State(coord=[float(i) * 0.1]) for i in range(4)]
         sim.initialize(states)
         sim.run(n_iters=2)
-        total_weight = sum(seg.weight for seg in sim.get_segments())
+        total_weight = sum(seg.weight for seg in sim.segments)
         assert pytest.approx(total_weight) == 1.0
 
     def test_run_with_rectilinear_bin_mapper(self, datafile, propagator):
@@ -362,40 +296,15 @@ class TestRun:
         states = [westpa.State(coord=[0.1]), westpa.State(coord=[0.2])]
         sim.initialize(states)
         sim.run(n_iters=2)
-        assert sim.current_iteration == 3
+        assert sim.n_iter == 3
 
-    def test_run_calls_plugin_hooks(self, sim):
-        hook_calls = []
-
-        class TrackingPlugin(westpa.Plugin):
-            def prepare_run(self, sim):
-                hook_calls.append('prepare_run')
-
-            def finalize_run(self, sim):
-                hook_calls.append('finalize_run')
-
-            def prepare_iteration(self, sim):
-                hook_calls.append('prepare_iteration')
-
-            def pre_we(self, sim):
-                hook_calls.append('pre_we')
-
-        sim.add_plugin(TrackingPlugin())
-        sim.initialize(westpa.State(coord=[0.0]))
-        sim.run(n_iters=2)
-
-        assert hook_calls.count('prepare_run') == 1
-        assert hook_calls.count('prepare_iteration') == 2
-        assert hook_calls.count('pre_we') == 2
-        assert hook_calls.count('finalize_run') == 1
-
-    def test_propagation_error_is_raised(self, datafile):
+    def test_failing_propagator(self, datafile):
         sim = westpa.Simulation(
             datafile=datafile,
             propagator=FailingPropagator(),
         )
         sim.initialize(westpa.State(coord=[0.0]))
-        with pytest.raises(PropagationError):
+        with pytest.raises(RuntimeError):
             sim.run(n_iters=1)
 
     def test_run_with_source_and_sink(self, datafile, propagator):
@@ -408,16 +317,16 @@ class TestRun:
             datafile=datafile,
             propagator=TrivialPropagator(delta=1.0),  # large step → always sinks
             source=source,
-            sinks=sink,
+            sink=sink,
         )
         states = [westpa.State(coord=[0.0])]
         sim.initialize(states)
 
         sim.run(n_iters=2)
-        total_weight = sum(seg.weight for seg in sim.get_segments())
+        total_weight = sum(seg.weight for seg in sim.segments)
         assert pytest.approx(total_weight) == 1.0
 
-        for segment in sim.get_segments():
+        for segment in sim.segments:
             assert segment.initial_state is None
             assert segment.status == segment.Status.UNSET
 
@@ -438,7 +347,7 @@ class TestRun:
         with pytest.raises(RuntimeError, match="already initialized"):
             sim2.initialize(westpa.State(coord=[0.0]))
         sim2.run(n_iters=2)
-        assert sim2.current_iteration == 5
+        assert sim2.n_iter == 5
 
 
 class TestPCoordCalculator:

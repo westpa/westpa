@@ -1,4 +1,3 @@
-import functools
 import io
 import itertools
 import logging
@@ -9,15 +8,12 @@ import time
 from datetime import timedelta
 
 import numpy as np
-from sortedcontainers import SortedList
 
 from .state import State
 from .segment import Segment
-from .binning import BinMapper, NopMapper
-from .resamplers import HuberKimResampler, Resampler
+from .binning import NopMapper
+from .resamplers import HuberKimResampler
 from .source_sink import Source, Sink
-from .plugins import Plugin
-from .sim_manager import PropagationError
 from ._data_manager import DataManager
 from ..work_managers import SerialWorkManager
 from ..work_managers.core import WorkManager
@@ -38,21 +34,25 @@ def batched(iterable, n, *, strict=False):
         yield batch
 
 
-# decorator for methods that require initialization
-def requires_initialization(func):
-    @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if not self.initialized:
-            raise RuntimeError(f'simulation must be initialized before calling {func.__name__!r}')
-        return func(self, *args, **kwargs)
-
-    return wrapper
-
-
 def default_pcoord(segment):
     if (state := segment.initial_state.coord) is None:
         raise ValueError(f"can't use default progress coordinate: {state} doesn't have a 'coord' value")
     return np.stack((segment.initial_state.coord, segment.final_state.coord))
+
+
+def _report_bin_statistics(bins):
+    bin_counts = np.fromiter(map(len, bins), dtype=int, count=len(bins))
+    bin_probs = np.fromiter(map(operator.attrgetter('weight'), bins), dtype=float, count=len(bins))
+
+    min_bin_prob = bin_probs[bin_probs != 0].min()
+    max_bin_prob = bin_probs.max()
+    bin_drange = math.log(max_bin_prob / min_bin_prob)
+    n_pop = np.count_nonzero(bin_counts)
+
+    logger.info('{:d} of {:d} ({:%}) bins are populated'.format(n_pop, len(bins), n_pop / len(bins)))
+    logger.info('minimum non-zero bin probability:       {:g}'.format(min_bin_prob))
+    logger.info('maximum bin probability:                {:g}'.format(max_bin_prob))
+    logger.info('bin probability dynamic range (kT):     {:g}'.format(bin_drange))
 
 
 class Simulation:
@@ -60,83 +60,88 @@ class Simulation:
 
     Parameters
     ----------
-    datafile : str or io.BytesIO
-        HDF5 file used to store simulation data. Either a pathname (e.g.,
-        ``'west.h5'``) or an in-memory stream may be provided.
-    propagator : :class:`~westpa.core.protocols.Propagator` or None
-        Routine for propagating trajectories forward in time. Required when
-        using the :meth:`run` method to run the simulation. If `propagator` is
-        None, the simulation may be run in "WE-only" mode using the
-        :meth:`get_segments`, :meth:`update_segments`, and
-        :meth:`next_iteration` methods.
+    datafile : path-like or io.BytesIO
+        HDF5 file used to store simulation data.
+    propagator : Propagator
+        Routine for propagating trajectories forward in time.
+        See the :class:`~westpa.Propagator` protocol for details.
     pcoord_calculator : callable, optional
-        Function that returns the progress coordinate time series for
-        a given trajectory segment. It must take parameters
-        ``(segment, parent=None)`` and return either a 2-D array or a tuple
-        of the form ``(pcoord, auxdata)``, where ``pcoord`` is a 2-D array and
-        ``auxdata`` is a dictionary of named arrays to store as auxiliary data.
-        If ``segment`` continues a trajectory, the ``parent`` argument is the
-        preceding segment; otherwise it is ``None``.
-        If `pcoord_calculator` is not specified, the raw coordinates of the
-        segment's initial and final states will be used as progress
-        coordinates, equivalent to passing the following function::
+        Routine that computes the progress coordinate time series for
+        a given trajectory segment. It must accept arguments
+        ``(segment, parent)`` and return either a 2-D array (``pcoord``) or a
+        tuple of the form ``(pcoord, auxdata)``, where ``auxdata`` is a
+        dictionary of named arrays to store as auxiliary data.
+        If ``segment`` continues a trajectory, ``parent`` is the
+        preceding segment; otherwise it is None.
+        If `pcoord_calculator` is not specified, either `propagator` must set
+        the ``pcoord`` segment attribute, or else the raw
+        coordinates are used as progress coordinates, equivalent to passing::
 
-            def default_pcoord(segment, parent=None):
+            def default_pcoord(segment, parent):
                 return numpy.stack(
                     (segment.initial_state.coord, segment.final_state.coord)
                 )
 
     bin_mapper : BinMapper, optional
-        Routine for grouping trajectories into bins. By default, all the
+        Routine for assigning trajectories to bins. See the
+        :class:`~westpa.BinMapper` protocol for details. By default, all the
         trajectories are grouped into a single bin.
-    bin_target_counts : int or iterable of int, default 1
+    bin_target_counts : int or sequence of int, default 1
         Target number of trajectories (allocation) for each bin. If an integer
-        is provided, the value will be applied to all the bins. If an iterable
-        is provided, its length must match the ``nbins`` attribute of `bin_mapper`.
-    resampler : :class:`Resampler`, optional
+        is provided, the value is applied to all the bins. If a sequence
+        is provided, its length must match the output length of `bin_mapper`.
+    resampler : Resampler, optional
         Routine for resampling the trajectories in each bin. Defaults to
-        :class:`HuberKimResampler()`.
-    source : :class:`Source`, optional
-        Distribution according to which to reinitiate (recycle) trajectories
-        that reach a sink. Must be provided together with `sinks`.
-    sinks : :class:`Sink` or iterable of :class:`Sink`, optional
-        Sink (target) sets. Must be provided together with `source`.
-    istate_generator : Callable[[:class:`State`], :class:`State`], optional
-        Routine for modifying the source distribution on the fly. It should
-        take a state from `source` as input and return a new state.
-    work_manager : `WorkManager <work_managers.html>`_, optional
+        ``HuberKimResampler()``.
+    source : Source, optional
+        Set of states from which to reinitiate trajectories that reach a sink.
+        Must be provided together with `sink`. See the
+        :meth:`configure_recycling` method for more details.
+    sink : Sink or iterable of Sink, optional
+        One or more sink (target) regions. Must be provided together with `source`.
+    istate_generator : callable, optional
+        Routine for modifying the source distribution on the fly. It must
+        accept a state from `source` as input and return a new state.
+    work_manager : WorkManager, optional
         Work manager for executing calls to `propagator`, `pcoord_calculator`, and
         `istate_generator`. By default, calls are executed serially.
-    plugins : iterable of :class:`Plugin`, optional
-        Plugins to execute at specific points (hooks) in the simulation loop.
 
     Attributes
     ----------
-    datafile : str
-    propagator : :class:`Propagator` or None
+    datafile : path-like or io.BytesIO
+        HDF5 data file.
+    propagator : Propagator
+        Propagator.
     pcoord_calculator : callable or None
-    bin_mapper : :class:`BinMapper`
+        Progress coordinate calculator.
+    bin_mapper : BinMapper
+        Bin mapper.
     bin_target_counts : numpy.ndarray
-    resampler : :class:`Resampler`
-    source : :class:`Source` or None
-    sinks : tuple of :class:`Sink`
+        Bin target counts.
+    resampler : Resampler
+        Resampler.
+    source : Source or None
+        Source distribution.
+    sinks : tuple of Sink
+        Sink region(s).
+    istate_generator : callable or None
+        Initial state generator.
     work_manager : WorkManager
-    plugins : sequence of :class:`Plugin`
-    current_iteration : int or None
+        Work manager.
+    n_iter : int or None
+        Current iteration number.
     initialized : bool
+        Whether the simulation has been initialized.
+    segments : list of Segment
+        Current segment information.
 
     Methods
     -------
     initialize
     run
-    update_bins
-    update_source_and_sinks
-    add_plugin
-    prepare_run
-    finalize_run
-    get_segments
-    update_segments
-    next_iteration
+    configure_recycling
+    disable_recycling
+    register_callback
 
     """
 
@@ -149,25 +154,25 @@ class Simulation:
         bin_target_counts=1,
         resampler=None,
         source=None,
-        sinks=None,
+        sink=None,
         istate_generator=None,
         work_manager=None,
-        plugins=None,
     ):
+        self._data_manager = DataManager(datafile)
+
         self._propagator = None
         self._pcoord_calculator = None
         self._bin_mapper = None
         self._bin_target_counts = None
         self._resampler = None
+
         self._source = None
         self._sinks = ()
         self._istate_generator = None
+
         self._work_manager = None
-        self._plugins = SortedList(key=operator.attrgetter('priority'))
 
-        self._data_manager = DataManager(datafile)
         self._n_iter = None
-
         self._prev_iter_segments = []
         self._segments = []
         self._resampled_segments = []  # populated by _run_we()
@@ -175,55 +180,46 @@ class Simulation:
 
         self.propagator = propagator
         self.pcoord_calculator = pcoord_calculator
-        self.update_bins(bin_mapper or NopMapper(), bin_target_counts)
+        self.bin_mapper = bin_mapper
+        self.bin_target_counts = bin_target_counts
         self.resampler = resampler or HuberKimResampler()
-        self.update_source_and_sinks(source, sinks)
-        self.istate_generator = istate_generator
+
+        if source or sink:
+            if not (source and sink):
+                raise ValueError("'source' and 'sink' must be provided together")
+            self.configure_recycling(source, sink, istate_generator)
 
         self.work_manager = work_manager or SerialWorkManager()
 
-        for plugin in plugins or []:
-            self.add_plugin(plugin)
-
-        initialized = False
         if isinstance(datafile, io.BytesIO):
-            if datafile.getbuffer().nbytes > 0:
-                initialized = True
-        elif os.path.exists(datafile):
-            initialized = True
+            initialized = bool(datafile.getbuffer().nbytes)
+        else:
+            initialized = os.path.exists(datafile)
 
-        if initialized:
-            logger.debug('opening existing simulation')
+        if initialized:  # open existing simulation
             self._data_manager.open_backing()
-
             self._n_iter = self._data_manager.current_iteration
-
             self._segments = self._data_manager.get_segments()
             if self._n_iter > 1:
                 self._prev_iter_segments = self._data_manager.get_segments(self._n_iter - 1)
-
-            logger.debug('iteration %d; loaded %d segments', self._n_iter, len(self._segments))
             self._data_manager.close_backing()
 
     @property
     def datafile(self):
-        """HDF5 data file."""
         return self._data_manager.we_h5filename
 
     @property
     def propagator(self):
-        """Propagator."""
         return self._propagator
 
     @propagator.setter
     def propagator(self, value):
-        if value is not None and not callable(value):
-            raise TypeError("'propagator' must be callable or None")
+        if not callable(value):
+            raise TypeError("'propagator' must be callable")
         self._propagator = value
 
     @property
     def pcoord_calculator(self):
-        """Progress coordinate calculator."""
         return self._pcoord_calculator
 
     @pcoord_calculator.setter
@@ -234,49 +230,53 @@ class Simulation:
 
     @property
     def bin_mapper(self):
-        """Bin mapper."""
         return self._bin_mapper
+
+    @bin_mapper.setter
+    def bin_mapper(self, value):
+        if value is None:
+            value = NopMapper()
+        elif not callable(value):
+            raise TypeError("'bin_mapper' must be callable or None")
+        self._bin_mapper = value
 
     @property
     def bin_target_counts(self):
-        """Bin allocations."""
         return self._bin_target_counts
+
+    @bin_target_counts.setter
+    def bin_target_counts(self, value):
+        value = np.asarray(value, dtype=int)
+        if value.ndim > 1:
+            raise TypeError("'bin_target_counts' must be an integer or a sequence of integers")
+        if (value < 1).any():
+            raise ValueError("'bin_target_counts' must be positive")
+        self._bin_target_counts = value.astype(np.min_scalar_type(value.max()))
 
     @property
     def resampler(self):
-        """Resampler."""
         return self._resampler
 
     @resampler.setter
     def resampler(self, value):
-        if not isinstance(value, Resampler):
-            raise TypeError("'resampler' must be a Resampler object")
+        if not callable(value):
+            raise TypeError("'resampler' must be callable")
         self._resampler = value
 
     @property
     def source(self):
-        """Source distribution."""
         return self._source
 
     @property
     def sinks(self):
-        """Sink sets."""
         return self._sinks
 
     @property
     def istate_generator(self):
-        """Initial state generator."""
         return self._istate_generator
-
-    @istate_generator.setter
-    def istate_generator(self, value):
-        if value is not None and not callable(value):
-            raise TypeError("'istate_generator' must be callable")
-        self._istate_generator = value
 
     @property
     def work_manager(self):
-        """Work manager."""
         return self._work_manager
 
     @work_manager.setter
@@ -286,19 +286,16 @@ class Simulation:
         self._work_manager = value
 
     @property
-    def plugins(self):
-        """Plugins in order of priority."""
-        return self._plugins
-
-    @property
-    def current_iteration(self):
-        """Current iteration number."""
+    def n_iter(self):
         return self._n_iter
 
     @property
     def initialized(self):
-        """Whether the simulation has been initialized."""
         return self._n_iter is not None
+
+    @property
+    def segments(self):
+        return self._segments
 
     def initialize(
         self,
@@ -311,7 +308,7 @@ class Simulation:
         ----------
         states : State or iterable of State
             States from which to initiate trajectories (one per trajectory).
-        weights : 1-D array-like, optional
+        weights : sequence of float, optional
             Weight to assign each trajectory. Defaults to a uniform distribution.
 
         """
@@ -330,6 +327,8 @@ class Simulation:
             weights = np.ones(len(states))
         else:
             weights = np.array(weights, dtype=float)
+            if (weights <= 0).any():
+                raise ValueError("'weights' must be positive")
             if len(weights) != len(states):
                 raise ValueError("length of 'weights' must match number of initial states")
         weights /= weights.sum()
@@ -337,26 +336,24 @@ class Simulation:
         self._segments = [
             Segment(
                 n_iter=1,
-                seg_id=index,
                 weight=weight,
-                parent_id=-(1 + index),
-                wtg_parent_ids={-(1 + index)},
+                parent_id=-1,
+                wtg_parent_ids={-1},
                 initial_state=state,
                 status=Segment.Status.PREPARED,
             )
-            for index, (state, weight) in enumerate(zip(states, weights))
+            for state, weight in zip(states, weights)
         ]
 
-        self._data_manager.prepare_iteration(n_iter=1, segments=self._segments)
+        self._data_manager.prepare_iteration(1, self._segments)
         self._data_manager.current_iteration = 1
         self._n_iter = 1
 
         logger.info('Simulation prepared.')
-        self._report_statistics(save_summary=True)
+        self._report_segment_statistics()
         self._data_manager.flush_backing()
         self._data_manager.close_backing()
 
-    @requires_initialization
     def run(self, n_iters=1, max_walltime=None):
         """Run the simulation.
 
@@ -367,11 +364,11 @@ class Simulation:
         max_walltime : float, optional
             Maximum wall-clock time in seconds. If provided, the simulation
             will be stopped if it is estimated that the next iteration would
-            cause the total runtime to exceed `max_walltime`.
+            cause the total run time to exceed `max_walltime`.
 
         """
-        if self.propagator is None:
-            raise RuntimeError("'propagator' is required when using the run() method")
+        if not self.initialized:
+            raise RuntimeError('simulation must be initialized before calling run()')
 
         with self.work_manager as work_manager:
             if work_manager.is_master:
@@ -380,152 +377,46 @@ class Simulation:
             else:
                 work_manager.run()
 
-    def update_bins(self, mapper, target_counts):
-        """Update the bin mapper and allocations.
+    def configure_recycling(self, source, sink, istate_generator=None):
+        """Configure source-sink boundary conditions (recycling).
 
         Parameters
         ----------
-        mapper : :class:`BinMapper`
-            Routine for grouping trajectory segments into bins.
-        target_counts : int or iterable of int
-            Target number of trajectories for each bin. If an iterable is
-            provided, its length must match ``bin_mapper.nbins``.
+        source : Source, optional
+            Set of states from which to reinitiate trajectories that reach a
+            sink.
+        sink : Sink or iterable of Sink, optional
+            One or more sink (target) regions.
+        istate_generator : callable, optional
+            Routine for modifying the source distribution on the fly. It must
+            accept a state from `source` as input and return a new state.
 
         """
-        if not isinstance(mapper, BinMapper):
-            raise TypeError("'mapper' must be a BinMapper object")
-
-        if isinstance(target_counts, int):
-            target_counts = np.repeat(target_counts, mapper.nbins)
-        else:
-            target_counts = np.fromiter(target_counts, dtype=int)
-            if not len(target_counts) == mapper.nbins:
-                raise ValueError("length of 'target_counts' must equal the number of bins")
-        if (target_counts <= 0).any():
-            raise ValueError("'target_counts' must be positive")
-
-        self._bin_mapper = mapper
-        self._bin_target_counts = target_counts
-
-    def update_source_and_sinks(self, source, sinks):
-        """Update the source and sinks.
-
-        Parameters
-        ----------
-        source : :class:`Source` or None
-            Source distribution. If None, `sinks` must also be None.
-        sinks : :class:`Sink`, iterable of :class:`Sink`, or None
-            One or more sink (target) sets. If None, `source` must also be None.
-
-        """
-        if not (source or sinks):
-            self._source = None
-            self._sinks = ()
-            return
-
-        if not (source and sinks):
-            raise ValueError("'source' and 'sinks' must be provided together")
         if not isinstance(source, Source):
             raise TypeError("'source' must be a Source object")
-        if isinstance(sinks, Sink):
-            sinks = (sinks,)
+
+        if isinstance(sink, Sink):
+            sinks = (sink,)
         else:
-            sinks = tuple(sinks)
+            sinks = sink
             if not all(isinstance(item, Sink) for item in sinks):
-                raise TypeError("'sinks' must be a Sink object or an iterable of Sink objects")
+                raise TypeError("'sink' must be a Sink object or an iterable of Sink objects")
+
+        if istate_generator is not None and not callable(istate_generator):
+            raise TypeError("'istate_generator' must be callable")
 
         self._source = source
         self._sinks = sinks
+        self._istate_generator = istate_generator
 
-    def add_plugin(self, plugin):
-        """Add a plugin to the simulation.
-
-        Parameters
-        ----------
-        plugin : :class:`Plugin`
-            Plugin to add.
-
-        """
-        if not isinstance(plugin, Plugin):
-            raise TypeError("'plugin' must be a Plugin object")
-        self._plugins.add(plugin)
-
-    @requires_initialization
-    def get_segments(self):
-        """Retrieve the current segments.
-
-        Returns
-        -------
-        segments : iterable of :class:`Segment`
-            Current segments.
-
-        """
-        return self._segments
-
-    @requires_initialization
-    def update_segments(self, *segments):
-        """Update the current segments.
-
-        Parameters
-        ----------
-        *segments : :class:`Segment`
-            One or more modified segments.
-
-        """
-        segments = np.array(segments, dtype=object)
-
-        for segment in segments:
-            if segment.n_iter != self._n_iter:
-                raise ValueError(f"'n_iter' must match the current iteration ({self._n_iter})")
-            if not (0 <= segment.seg_id < len(self._segments)):
-                raise ValueError(f"unrecognized 'seg_id': {segment.seg_id}")
-
-        has_initial_state = np.zeros(len(segments), dtype=bool)
-        has_final_state = np.zeros(len(segments), dtype=bool)
-        has_pcoord = np.zeros(len(segments), dtype=bool)
-
-        for i, segment in enumerate(segments):
-            if segment.initial_state is not None:
-                has_initial_state[i] = True
-            if segment.final_state is not None:
-                has_final_state[i] = True
-            if segment.pcoord is not None:
-                has_pcoord[i] = True
-
-        self._data_manager.update_seg_index(self._n_iter, segments)
-        self._data_manager.write_auxdata(self._n_iter, segments)
-
-        self._data_manager.write_initial_states(self._n_iter, segments[has_initial_state])
-        self._data_manager.write_final_states(self._n_iter, segments[has_final_state])
-        self._data_manager.write_pcoords(self._n_iter, segments[has_pcoord])
-
-        for segment in segments:
-            self._segments[segment.seg_id] = segment
-
-    def next_iteration(self):
-        """Resample the current segments and advance to the next iteration.
-
-        In addition to resampling, this method is responsible for recycling any
-        trajectories that have reached a sink. In contrast to earlier versions
-        of WESTPA (``<= 2022``), recycling is done *after* resampling.
-
-        """
-        self._prev_iter_segments.clear()
-
-        self._run_we()
-        self._prepare_new_iteration()
-        self._finalize_iteration()
-
-        self._data_manager.current_iteration += 1
-        self._n_iter += 1
-
-        self._prev_iter_segments = self._segments
-        self._segments = self._next_iter_segments.copy()
-        self._resampled_segments.clear()
-        self._next_iter_segments.clear()
+    def disable_recycling(self):
+        """Disable recycling."""
+        self._source = None
+        self._sinks = ()
+        self._istate_generator = None
 
     def _run(self, n_iters, max_walltime):
-        self.prepare_run()
+        self._prepare_run()
 
         start_time = time.time()
         stop_time = None
@@ -543,39 +434,36 @@ class Simulation:
             try:
                 iter_start_time = time.time()
 
-                logger.info(time.asctime())
+                logger.info('\n' + time.asctime())
                 logger.info(f'Iteration {self._n_iter} (of {max_iter})')
 
                 self._prepare_iteration()
                 self._propagate()
 
-                iter_summary = self._data_manager.get_iter_summary()
                 cputime = sum(segment.cputime for segment in self._segments)
-                iter_summary['cputime'] = cputime
 
-                self.next_iteration()
+                self._next_iteration()
 
                 iter_elapsed = time.time() - iter_start_time
+                iter_summary = self._data_manager.get_iter_summary(self._n_iter - 1)
                 iter_summary['walltime'] += iter_elapsed
-                self._data_manager.update_iter_summary(iter_summary)
+                iter_summary['cputime'] = cputime
+                self._data_manager.update_iter_summary(iter_summary, self._n_iter - 1)
 
-                walltime = float(iter_summary['walltime'])
-                if not math.isnan(walltime):  # may give NaN if starting a truncated simulation
-                    walltime = timedelta(seconds=walltime)
-                if not math.isnan(cputime):
-                    cputime = timedelta(seconds=cputime)
+                walltime = timedelta(seconds=iter_summary['walltime'].item())
+                cputime = timedelta(seconds=cputime)
 
                 logger.info('Iteration completed successfully')
-                logger.info(f'Iteration wallclock: {walltime}, cputime: {cputime}')
+                logger.info(f'Iteration walltime: {walltime}' + (f', cputime: {cputime}' if cputime else ''))
             finally:
                 self._data_manager.flush_backing()
 
-        self.finalize_run()
+        self._finalize_run()
 
         logger.info(time.asctime())
         logger.info('WESTPA run complete.')
 
-    def _report_statistics(self, save_summary=False):
+    def _report_segment_statistics(self, save_summary=True):
         seg_probs = np.fromiter(
             map(operator.attrgetter('weight'), self._segments),
             dtype=float,
@@ -583,17 +471,17 @@ class Simulation:
         )
         norm = seg_probs.sum()
 
-        min_seg_prob = seg_probs[seg_probs != 0].min()
+        min_seg_prob = seg_probs.min()
         max_seg_prob = seg_probs.max()
         seg_drange = np.log(max_seg_prob / min_seg_prob)
 
         eps = np.finfo(float).eps
 
-        logger.info(f'number of segments:             {len(self._segments)}')
-        logger.info(f'minimum non-zero probability:   {min_seg_prob:g}')
-        logger.info(f'maximum non-zero probability:   {max_seg_prob:g}')
-        logger.info(f'probability dynamic range (kT): {seg_drange:g}')
-        logger.info(f'norm = {norm:g}, error in norm = {norm - 1:g} ({(norm - 1) / eps:.2g} * eps)')
+        logger.info('number of segments:                         {:d}'.format(len(self._segments)))
+        logger.info('per-segment minimum non-zero probability:   {:g}'.format(min_seg_prob))
+        logger.info('per-segment maximum non-zero probability:   {:g}'.format(max_seg_prob))
+        logger.info('per-segment probability dynamic range (kT): {:g}'.format(seg_drange))
+        logger.info('norm = {:g}, error in norm = {:g} ({:.2g}*eps)'.format(norm, (norm - 1), (norm - 1) / eps))
 
         if min_seg_prob < 1e-100:
             logger.warning(
@@ -613,42 +501,22 @@ class Simulation:
                 iter_summary['walltime'] = 0.0
             self._data_manager.update_iter_summary(iter_summary)
 
-    def prepare_run(self):
-        """Open the HDF5 file in read/write mode."""
+    def _prepare_run(self):
         self._data_manager.prepare_run()
-        self._call_plugin_hook(Plugin.prepare_run)
+        self._invoke_callbacks('prepare_run')
 
-    def finalize_run(self):
-        """Flush and close the HDF5 file."""
-        self._call_plugin_hook(Plugin.finalize_run)
+    def _finalize_run(self):
+        self._invoke_callbacks('finalize_run')
         self._data_manager.finalize_run()
 
     def _prepare_iteration(self):
-        logger.debug('preparing iteration %d', self._n_iter)
-        self._call_plugin_hook(Plugin.prepare_iteration)
-        self._report_statistics(save_summary=True)
+        self._invoke_callbacks('prepare_iteration')
+        self._report_segment_statistics()
 
     def _finalize_iteration(self):
-        logger.debug('finalizing iteration %d', self._n_iter)
-        self._data_manager.finalize_iteration(self._n_iter, self._segments)
+        self._data_manager.update_seg_index(self._n_iter, self._segments)
+        self._data_manager.write_auxdata(self._n_iter, self._segments)
 
-    def _calculate_pcoords(self, segments):
-        future_map = {}
-        if self.pcoord_calculator is not None:
-            for segment in segments:
-                if segment.initpoint_type == segment.InitPointType.CONTINUES:
-                    parent = self._prev_iter_segments[segment.parent_id]
-                else:
-                    parent = None
-                future = self.work_manager.submit(self.pcoord_calculator, args=(segment, parent))
-                future_map[future] = segment
-        else:
-            for segment in segments:
-                segment.pcoord = default_pcoord(segment)
-            self._data_manager.write_pcoords(self._n_iter, segments)
-        return future_map
-
-    # manages istate generation, propagation, and pcoord calculation tasks
     def _propagate(self):
         if value := getattr(self.propagator, 'block_size', None):
             propagator_block_size = value
@@ -672,21 +540,16 @@ class Simulation:
                 case Segment.Status.COMPLETE:
                     complete_segments.append(segment)
 
-        n_incomplete = len(unprepared_segments) + len(prepared_segments)
-        logger.debug('iteration %d: propagating %d segments', self._n_iter, n_incomplete)
-
         # dispatch pending istate generation tasks
         if unprepared_segments:
-            states = self.source.random_choice(len(unprepared_segments), rng=self.resampler.rng)
+            states = self.source.random_choice(len(unprepared_segments))
             if self.istate_generator is not None:
                 for state in states:
-                    logger.debug('generating new initial state from %s', state)
                     future = self.work_manager.submit(self.istate_generator, args=(state,))
                     istate_futures.add(future)
             else:
                 segments = []
                 for state in states:
-                    logger.debug('using %s directly as an initial state', state)
                     segment = unprepared_segments.pop()
                     segment.initial_state = state
                     segments.append(segment)
@@ -710,10 +573,14 @@ class Simulation:
 
             if future in istate_futures:
                 istate_futures.remove(future)
-                state = future.get_result()
+                try:
+                    state = future.get_result()
+                except Exception as e:
+                    raise RuntimeError("call to 'istate_generator' failed") from e
 
                 segment = unprepared_segments.pop()
                 segment.initial_state = state
+                segment.status = Segment.Status.PREPARED
                 prepared_segments.append(segment)
 
                 self._segments[segment.seg_id] = segment
@@ -726,12 +593,13 @@ class Simulation:
 
             elif future in propagator_futures:
                 propagator_futures.remove(future)
-                segments = future.get_result()
+                try:
+                    segments = future.get_result()
+                except Exception as e:
+                    raise RuntimeError("call to 'propagator' failed") from e
 
                 for segment in segments:
-                    if segment.status != Segment.Status.COMPLETE:
-                        logger.error('propagation failed for segment %d', segment.seg_id)
-                        raise PropagationError(f'seg_id: {segment.seg_id}, reason: {segment.failure_reason}')
+                    segment.status = Segment.Status.COMPLETE
                     self._segments[segment.seg_id] = segment
                 self._data_manager.write_final_states(self._n_iter, segments)
 
@@ -739,7 +607,10 @@ class Simulation:
 
             elif future in pcoord_future_map:
                 segment = pcoord_future_map.pop(future)
-                result = future.get_result()
+                try:
+                    result = future.get_result()
+                except Exception as e:
+                    raise RuntimeError("call to 'pcoord_calculator' failed") from e
 
                 if isinstance(result, tuple):
                     pcoord, auxdata = result
@@ -751,64 +622,128 @@ class Simulation:
                 self._segments[segment.seg_id] = segment
                 self._data_manager.write_pcoords(self._n_iter, segments=[segment])
 
-        logger.debug('done with propagation')
         self._data_manager.flush_backing()
 
+    def _calculate_pcoords(self, segments):
+        future_map = {}
+
+        if self.pcoord_calculator is not None:
+            for segment in segments:
+                if segment.initpoint_type == segment.InitPoint.CONTINUES:
+                    parent = self._prev_iter_segments[segment.parent_id]
+                else:
+                    parent = None
+
+                future = self.work_manager.submit(self.pcoord_calculator, args=(segment, parent))
+                future_map[future] = segment
+        else:
+            for segment in segments:
+                segment.pcoord = default_pcoord(segment)
+
+            self._segments[segment.seg_id] = segment
+            self._data_manager.write_pcoords(self._n_iter, segments)
+
+        return future_map
+
     def _run_we(self):
-        self._call_plugin_hook(Plugin.pre_we)
+        self._invoke_callbacks('pre_we')
 
-        # initialize the weight transfer graph
-        segments = [s.replace(wtg_parent_ids=[s.seg_id]) for s in self._segments]
+        # Initialize the weight transfer graph with self-loops.
+        segments = [s.copy(wtg_parent_ids=[s.seg_id]) for s in self._segments]
 
-        bins = list(self.bin_mapper(segments))
-        for i, bin in enumerate(bins):
-            bins[i] = self.resampler(bin, target_count=self.bin_target_counts[i])
+        # Assign walkers to bins.
+        bins = self.bin_mapper(segments)
+        _report_bin_statistics(bins)
 
-        self._resampled_segments = list(itertools.chain(*bins))
+        if self.bin_target_counts.ndim == 0:
+            target_counts = np.repeat(self.bin_target_counts, len(bins))
+        else:
+            if len(self.bin_target_counts) != len(bins):
+                raise ValueError("length of 'bin_target_counts' must match the number of bins")
+            target_counts = self.bin_target_counts.copy()
+
+        # Recycle walkers.
+        # When a walker is recycled, it is removed from its bin (withheld
+        # from resampling), and the target count of the bin is decreased by one,
+        # down to a floor of one (the count must remain positive in case there
+        # are other walkers in the bin).
+        for n, sink in enumerate(self.sinks):
+            p_recycled = 0
+            n_recycled = 0
+
+            for idx, bin in enumerate(bins):
+                if segments := {segment for segment in bin if segment in sink}:
+                    bin -= segments
+                    target_counts[idx] = max(1, target_counts[idx].item() - len(segments))
+
+                    for segment in segments:
+                        self._segments[segment.seg_id].endpoint_type = segment.EndPoint.RECYCLED
+
+                    p_recycled += sum(map(operator.attrgetter('weight'), segments))
+                    n_recycled += len(segments)
+
+            if n_recycled > 0:
+                label = sink.label if sink.label else n
+                logger.info(f'Recycled {p_recycled} probability ({n_recycled} walkers) from sink {label!r}')
+
+        # Resample the remaining walkers.
+        resampled_bins = list(map(self.resampler, bins, target_counts))
+
+        self._resampled_segments = list(itertools.chain(*resampled_bins))
 
     def _prepare_new_iteration(self):
-        recycled_segments = set()
-        for index, sink in enumerate(self.sinks, start=1):
-            if segments := set(filter(sink.indicator, self._resampled_segments)):
-                recycled_segments |= segments
-                p = sum(map(operator.attrgetter('weight'), segments))
-                n = len(segments)
-                label = sink.label if sink.label else index
-                logger.info(f'Recycled {p} probability ({n} walkers) from sink {label!r}')
-
-        for index, segment in enumerate(self._resampled_segments):
-            parent = self._segments[segment.seg_id]
-
-            if segment in recycled_segments:
-                parent.endpoint_type = Segment.EndPointType.RECYCLED
-                parent_id = -1
-                initial_state = None
-                status = None
-            else:
-                parent.endpoint_type = Segment.EndPointType.CONTINUES
-                parent_id = parent.seg_id
-                initial_state = parent.final_state
-                status = Segment.Status.PREPARED
+        # recycled walkers
+        for segment in self._segments:
+            if segment.endpoint_type != Segment.EndPoint.RECYCLED:
+                continue
 
             new_segment = Segment(
-                n_iter=segment.n_iter + 1,
-                seg_id=index,
+                n_iter=self._n_iter + 1,
                 weight=segment.weight,
-                wtg_parent_ids=segment.wtg_parent_ids,
-                parent_id=parent_id,
-                initial_state=initial_state,
-                status=status,
+                wtg_parent_ids=[segment.seg_id],
+                parent_id=-1,
+                status=Segment.Status.UNSET,
             )
             self._next_iter_segments.append(new_segment)
 
+        # continuing walkers
+        for segment in self._resampled_segments:
+            self._segments[segment.seg_id].endpoint_type = Segment.EndPoint.CONTINUES
+
+            new_segment = Segment(
+                n_iter=self._n_iter + 1,
+                weight=segment.weight,
+                wtg_parent_ids=segment.wtg_parent_ids,
+                parent_id=segment.seg_id,
+                initial_state=segment.final_state,
+                status=Segment.Status.PREPARED,
+            )
+            self._next_iter_segments.append(new_segment)
+
+        # pruned walkers
         for segment in self._segments:
-            if segment.endpoint_type == Segment.EndPointType.UNSET:
-                segment.endpoint_type = Segment.EndPointType.MERGED
+            if segment.endpoint_type == Segment.EndPoint.UNSET:
+                segment.endpoint_type = Segment.EndPoint.MERGED
 
         self._data_manager.prepare_iteration(self._n_iter + 1, self._next_iter_segments)
 
-    def _call_plugin_hook(self, base_method):
-        for plugin in self._plugins:
-            method = getattr(plugin.__class__, base_method.__name__)
-            if method is not base_method:
-                method(plugin, self)
+    def _next_iteration(self):
+        self._prev_iter_segments.clear()
+
+        self._run_we()
+        self._prepare_new_iteration()
+        self._finalize_iteration()
+
+        self._data_manager.current_iteration += 1
+        self._n_iter += 1
+
+        self._prev_iter_segments = self._segments
+        self._segments = self._next_iter_segments.copy()
+        self._resampled_segments.clear()
+        self._next_iter_segments.clear()
+
+    def register_callback(self, hook, function, priority=0):
+        pass
+
+    def _invoke_callbacks(self, hook):
+        pass

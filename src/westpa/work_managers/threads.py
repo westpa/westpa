@@ -30,7 +30,14 @@ ShutdownSentinel = object()
 
 
 class ThreadsWorkManager(WorkManager):
-    '''A work manager using threads.'''
+    """Executes calls asynchronously using a pool of threads.
+
+    Parameters
+    ----------
+    n_workers : int
+        Number of threads.
+
+    """
 
     @classmethod
     def from_environ(cls, wmenv=None):

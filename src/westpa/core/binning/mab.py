@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List
 import numpy as np
 import westpa
 from westpa.core.binning import FuncBinMapper
@@ -9,55 +9,52 @@ log = logging.getLogger(__name__)
 
 
 class MABBinMapper(FuncBinMapper):
-    """Adaptively place bins between minimum and maximum values along
-    the progress coordinate. Extrema and bottleneck segments are assigned
-    to their own bins.
+    """Implements the minimal adaptive binning (MAB) scheme of Torrillo, Bogetti, and Chong (2021). [1]_
 
     Parameters
     ----------
     nbins : list of int
-        List of number of bins in each dimension.
+        Number of bins along each dimension (excluding extrema and bottleneck
+        bins).
     direction : list of int, optional
-        Direction specifier for each dimension.
+        Direction flag for each dimension:
 
-        +--------+--------------------------------------------------------------------------------+
-        | Value  | Description                                                                    |
-        +========+================================================================================+
-        | ``0``  | split at leading and lagging boundaries (default)                              |
-        +--------+--------------------------------------------------------------------------------+
-        | ``1``  | split at leading boundary only                                                 |
-        +--------+--------------------------------------------------------------------------------+
-        | ``-1`` | split at lagging boundary only                                                 |
-        +--------+--------------------------------------------------------------------------------+
-        | ``86`` | no splitting at either leading or lagging boundary (both bottlenecks included) |
-        +--------+--------------------------------------------------------------------------------+
+        -  ``0``: Split at leading and lagging boundaries (default).
+        -  ``1``: Split at leading boundary only.
+        - ``-1``: Split at lagging boundary only.
+        - ``86``: No splitting at either leading or lagging boundary (both bottlenecks included).
 
-    skip : list of int, optional
-        List of skip flags for each dimension. By default, no dimensions are
-        skipped.
+    skip : list of bool, optional
+        Boolean mask indicating which dimensions to skip. By default, no
+        dimensions are skipped.
     bottleneck : bool, default True
         Whether to enable bottleneck walker splitting.
     pca : bool, default False
         Whether to perform PCA on progress coordinates before bin assignment.
-    mab_log : bool, default False
-        Whether to output MAB info to west.log.
-    bin_log : bool, default False
-        Whether to output MAB bin boundaries to a log file.
-    bin_log_path : str, default "binbounds.log"
-        Path to output bin boundaries.
+
+    Examples
+    --------
+    >>> import westpa
+    >>> westpa.MABBinMapper([5])
+    <MABBinMapper with 9 bins at 0x10466a3f0>
+
+    References
+    ----------
+    .. [1] P.A. Torrillo, A.T. Bogetti, L.T. Chong,
+       J Phys Chem A, Volume 125, Issue 7, 2021, Pages 1642-1649,
+       https://doi.org/10.1021/acs.jpca.0c10724.
+
 
     """
 
     def __init__(
         self,
-        nbins: List[int],
-        direction: Optional[List[int]] = None,
-        skip: Optional[List[int]] = None,
-        bottleneck: bool = True,
-        pca: bool = False,
-        mab_log: bool = False,
-        bin_log: bool = False,
-        bin_log_path: str = "binbounds.log",
+        nbins,
+        direction=None,
+        skip=None,
+        bottleneck=True,
+        pca=False,
+        **kwargs,
     ):
         # Verifying parameters
         if nbins is None:
@@ -74,15 +71,12 @@ class MABBinMapper(FuncBinMapper):
             skip = [0] * ndim
             log.warning("Skip list is not the correct dimensions, setting to defaults.")
 
-        kwargs = dict(
+        kwargs.update(
             nbins_per_dim=nbins,
             direction=direction,
             skip=skip,
             bottleneck=bottleneck,
             pca=pca,
-            mab_log=mab_log,
-            bin_log=bin_log,
-            bin_log_path=bin_log_path,
         )
 
         n_total_bins = self.determine_total_bins(**kwargs)

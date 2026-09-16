@@ -2,7 +2,6 @@ from . import _assign
 from . import assign, bins
 
 from .assign import (
-    BinMapper,
     NopMapper,
     FuncBinMapper,
     PiecewiseBinMapper,
@@ -32,7 +31,6 @@ __all__ = [
     '_assign',
     'assign',
     'bins',
-    'BinMapper',
     'NopMapper',
     'FuncBinMapper',
     'PiecewiseBinMapper',
@@ -40,6 +38,7 @@ __all__ = [
     'RecursiveBinMapper',
     'VectorizingFuncBinMapper',
     'VoronoiBinMapper',
+    'AdaptiveVoronoiBinMapper',
     'map_mab',
     'map_binless',
     'MABBinMapper',
@@ -48,7 +47,6 @@ __all__ = [
     'MABSimManager',
     'BinlessDriver',
     'BinlessSimManager',
-    'AdaptiveVoronoiBinMapper',
     'accumulate_labeled_populations',
     'assign_and_label',
     'accumulate_state_populations_from_labeled',

@@ -1,31 +1,34 @@
 __all__ = [
-    'State',
     'Segment',
-    'Resampler',
-    'MultinomialResampler',
-    'ResidualResampler',
-    'HuberKimResampler',
+    'State',
     'Bin',
-    'BinMapper',
-    'FuncBinMapper',
-    'MABBinMapper',
-    'PiecewiseBinMapper',
-    'RectilinearBinMapper',
-    'RecursiveBinMapper',
-    'VectorizingFuncBinMapper',
-    'VoronoiBinMapper',
-    'AdaptiveVoronoiBinMapper',
-    'Simulation',
     'Source',
     'Sink',
+    'Simulation',
+    'TrajectoryTree',
+    'TrajectoryTreeView',
+    'Propagator',
     'SerialPropagator',
     'VectorizedPropagator',
-    'GromacsPropagator',
-    'OpenMMPropagator',
     'AmberPropagator',
-    'Plugin',
-    'TrajectoryTree',
-    'Trajectory',
+    'GROMACSPropagator',
+    'OpenMMPropagator',
+    'BinMapper',
+    'RectilinearBinMapper',
+    'MABBinMapper',
+    'VoronoiBinMapper',
+    'AdaptiveVoronoiBinMapper',
+    'Resampler',
+    'ResamplerBase',
+    'HuberKimResampler',
+    'MultinomialResampler',
+    'ResidualResampler',
+    'StratifiedResampler',
+    'SystematicResampler',
+    'SerialWorkManager',
+    'ProcessWorkManager',
+    'ThreadsWorkManager',
+    'MPIWorkManager',
     'WESTSystem',
     'BasisState',
     'TargetState',
@@ -36,43 +39,43 @@ import shutil
 
 from .core.state import State
 from .core.segment import Segment
+from .core.protocols import Propagator, BinMapper, Resampler
 from .core.propagators import SerialPropagator, VectorizedPropagator
 from .core.binning import (
     Bin,
-    BinMapper,
-    FuncBinMapper,
-    PiecewiseBinMapper,
     RectilinearBinMapper,
-    RecursiveBinMapper,
-    VectorizingFuncBinMapper,
-    VoronoiBinMapper,
     MABBinMapper,
+    VoronoiBinMapper,
     AdaptiveVoronoiBinMapper,
 )
 from .core.resamplers import (
-    Resampler,
+    ResamplerBase,
     HuberKimResampler,
     MultinomialResampler,
     ResidualResampler,
+    StratifiedResampler,
+    SystematicResampler,
 )
-from .core.simulation import Simulation
 from .core.source_sink import Source, Sink
-from .core.plugins import Plugin
+from .core.simulation import Simulation
+
+from .analysis import TrajectoryTree, TrajectoryTreeView
+from .work_managers import SerialWorkManager, ProcessWorkManager, ThreadsWorkManager, MPIWorkManager
+
+if shutil.which('sander'):
+    from .core.propagators._amber import AmberPropagator
+else:
+    AmberPropagator = None
 
 if shutil.which('gmx'):
-    from .core.propagators._gromacs import GromacsPropagator
+    from .core.propagators._gromacs import GROMACSPropagator
+else:
+    GROMACSPropagator = None
 
 try:
     from .core.propagators._openmm import OpenMMPropagator
 except ImportError:
-    pass
-
-
-if shutil.which("sander"):
-    from .core.propagators._amber import AmberPropagator
-
-
-from .analysis import TrajectoryTree, Trajectory
+    OpenMMPropagator = None
 
 from .core.states import BasisState, TargetState
 from .core.systems import WESTSystem
@@ -82,6 +85,6 @@ from ._version import get_versions
 
 rc = _rc.WESTRC()
 
-__version__ = get_versions()["version"]
+__version__ = get_versions()['version']
 
 del get_versions

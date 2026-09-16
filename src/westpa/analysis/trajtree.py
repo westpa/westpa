@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pygraphviz as pgv
+from matplotlib.ticker import MaxNLocator
 
 from ..core._data_manager import DataManager  # noqa
 
@@ -18,20 +19,23 @@ class SegmentPointer(NamedTuple):
 
 
 class TrajectoryTree:
-    """Interface for analyzing weighted ensemble trajectory data.
+    """Network representation of WE trajectory data.
 
     Parameters
     ----------
-    datafile : str or io.BufferedIOBase
-        HDF5 file containing simulation data.
+    datafile : str or io.BytesIO
+        HDF5 file containing simulation output. Either a pathname (e.g.,
+        ``'west.h5'``) or an in-memory stream may be provided.
     load_pcoords : bool, default True
-        Whether to load progress coordinates when retrieving trajectory
-        segments.
+        Whether to load progress coordinates when retrieving trajectory segments.
+    load_auxdata : bool, default False
+        Whether to load auxiliary data when retrieving trajectory segments.
 
     Attributes
     ----------
     datafile : str or io.BufferedIOBase
     load_pcoords : bool
+    load_auxdata : bool
     n_iters : int
 
     Methods
@@ -54,20 +58,20 @@ class TrajectoryTree:
     Retrieve a single segment:
 
     >>> trajtree.get_segment(1, 0)
-    <Segment n_iter=1, seg_id=0, weight=0.2, parent_id=-1, wtg_parent_ids=(-1,) at 0x1694df380>
+    <Segment n_iter=1, seg_id=0, weight=0.2, parent_id=-1 at 0x1694df380>
 
     Retrieve multiple segments from a given iteration:
 
     >>> trajtree.get_segments(5, [13, 9, 17])
-    [<Segment n_iter=5, seg_id=13, weight=0.02, parent_id=4, wtg_parent_ids=(3, 4) at 0x1632a36e0>,
-     <Segment n_iter=5, seg_id=9, weight=0.01, parent_id=7, wtg_parent_ids=(7,) at 0x1632a3680>,
-     <Segment n_iter=5, seg_id=17, weight=0.02, parent_id=5, wtg_parent_ids=(5,) at 0x1632a35f0>]
+    [<Segment n_iter=5, seg_id=13, weight=0.02, parent_id=4 at 0x1632a36e0>,
+     <Segment n_iter=5, seg_id=9, weight=0.01, parent_id=7 at 0x1632a3680>,
+     <Segment n_iter=5, seg_id=17, weight=0.02, parent_id=5 at 0x1632a35f0>]
 
     Get the parent of a segment:
 
     >>> segment = trajtree.get_segment(5, 9)
     >>> trajtree.parent(segment)
-    <Segment n_iter=4, seg_id=7, weight=0.02, parent_id=14, wtg_parent_ids=(14,) at 0x179e445c0>
+    <Segment n_iter=4, seg_id=7, weight=0.02, parent_id=14 at 0x179e445c0>
 
     Trace the lineage of a segment:
 
@@ -75,11 +79,11 @@ class TrajectoryTree:
     >>> traj
     <Trajectory with 5 segments at 0x15c8b0500>
     >>> list(traj)
-    [<Segment n_iter=1, seg_id=1, weight=0.2, parent_id=-2, wtg_parent_ids=(-2,) at 0x16bcb6b70>,
-     <Segment n_iter=2, seg_id=13, weight=0.04, parent_id=1, wtg_parent_ids=(1,) at 0x16bcb68a0>,
-     <Segment n_iter=3, seg_id=14, weight=0.08, parent_id=13, wtg_parent_ids=(10, 13) at 0x16bcb6930>,
-     <Segment n_iter=4, seg_id=7, weight=0.02, parent_id=14, wtg_parent_ids=(14,) at 0x16bcb6270>,
-     <Segment n_iter=5, seg_id=9, weight=0.01, parent_id=7, wtg_parent_ids=(7,) at 0x16bb8be30>]
+    [<Segment n_iter=1, seg_id=1, weight=0.2, parent_id=-2 at 0x16bcb6b70>,
+     <Segment n_iter=2, seg_id=13, weight=0.04, parent_id=1 at 0x16bcb68a0>,
+     <Segment n_iter=3, seg_id=14, weight=0.08, parent_id=13 at 0x16bcb6930>,
+     <Segment n_iter=4, seg_id=7, weight=0.02, parent_id=14 at 0x16bcb6270>,
+     <Segment n_iter=5, seg_id=9, weight=0.01, parent_id=7 at 0x16bb8be30>]
 
     Close the HDF5 file:
 
@@ -91,7 +95,7 @@ class TrajectoryTree:
     ...     segment = trajtree.get_segment(5, 9)
     ...
     >>> segment
-    <Segment n_iter=5, seg_id=9, weight=0.01, parent_id=7, wtg_parent_ids=(7,) at 0x161da3b60>
+    <Segment n_iter=5, seg_id=9, weight=0.01, parent_id=7 at 0x161da3b60>
 
     """
 
@@ -217,7 +221,7 @@ class TrajectoryTree:
 
         Returns
         -------
-        segments : list of :class:`Segment`
+        segments : list of Segment
             Selected segments.
 
         """
@@ -250,7 +254,7 @@ class TrajectoryTree:
 
         Returns
         -------
-        segment : :class:`Segment`
+        segment : Segment
             Selected segment.
 
         """
@@ -281,7 +285,7 @@ class TrajectoryTree:
 
         Parameters
         ----------
-        segment : :class:`Segment`
+        segment : Segment
             Segment to find the parent of.
         n : int, default 1
             Number of iterations by which the parent is removed from `segment`
@@ -289,7 +293,7 @@ class TrajectoryTree:
 
         Returns
         -------
-        parent : :class:`Segment` or None
+        parent : Segment or None
             `n`-th level parent of the given segment, or None if the segment
             has no `n`-th level parent.
 
@@ -314,7 +318,7 @@ class TrajectoryTree:
 
         Parameters
         ----------
-        segment : :class:`Segment`
+        segment : Segment
             Segment to find the children of.
         n : int, default 1
             Number of iterations by which the children are removed from
@@ -322,7 +326,7 @@ class TrajectoryTree:
 
         Returns
         -------
-        children : list of :class:`Segment`
+        children : list of Segment
             `n`-th level children of the given segment (empty if the
             segment has no `n`-th level children).
 
@@ -347,14 +351,14 @@ class TrajectoryTree:
 
         Parameters
         ----------
-        segment : :class:`Segment`
+        segment : Segment
             Segment to trace.
         maxlen : int, optional
             Maximum number of segments in the returned trajectory trace.
 
         Returns
         -------
-        traj : :class:`Trajectory`
+        traj : Trajectory
             Trajectory leading up to and including `segment`.
 
         """
@@ -373,13 +377,15 @@ class TrajectoryTree:
 
         return Trajectory(reversed(segments))
 
-    def to_networkx(self, first_iter=1, last_iter=None, copy=True):
+    def to_networkx(self, first_iter=1, last_iter=None, stride=1, roots=None, copy=True):
         """Return a NetworkX representation of the trajectory tree.
 
         Parameters
         ----------
         first_iter : int, optional
         last_iter : int, optional
+        stride : int, optional
+        roots : tuple or iterable or tuple, optional
         copy : bool, optional
 
         Returns
@@ -389,29 +395,29 @@ class TrajectoryTree:
 
         """
         last_iter = last_iter or self.n_iters
-        iter_range = range(first_iter, last_iter + 1)
+        iter_range = range(first_iter, last_iter + 1, stride)
 
         nodes = (node for node in self._graph if node.n_iter in iter_range)
         graph = self._graph.subgraph(nodes)
 
         return graph.copy() if copy else graph
 
-    def view(self, first_iter=1, last_iter=None, x_func=None, x_label=None):
-        """Display an interactive visualization of the trajectory tree.
+    def view(self, **kwargs):
+        """Display an interactive view of the trajectory tree.
 
         Parameters
         ----------
-        first_iter : int, optional
-        last_iter : int, optional
-        x_func : callable, optional
-        x_label : str, optional
+        **kwargs
+            View options. See the :class:`TrajectoryTreeView` class documentation
+            for details.
 
         Returns
         -------
-        viewer : :class:`TrajectoryTreeViewer`
+        view : TrajectoryTreeView
+            Interface for querying and modifying the interactive view.
 
         """
-        return TrajectoryTreeViewer(self, first_iter, last_iter, x_func, x_label)
+        return TrajectoryTreeView(self, **kwargs)
 
     def __repr__(self):
         return f'<{type(self).__name__} with {self.n_iters} iterations at {hex(id(self))}>'
@@ -433,14 +439,33 @@ def _to_pygraphviz(trajtree, first_iter=1, last_iter=None):
     return agraph
 
 
-class TrajectoryTreeViewer:
-    """Interactive trajectory tree viewer."""
+class TrajectoryTreeView:
+    """Interactive view of a trajectory tree.
+
+    Parameters
+    ----------
+    trajtree : TrajectoryTree
+    ax : matplotlib.axes.Axes, optional
+    first_iter : int, optional
+    last_iter : int, optional
+    stride : int, optional
+    roots : tuple or iterable of tuple, optional
+    x_func : callable, optional
+    x_label : str, optional
+    cmap : str, optional
+    default_edge_color : str, optional
+    highlight_color : str, optional
+
+    """
 
     def __init__(
         self,
         trajtree,
+        ax=None,
         first_iter=1,
         last_iter=None,
+        stride=1,
+        roots=None,
         x_func=None,
         x_label=None,
         cmap='viridis_r',
@@ -448,38 +473,76 @@ class TrajectoryTreeViewer:
         highlight_color='magenta',
     ):
         self._trajtree = trajtree
+        self._ax = ax
         self._first_iter = first_iter
-        self._last_iter = last_iter or trajtree.n_iters
+        self._last_iter = last_iter or self._trajtree.n_iters
+        self._stride = stride
+        self._roots = roots
         self._x_func = x_func
         self._x_label = x_label
         self._cmap = cmap
         self._default_edge_color = default_edge_color
         self._highlight_color = highlight_color
 
-        fig, ax = plt.subplots()
-        graph = trajtree.to_networkx(self.first_iter, self.last_iter, copy=False)
+        self._fig = None
 
-        x = {}
-        if x_func is not None:
+        self._graph = None
+        self._nodes = None
+        self._x_pos = None
+        self._highlighted_subgraph = None
+        self._edge_artists = None
+        self._node_artist = None
+        self._highlighted_node_artist = None
+        self._text = None
+
+        self._draw()
+
+    def _clear(self):
+        for artist in self._edge_artists.values():
+            artist.remove()
+        self._node_artist.remove()
+        self._highlighted_node_artist.remove()
+
+        self._graph = None
+        self._nodes = None
+        self._x_pos = None
+        self._highlighted_subgraph = None
+        self._edge_artists = None
+        self._node_artist = None
+        self._highlighted_node_artist = None
+        self._text = None
+
+    def _draw(self):
+        if (ax := self._ax) is None:
+            fig, ax = plt.subplots()
+            ax.set_ylabel('WE Iteration')
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        else:
+            fig = ax.get_figure()
+            if self._graph is not None:
+                self._clear()
+
+        graph = self.trajtree.to_networkx(self.first_iter, self.last_iter, copy=False)
+
+        x_pos = {}
+        if self.x_func is not None:
             for n_iter in range(self.first_iter, self.last_iter + 1):
-                for segment in trajtree.get_segments(n_iter):
+                for segment in self.trajtree.get_segments(n_iter):
                     u = SegmentPointer(segment.n_iter, segment.seg_id)
-                    x[u] = x_func(segment)
+                    x_pos[u] = self.x_func(segment)
             ax.set_xlabel(self.x_label or 'x')
         else:
-            agraph = _to_pygraphviz(trajtree, self.first_iter, self.last_iter)
+            agraph = _to_pygraphviz(self.trajtree, self.first_iter, self.last_iter)
             agraph.graph_attr['rankdir'] = 'BT'
-            agraph.layout(prog='dot')
+            agraph.layout(prog='dot')  # see https://graphviz.org/docs/layouts/dot/
             for u, au in zip(graph, agraph):
-                x[u] = float(au.attr['pos'].split(',')[0])
+                x_pos[u] = float(au.attr['pos'].split(',')[0])
             ax.set_xticks([])
-
-        ax.set_ylabel('WE Iteration')
 
         edge_artists = {}
         for u, v in graph.edges():
             artist, *_ = ax.plot(
-                [x[u], x[v]],
+                [x_pos[u], x_pos[v]],
                 [u.n_iter, v.n_iter],
                 c=self.default_edge_color,
                 linewidth=0.75,
@@ -494,7 +557,7 @@ class TrajectoryTreeViewer:
 
         y = list(map(attrgetter('n_iter'), graph.nodes()))
         c = list(map(cmap, map(norm, log_weights)))
-        node_artist = ax.scatter([x[u] for u in graph], y, c=c, s=3, picker=True)
+        node_artist = ax.scatter([x_pos[u] for u in graph], y, c=c, s=3, picker=True)
         highlighted_node_artist = ax.scatter(x=[], y=[], c=self.highlight_color, s=3, alpha=0.8)
 
         text_ax = fig.add_axes((0.1, 0.88, 0.8, 0.1))
@@ -505,10 +568,10 @@ class TrajectoryTreeViewer:
         fig.canvas.mpl_connect('pick_event', self._node_pick)
         fig.canvas.mpl_connect('motion_notify_event', self._node_hover)
 
-        self._fig = fig
+        self._ax = ax
         self._graph = graph
         self._nodes = list(graph)
-        self._x = x
+        self._x_pos = x_pos
         self._highlighted_subgraph = None
         self._edge_artists = edge_artists
         self._node_artist = node_artist
@@ -526,6 +589,14 @@ class TrajectoryTreeViewer:
     @property
     def last_iter(self):
         return self._last_iter
+
+    @property
+    def stride(self):
+        return self._stride
+
+    @property
+    def roots(self):
+        return self._roots
 
     @property
     def x_func(self):
@@ -548,6 +619,7 @@ class TrajectoryTreeViewer:
         return self._highlight_color
 
     def clear_highlights(self):
+        """Clear highlighted nodes and edges."""
         if self._highlighted_subgraph is not None:
             for edge in self._highlighted_subgraph.edges():
                 self._edge_artists[edge].set_color(self._default_edge_color)
@@ -559,15 +631,31 @@ class TrajectoryTreeViewer:
             self.clear_highlights()
         for edge in subgraph.edges():
             self._edge_artists[edge].set_color(self.highlight_color)
-        self._highlighted_node_artist.set_offsets([[self._x[u], u.n_iter] for u in subgraph.nodes()])
+        self._highlighted_node_artist.set_offsets([[self._x_pos[u], u.n_iter] for u in subgraph.nodes()])
         self._highlighted_subgraph = subgraph
 
     def highlight_trace(self, n_iter, seg_id):
+        """Highlight the trace of a given segment.
+
+        Parameters
+        ----------
+        n_iter : int
+        seg_id : int
+
+        """
         u = SegmentPointer(n_iter, seg_id)
         subgraph = self._graph.subgraph(nx.ancestors(self._graph, u) | {u})
         self._highlight(subgraph)
 
     def highlight_subtree(self, n_iter, seg_id):
+        """Highlight the subtree rooted at a given segment.
+
+        Parameters
+        ----------
+        n_iter : int
+        seg_id : int
+
+        """
         u = SegmentPointer(n_iter, seg_id)
         subgraph = self._graph.subgraph(nx.descendants(self._graph, u) | {u})
         self._highlight(subgraph)
@@ -608,14 +696,14 @@ class Trajectory(Sequence):
 
     Parameters
     ----------
-    segments : iterable of :class:`Segment`
+    segments : iterable of Segment
         Segments comprising the trajectory.
 
     Attributes
     ----------
-    states : iterator of :class:`State`
-    initial_state : :class:`State`
-    final_state : :class:`State`
+    states : iterator of State
+    initial_state : State
+    final_state : State
     iter_range : range
 
     """

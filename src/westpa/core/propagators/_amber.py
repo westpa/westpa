@@ -82,7 +82,7 @@ class AmberPropagator(SerialPropagator):
 
         # override 'ig', 'irest', and 'ntx' options
         ig = rng.integers(2**16, dtype=np.uint16).item()
-        if segment.initpoint_type == segment.InitPointType.NEWTRAJ:
+        if segment.initpoint_type == segment.InitPoint.NEWTRAJ:
             irest, ntx = 0, 1
         else:
             irest, ntx = 1, 5

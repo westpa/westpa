@@ -2,16 +2,16 @@ import numpy as np
 
 
 class State:
-    """Describes a specific configuration of the model being simulated.
+    """Represents a specific configuration of the model being simulated.
 
     Either `coord` or `file` must be specified. The required parameter and the
     significance of its value are determined by the `propagator <propagators.html>`_. If using a
-    built-in propagator, see its class documentation for details on creating
-    compatible :class:`State` objects.
+    built-in propagator type, see its documentation for details on creating
+    compatible initial states.
 
     Parameters
     ----------
-    coord : 1-D array_like, optional
+    coord : 1-D array-like, optional
         Coordinate vector of the state. The array length (dimension of state
         space) and data type are determined by the propagator.
     file : str, optional
@@ -42,7 +42,7 @@ class State:
     """
 
     def __init__(self, coord=None, file=None):
-        if (coord is None) == (file is None):
+        if (coord is None) == (file is None):  # xnor
             raise ValueError("either 'coord' or 'file' must be specified")
 
         if coord is not None:
@@ -67,10 +67,7 @@ class State:
         return self._file
 
     def __repr__(self):
-        kwargs = {}
         if self._coord is not None:
-            kwargs['coord'] = self._coord
+            return type(self).__name__ + '(coord=' + repr(self._coord) + ')'
         else:
-            kwargs['file'] = self._file
-        params = ', '.join(f'{k}={v!r}' for k, v in kwargs.items())
-        return type(self).__name__ + '(' + params + ')'
+            return type(self).__name__ + '(file=' + repr(self._file) + ')'

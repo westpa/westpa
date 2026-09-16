@@ -34,7 +34,7 @@ class _PropagatorBase(ABC):
         if not isinstance(value, int):
             raise TypeError("'root_seed' must be an integer")
         if value < 0:
-            raise ValueError("'root_seed' must be non-negative")
+            raise ValueError("'root_seed' must be nonnegative")
         self._root_seed = value
         logger.info(f'root_seed={value}')
 
@@ -108,7 +108,7 @@ class SerialPropagator(_PropagatorBase):
     Parameters
     ----------
     root_seed : int, optional
-        Root seed integer. Must be non-negative. Used to reproducibly seed
+        Root seed integer. Must be nonnegative. Used to reproducibly seed
         the pseudorandom number generator (PRNG) passed to the
         :meth:`propagate` method. Defaults to ``secrets.randbits(128)``.
     bit_generator_type : type, optional
@@ -221,7 +221,7 @@ class VectorizedPropagator(_PropagatorBase):
     Parameters
     ----------
     root_seed : int, optional
-        Root seed integer. Must be non-negative. Used to reproducibly seed
+        Root seed integer. Must be nonnegative. Used to reproducibly seed
         the pseudorandom number generator (PRNG) passed to the
         :meth:`propagate` method. Defaults to ``secrets.randbits(128)``.
     bit_generator_type : type, optional

@@ -64,22 +64,6 @@ log = logging.getLogger(__name__)
 
 
 class BinMapper:
-    """Base class for bin mappers. Subclasses must implement the :meth:`map`
-    method, as well as provide values for the :attr:`nbins` and :attr:`labels`
-    attributes.
-
-    Attributes
-    ----------
-    nbins : int
-        Total number of bins to which the mapper assigns trajectories.
-    labels : list of str
-        Label for each bin.
-
-    Methods
-    -------
-    map
-
-    """
 
     def __init__(self):
         self.labels = None
@@ -104,7 +88,7 @@ class BinMapper:
         return (pkldat, hash.hexdigest())
 
     def __repr__(self):
-        return '<{} at 0x{:x} with {:d} bins>'.format(self.__class__.__name__, id(self), self.nbins or 0)
+        return '<{} with {:d} bins at 0x{:x}>'.format(self.__class__.__name__, self.nbins or 0, id(self))
 
     def _assign(self, coords, mask, output):
         raise NotImplementedError()
@@ -138,7 +122,7 @@ class BinMapper:
         return output
 
     def __call__(self, segments):
-        coords = np.array(list(map(lambda seg: seg.pcoord[-1], segments)))
+        coords = np.array([segment.pcoord[-1] for segment in segments])
         assignments = self.assign(coords)
 
         bins = self.construct_bins()
@@ -161,12 +145,19 @@ class NopMapper(BinMapper):
 
 
 class RectilinearBinMapper(BinMapper):
-    """Bin into a rectangular grid.
+    """Assigns segments to cells in a rectangular grid.
 
     Parameters
     ----------
-    boundaries : iterable of array_like
-        Bin boundaries along each progress coordinate dimension.
+    boundaries : iterable of 1-D array-like
+        Bin boundaries along each progress coordinate dimension. The values
+        in each array must be monotonically increasing.
+
+    Examples
+    --------
+    >>> import westpa
+    >>> westpa.RectilinearBinMapper([[0., 1., 2., 3., 4., 5.]])
+    <RectilinearBinMapper with 5 bins at 0x168170620>
 
     """
 
@@ -275,9 +266,7 @@ class VectorizingFuncBinMapper(BinMapper):
 
 
 class VoronoiBinMapper(BinMapper):
-    """Assign progress coordinate points to the closest center based on a
-    distance metric. Both the list of centers and the distance function must
-    be supplied.
+    """Assigns segments to cells in a Voronoi diagram.
 
     Parameters
     ----------
@@ -285,7 +274,7 @@ class VoronoiBinMapper(BinMapper):
         Distance function. It must accept arguments ``(x, ys)`` and return
         a 1-D array containing the distance of each point in ``ys`` to the
         point ``x``.
-    centers : 2-D array_like
+    centers : 2-D array-like
         Voronoi sites.
     dfargs : tuple, optional
         Optional arguments to pass to `dfunc`.
@@ -383,7 +372,7 @@ class RecursiveBinMapper(BinMapper):
         mapper : BinMapper
             Bin mapper with which to replace the bin containing
             `replaces_bin_at`.
-        replaces_bin_at : array_like
+        replaces_bin_at : 1-D array-like
             Coordinate tuple indicating the bin to replace.
 
         """

@@ -3,13 +3,13 @@ import logging
 import numpy as np
 from scipy.spatial.distance import cdist
 
-from .assign import BinMapper, VoronoiBinMapper
+from .assign import VoronoiBinMapper
 
 logger = logging.getLogger(__name__)
 
 
-class AdaptiveVoronoiBinMapper(BinMapper):
-    """Adaptively place Voronoi sites using the procedure described in Zhang, Jasnow, and Zuckerman (2010). [1]_
+class AdaptiveVoronoiBinMapper:
+    """Adaptively places Voronoi sites using the procedure described in Zhang, Jasnow, and Zuckerman (2010). [1]_
 
     Parameters
     ----------
@@ -22,9 +22,9 @@ class AdaptiveVoronoiBinMapper(BinMapper):
         Extra arguments to `metric`. See the
         ``scipy.spatial.distance.cdist`` documentation for details.
     update_interval : int, default 1
-        Number of iterations between bin updates.
+        Number of iterations between Voronoi site updates.
     rng : numpy.random.Generator, optional
-        Pseudo-random number generator to use.
+        psuedorandom number generator to use.
 
     References
     ----------
@@ -49,8 +49,6 @@ class AdaptiveVoronoiBinMapper(BinMapper):
         self.update_interval = update_interval
         self.rng = np.random.default_rng(rng)
 
-        self.labels = [f'cell_{i}' for i in range(nbins)]
-
         self.current_mapper = None
         self.last_update = None
 
@@ -63,8 +61,6 @@ class AdaptiveVoronoiBinMapper(BinMapper):
         return self.current_mapper.centers if self.current_mapper else None
 
     def update_centers(self, coords):
-        logger.info('Updating Voronoi centers')
-
         if len(coords) <= self.nbins:
             self.current_mapper = VoronoiBinMapper(self.dfunc, coords)
             return
@@ -78,7 +74,7 @@ class AdaptiveVoronoiBinMapper(BinMapper):
         # d_min := distance of each point to nearest center
         d_min = self.dfunc(centers[-1], coords)
 
-        # iteratively add the point with the maximum d_min value
+        # iteratively add the point with the maximum d_min values
         while len(centers) < self.nbins:
             idx = np.argmax(d_min)
             centers.append(coords[idx])
@@ -86,15 +82,22 @@ class AdaptiveVoronoiBinMapper(BinMapper):
 
         self.current_mapper = VoronoiBinMapper(self.dfunc, centers)
 
-    def map(self, segments, bins):
+    def __call__(self, segments):
         coords = np.array([segment.pcoord[-1] for segment in segments])
         n_iter = segments[0].n_iter
 
         if self.last_update is None or n_iter - self.last_update == self.update_interval:
             self.update_centers(coords)
             self.last_update = n_iter
+            string = np.array2string(self.centers, separator=',', formatter={'all': '{:g}'.format})
+            logger.info('centers=[\n ' + string[1:-1] + ']')
         elif n_iter <= self.last_update:
             raise ValueError(f"'n_iter' must be greater than 'last_update' ({n_iter} <= {self.last_update})")
 
-        for i, segment in zip(self.current_mapper.assign(coords), segments):
-            bins[i].add(segment)
+        bins = self.current_mapper.construct_bins()
+        assignments = self.current_mapper.assign(coords)
+
+        for segment, idx in zip(segments, assignments):
+            bins[idx].add(segment)
+
+        return bins
