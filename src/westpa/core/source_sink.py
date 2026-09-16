@@ -28,7 +28,7 @@ class Source(Sequence):
     p : numpy.ndarray
         State selection probabilities.
     rng : numpy.random.Generator
-        PRNG used by the :meth:`random_choice` method.
+        PRNG used by the :meth:`random_sample` method.
 
     Examples
     --------
@@ -49,7 +49,7 @@ class Source(Sequence):
 
     Draw a random sample of states:
 
-    >>> source.random_choice(3)
+    >>> source.random_sample(3)
     [State(coord=array([0.])),
      State(coord=array([0.])),
      State(coord=array([1.]))]
@@ -91,7 +91,7 @@ class Source(Sequence):
     def rng(self):
         return self._rng
 
-    def random_choice(self, k=1):
+    def random_sample(self, k=1):
         """Return a random sample of states from the source distribution.
 
         Parameters

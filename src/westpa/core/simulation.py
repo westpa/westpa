@@ -542,7 +542,7 @@ class Simulation:
 
         # dispatch pending istate generation tasks
         if unprepared_segments:
-            states = self.source.random_choice(len(unprepared_segments))
+            states = self.source.random_sample(len(unprepared_segments))
             if self.istate_generator is not None:
                 for state in states:
                     future = self.work_manager.submit(self.istate_generator, args=(state,))
