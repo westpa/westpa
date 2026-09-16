@@ -159,9 +159,11 @@ class Sink(Container):
         self._indicator = indicator
         self._label = label or ''
 
+    @property
     def indicator(self):
         return self._indicator
 
+    @property
     def label(self):
         return self._label
 
