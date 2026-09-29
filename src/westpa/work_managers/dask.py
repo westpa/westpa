@@ -21,33 +21,62 @@ class _DaskFutureWrapper:
     """WMFuture-like interface to a ``dask.distributed.Future`` object."""
 
     def __init__(self, future):
-        super().__init__()
         self.future = future
         self._result = None
+        self._hashval = hash(future)
 
     def __repr__(self):
         return type(self).__name__ + '(' + repr(self.future) + ')'
 
     def __hash__(self):
-        return hash(self.future)
+        return self._hashval
 
     def get_result(self, discard=True):
         """Get result from ``distributed.client.Future``. By default,
         reference to future object will be removed after completion.
         """
-        result = self.future.result()
+        if self.future:
+            # Grab newest result
+            result = self.future.result()
+        else:
+            # Alternatively, return cached result (which could be None)
+            result = self._result
 
         if not discard:
             self._result = result
         else:
             self.future = None
+
         return result
 
     def get_exception(self):
-        return self.future.exception()
+        return self.future.exception() if self.future else None
 
     def get_traceback(self):
-        return self.future.traceback()
+        return self.future.traceback() if self.future else None
+
+    def get_status(self):
+        return self.future.status if self.future else None
+
+    def get_worker_logs(self):
+        """Returns the worker logs from the dask client. Best effort trying to figure out which worker ran the
+        current future.
+
+        Returns
+        -------
+        Dict[str : Tuple[Tuple[2,], N]]
+            This is a dictionary mapping the worker address to a tuple of tuples. The inner tuple is of shape (2,),
+            with the first element being the message type (e.g., 'ERROR', 'INFO') and the second element being the
+            actual messages themselves. Returns empty dict if the future reference ('self.reference') is None.
+
+        """
+        if self.future:
+            # Try to trace back which worker ran the future... fallback to all workers if couldn't identify
+            tracked_workers = self.future.client.who_has(futures=[self.future])[self.future.key]
+            tracked_workers = list(tracked_workers) if len(tracked_workers) > 0 else None
+            return self.future.client.get_worker_logs(workers=tracked_workers)
+        else:
+            return dict()
 
     def is_done(self):
         """Considered done if self.future reports done or no associated future object."""
@@ -74,6 +103,10 @@ class _DaskFutureWrapper:
     @property
     def done(self):
         return self.is_done()
+
+    @property
+    def status(self):
+        return self.get_status()
 
     def to_dask(self):
         """Return ``dask.distributed.Future`` object"""
@@ -126,6 +159,8 @@ class DaskWorkManager(WorkManager):
         self.cluster = None if self._own_client else self.client.cluster
         self._own_cluster = None if self._own_client else False
 
+        self.n_retries = kwargs.pop('n_retries', 0)
+
     @property
     def n_workers(self):
         return len(self.client.scheduler_info()['workers'])
@@ -142,9 +177,9 @@ class DaskWorkManager(WorkManager):
                     self.cluster = self.client.cluster
                     self._own_cluster = False
 
-                    if self.client.scheduler.n_workers == 0:
+                    if self.n_workers == 0:
                         logger.warning(
-                            'Inherited a cluster with no workers. Please connect your own workers to the scheduler (e.g. `dask worker <schedulerip:port> --nworkers 3`).'
+                            'Inherited a client with no workers. Please connect your own workers to the scheduler (e.g. `dask worker <schedulerip:port> --nworkers 3`).'
                         )
 
                 else:
@@ -177,6 +212,7 @@ class DaskWorkManager(WorkManager):
     def submit(self, fn, args=None, kwargs=None):
         args = args or ()
         kwargs = kwargs or {}
+        kwargs['retries'] = self.n_retries  # Inject fault tolerance
         future = self.client.submit(fn, *args, **kwargs, pure=False)
         return _DaskFutureWrapper(future)
 
@@ -218,18 +254,27 @@ class DaskWorkManager(WorkManager):
             wmenv.arg_flag('dask_threads_per_worker'),
             metavar='THREADS_PER_WORKER',
             type=int,
+            default=1,
             help="Number of threads per Dask worker. Ignored if SCHEDULER_ADDRESS or SCHEDULER_FILE is provided.",
         )
         group.add_argument(
             wmenv.arg_flag('dask_memory_limit'),
             metavar='MEMORY_LIMIT',
             type=str,
+            default='auto',
             help="Memory limit per Dask worker (e.g., '1GiB'). Ignored if SCHEDULER_ADDRESS or SCHEDULER_FILE is provided.",
         )
         group.add_argument(
             wmenv.arg_flag('dask_shutdown_on_exit'),
             action='store_true',
-            help="Shut down the Dask scheduler and all workers when the program exits. By default, the cluster is left running.",
+            help="Shut down the Dask scheduler and all workers when the program exits. By default, a user-provided cluster is left running a WESTPA-managed cluster is shutdown at program termination.",
+        )
+        group.add_argument(
+            wmenv.arg_flag('dask_n_retries'),
+            metavar='N_RETRIES',
+            type=int,
+            default=0,
+            help="Number of times a failed computation (future) is retried. By default, there is no fault tolerance.",
         )
 
     @classmethod
@@ -246,6 +291,7 @@ class DaskWorkManager(WorkManager):
             'n_workers': wmenv.get_val('n_workers', type_=int),
             'threads_per_worker': wmenv.get_val('dask_threads_per_worker', 1, type_=int),
             'memory_limit': wmenv.get_val('dask_memory_limit', 'auto'),
-            'force_shutdown': wmenv.get_val('dask_shutdown_on_exit'),
+            'force_shutdown': wmenv.get_val('dask_shutdown_on_exit', False),
+            'n_retries': wmenv.get_val('dask_n_retries', 0),
         }
         return cls(client, **kwargs)

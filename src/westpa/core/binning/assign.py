@@ -391,10 +391,8 @@ class RecursiveBinMapper(BinMapper):
         specified ``mapper``.'''
 
         replaces_bin_at = np.require(replaces_bin_at, dtype=coord_dtype)
-        if replaces_bin_at.ndim < 1:
-            replaces_bin_at.shape = (1, 1)
-        elif replaces_bin_at.ndim < 2:
-            replaces_bin_at.shape = (1, replaces_bin_at.shape[0])
+        if replaces_bin_at.ndim < 2:
+            replaces_bin_at = np.atleast_2d(replaces_bin_at)
         elif replaces_bin_at.ndim > 2 or replaces_bin_at.shape[1] > 1:
             raise TypeError('a single coordinate vector is required')
 

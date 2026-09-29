@@ -35,10 +35,13 @@ Start up a cluster and point WESTPA to the scheduler file::
   $ w_run --work-manager dask --dask-scheduler-file /path/to/scheduler.json
 
 
-By default, clients/schedulers/cluster/workers that are passed to WESTPA are considered self-managed and will not be shut down when ``DaskWorkManager`` shuts down. However, all workers will be restarted to ensure a clean state. Users can pass the ``--dask-shutdown-completely`` flag to forcefully shutdown the scheduler/workers. This complete shutdown behavior is default when the dask client/cluster is started by WESTPA.
+By default, clients/schedulers/cluster/workers that are passed to WESTPA are considered self-managed and will not be shut down when ``DaskWorkManager`` shuts down. However, all workers will be restarted to ensure a clean state. Users can pass the ``--dask-shutdown-on-exit`` flag to forcefully shutdown the scheduler/workers. This complete shutdown behavior is default when the dask client/cluster is started by WESTPA.
 
 
-Users may also modify the dask workers WESTPA manages with the ``--dask-memory-limit <str>`` (equivalent to ``--memory-limit`` for ``dask worker``) and ``--dask-threads-per-worker <int>`` (equivalent to ``--nthreads`` for ``dask worker``) flags. The general ``--n-workers <int>`` flag is equivalent to the ``--nworkers`` flag in dask.
+Users may also modify the dask workers WESTPA manages with the ``--dask-memory-limit <str>`` (equivalent to ``--memory-limit`` for ``dask worker``) and ``--dask-threads-per-worker <int>`` (equivalent to ``--nthreads`` for ``dask worker``) flags. The general ``--n-workers <int>`` flag is equivalent to the ``--nworkers`` flag in dask. 
+
+
+To include fault tolerance (retries) in computation, users may also pass ``--dask-n-retries <int>`` to WESTPA. This flag is equivalent to passing ``retries=<int>`` to each dask future/computation, ensuring that a future could retry up to ``<int>`` additional times before failing out.
 
 
 More examples of dask work manager usage can be found in the following location: https://github.com/westpa/westpa_tutorials/tree/main/additional_tutorials.

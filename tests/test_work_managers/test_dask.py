@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 pytest.importorskip('dask')
@@ -29,7 +31,30 @@ class TestDaskWorkManager:
         future = work_manager.submit(sum, args=[(1, 2)])
         assert not future.done
         assert future.result == 3
+        assert future.status == 'finished'
         assert future.done
+
+    def test_submit_retry(self, work_manager, monkeypatch):
+        '''Run a future with three retries. The task/future is guaranteed to raise a TypeError, prompting a rerun.'''
+        with monkeypatch.context() as m:
+            m.setattr(work_manager, 'n_retries', 3)
+            future = work_manager.submit(int, args=[None])
+
+            assert not future.done
+            with pytest.raises(TypeError, match=re.escape('int() argument must be a string, a bytes-like object or a real number')):
+                future.result
+
+            err = future.get_worker_logs()
+
+            n_tries = 0
+            for output in err.values():
+                for tp in output:
+                    if tp[0] == 'ERROR' and 'ERROR - Compute Failed' in tp[1]:
+                        n_tries += 1
+
+            assert n_tries == 4
+            assert future.status == 'error'
+            assert future.done
 
     def test_as_completed(self, work_manager):
         futures = [work_manager.submit(str, args=[index]) for index in range(NUM_TASKS)]

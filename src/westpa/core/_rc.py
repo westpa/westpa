@@ -119,10 +119,8 @@ def parsePCV(pc_str):
     namespace = {'math': math, 'numpy': np, 'np': np, 'inf': float('inf')}
 
     arr = np.array(eval(pc_str, namespace))
-    if arr.ndim == 0:
-        arr.shape = (1, 1)
-    elif arr.ndim == 1:
-        arr.shape = (1,) + arr.shape
+    if arr.ndim <= 1:
+        arr = np.atleast_2d(arr)
     else:
         raise ValueError('too many dimensions')
     # return list(arr[...])
@@ -389,7 +387,7 @@ class WESTRC:
 
         drivername = self.config.get(['west', 'drivers', 'data_manager'], 'hdf5')
         if drivername.lower() in ('hdf5', 'default'):
-            data_manager = westpa.core.data_manager.WESTDataManager()
+            data_manager = westpa.core.data_manager.WESTDataManager(rc=self)
         else:
             data_manager = extloader.get_object(drivername)(rc=self)
         log.debug('loaded data manager: {!r}'.format(data_manager))
@@ -411,15 +409,15 @@ class WESTRC:
             if use_mab:
                 from .binning.mab_driver import MABDriver
 
-                we_driver = MABDriver()
+                we_driver = MABDriver(rc=self)
             elif use_binless:
                 from .binning.binless_driver import BinlessDriver
 
-                we_driver = BinlessDriver()
+                we_driver = BinlessDriver(rc=self)
             else:
                 from .we_driver import WEDriver
 
-                we_driver = WEDriver()
+                we_driver = WEDriver(rc=self)
         else:
             we_driver = extloader.get_object(drivername)(rc=self)
 
@@ -453,7 +451,7 @@ class WESTRC:
         if drivername.lower() == 'executable':
             from westpa.core.propagators.executable import ExecutablePropagator
 
-            propagator = ExecutablePropagator()
+            propagator = ExecutablePropagator(rc=self)
         else:
             propagator = extloader.get_object(drivername)(rc=self)
         log.debug('loaded propagator {!r}'.format(propagator))

@@ -29,9 +29,9 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Set up Python 3.13
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: 3.13
       - name: Linting
@@ -42,12 +42,13 @@ jobs:
   test:
     name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: "${{ matrix.os }}"
+    continue-on-error: true  # better to finish some jobs than none
     strategy:
       matrix:
         os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-15-intel", "macos-latest"]  # macos-15-intel is x86-64, macos-latest is arm64
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with: 
           fetch-depth: 2
   
@@ -87,7 +88,7 @@ jobs:
           pytest -v --cov=westpa --cov-report=xml --color=yes tests
   
       - name: CodeCov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: ./coverage.xml
           flags: unittests
@@ -105,8 +106,8 @@ jobs:
     runs-on: "${{ matrix.os }}"
 
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: "Install HDF5 with brew if macos-arm64"

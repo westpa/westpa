@@ -123,7 +123,6 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
         #double[:,:] eigvecs, WORK
 
 
-
     # CREATE NUMPY ARRAYS
     # This is a temporary measure that fixes some segfaults, which implies I'm probably off by
     # a little bit.  Memory heavy, but whatever.
@@ -209,28 +208,28 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
 
     # This allows us to use the same function for all three types.
     # Return conditional fluxes.
-    if _return_obs == b'F':
+    if _return_obs == 'F':
         _return_value = _rw_state_flux[_istate,_jstate]
         if isnan(_return_value) is True:
             return 0.0
         else:
             return _return_value
     # Return state probabilities.
-    elif _return_obs == b'S':
+    elif _return_obs == 'S':
         _return_value = _rw_state_probs[_istate]
         if isnan(_return_value) is True:
             return 0.0
         else:
             return _return_value
     # Return color (ensemble) probabilities
-    elif _return_obs == b'C':
+    elif _return_obs == 'C':
         _return_value = _rw_color_probs[_istate]
         if isnan(_return_value) is True:
             return 0.0
         else:
             return _return_value
     # Return the rates.
-    elif _return_obs == b'R':
+    elif _return_obs == 'R':
         if _rw_color_probs[_istate] != 0.0:
             _return_value = (_rw_state_flux[_istate,_jstate] / (_rw_color_probs[_istate] / (_rw_color_probs[_istate] + _rw_color_probs[_jstate])))
             if isnan(_return_value) is True:
@@ -241,7 +240,7 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
             # We have no ensemble probability, and as such, cannot have a flux.
             return 0.0
     # Return the populations.
-    elif _return_obs == b'P':
+    elif _return_obs == 'P':
         return rw_bin_probs
 
 @cython.boundscheck(False)
