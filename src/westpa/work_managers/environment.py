@@ -65,7 +65,7 @@ class WMEnvironment:
             except KeyError:
                 val = default
 
-        if type_ is None:
+        if val is None or type_ is None:
             return val
         else:
             try:
