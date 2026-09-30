@@ -14,9 +14,9 @@ class Source(Sequence):
 
     Parameters
     ----------
-    states : State or iterable of State
+    states : State or iterable of State, optional
         One or more source states.
-    p : 1-D array-like, optional
+    p : 1-D array_like, optional
         Selection probability of each state. Defaults to a uniform distribution.
     rng : numpy.random.Generator, int, or sequence of int, optional
         Psuedorandom number generator (PRNG) to use for sampling states from
@@ -33,21 +33,19 @@ class Source(Sequence):
     Examples
     --------
 
-    Create a source containing two states:
-
     >>> import westpa
     >>> states = [westpa.State([0.]), westpa.State([1.])]
     >>> source = westpa.Source(states)
     >>> source
-    Source([State(coord=array([0.])), State(coord=array([1.]))], p=[0.5, 0.5])
+    <Source with 2 states, p=[0.5, 0.5] at 0x30218eea0>
 
-    Use nonuniform selection probabilities:
+    Nonuniform selection probabilities:
 
     >>> source = westpa.Source(states, p=[0.7, 0.3])
     >>> source
-    Source([State(coord=array([0.])), State(coord=array([1.]))], p=[0.7, 0.3])
+    <Source with 2 states, p=[0.7, 0.3] at 0x3022720A0>
 
-    Draw a random sample of states:
+    Random sampling:
 
     >>> source.random_sample(3)
     [State(coord=array([0.])),
@@ -62,7 +60,7 @@ class Source(Sequence):
         else:
             states = tuple(states)
             if not all(isinstance(item, State) for item in states):
-                raise TypeError("items in 'states' must be westpa.State objects")
+                raise TypeError("'states' must be a State object or an iterable of State objects")
 
         if p is None:
             p = np.ones(len(states))
@@ -91,21 +89,25 @@ class Source(Sequence):
     def rng(self):
         return self._rng
 
-    def random_sample(self, k=1):
+    def random_sample(self, size=None):
         """Return a random sample of states from the source distribution.
 
         Parameters
         ----------
-        k : int, default 1
-            Sample size.
+        size : int, optional
+            Sample size. Default is None, in which case a single state
+            is returned.
 
         Returns
         -------
-        states : list of State
+        states : State or list of State
             Sampled states.
 
         """
-        return self.rng.choice(self._states, p=self.p, size=k).tolist()
+        if size is None:
+            return self.rng.choice(self._states, p=self.p)
+        else:
+            return self.rng.choice(self._states, p=self.p, size=size).tolist()
 
     def __getitem__(self, index):
         return self._states[index]
@@ -114,8 +116,9 @@ class Source(Sequence):
         return len(self._states)
 
     def __repr__(self):
-        args = f'{self._states}, p={self._p.tolist()}'
-        return type(self).__name__ + '(' + args + ')'
+        s = '' if len(self) == 1 else 's'
+        p = np.array2string(self._p, separator=', ')
+        return f'<{type(self).__name__} with {len(self)} state{s}, p={p} at {hex(id(self))}>'
 
 
 class Sink(Container):
@@ -157,7 +160,7 @@ class Sink(Container):
 
     def __init__(self, indicator, label=None):
         self._indicator = indicator
-        self._label = label or ''
+        self._label = str(label) if label else ''
 
     @property
     def indicator(self):

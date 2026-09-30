@@ -20,7 +20,7 @@ class Report:
 
 
 class OpenMMPropagator(SerialPropagator):
-    """`OpenMM <https://openmm.org/>`_ molecular dynamics propagator.
+    """`OpenMM <https://openmm.org/>`_-based molecular dynamics propagator.
 
     To create an initial state for this propagator,
     `save <https://docs.openmm.org/latest/api-python/generated/openmm.app.simulation.Simulation.html#openmm.app.simulation.Simulation.saveState>`_

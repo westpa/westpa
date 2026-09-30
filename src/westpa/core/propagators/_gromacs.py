@@ -9,7 +9,7 @@ from ..state import State
 
 
 class GROMACSPropagator(SerialPropagator):
-    """`GROMACS <https://www.gromacs.org/>`_ molecular dynamics propagator.
+    """`GROMACS <https://www.gromacs.org/>`_-based molecular dynamics propagator.
 
     To create an initial state for this propagator, pass the absolute path of
     a GROMACS coordinate file to the :class:`State` constructor's `file` parameter::

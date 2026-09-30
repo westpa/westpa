@@ -13,11 +13,12 @@ __all__ = [
     'AmberPropagator',
     'GROMACSPropagator',
     'OpenMMPropagator',
+    'PCoordCalculator',
     'BinMapper',
     'RectilinearBinMapper',
     'MABBinMapper',
     'VoronoiBinMapper',
-    'AdaptiveVoronoiBinMapper',
+    'BinMapperBase',
     'Resampler',
     'ResamplerBase',
     'HuberKimResampler',
@@ -39,15 +40,15 @@ import shutil
 
 from .core.state import State
 from .core.segment import Segment
-from .core.protocols import Propagator, BinMapper, Resampler
+from .core.protocols import Propagator, PCoordCalculator, BinMapper, Resampler
 from .core.propagators import SerialPropagator, VectorizedPropagator
 from .core.binning import (
     Bin,
     RectilinearBinMapper,
     MABBinMapper,
     VoronoiBinMapper,
-    AdaptiveVoronoiBinMapper,
 )
+from .core.binning.base import BinMapperBase
 from .core.resamplers import (
     ResamplerBase,
     HuberKimResampler,

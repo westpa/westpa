@@ -19,8 +19,6 @@ from .mab_manager import MABSimManager
 from .binless_manager import BinlessSimManager
 from .binless_driver import BinlessDriver
 
-from .adaptive_voronoi import AdaptiveVoronoiBinMapper
-
 from ._assign import accumulate_labeled_populations, assign_and_label, accumulate_state_populations_from_labeled
 from ._assign import assignments_list_to_table
 
@@ -38,7 +36,6 @@ __all__ = [
     'RecursiveBinMapper',
     'VectorizingFuncBinMapper',
     'VoronoiBinMapper',
-    'AdaptiveVoronoiBinMapper',
     'map_mab',
     'map_binless',
     'MABBinMapper',

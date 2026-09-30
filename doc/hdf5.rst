@@ -34,8 +34,7 @@ Overall structure
     │   │   ├── seg_index
     │   │   └── wtgraph
     │   │
-    │   └── iter_00000002/
-    │       ...
+    │   └── ...
     │
     └── summary
 

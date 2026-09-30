@@ -1,7 +1,6 @@
 import abc
 import logging
 import math
-import operator
 import secrets
 
 import numpy as np
@@ -12,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 class ResamplerBase(abc.ABC):
-    """Base class for resamplers. Subclasses must implement the :meth:`resample` method.
+    """Base class for resamplers.
+    Subclasses must implement the :meth:`resample` method.
 
     Parameters
     ----------
@@ -42,6 +42,8 @@ class ResamplerBase(abc.ABC):
 
     """
 
+    _check = True
+
     def __init__(
         self,
         rng=None,
@@ -67,106 +69,30 @@ class ResamplerBase(abc.ABC):
         self.thresholds = thresholds
 
     @abc.abstractmethod
-    def resample(self, bin, target_count):
-        """Resample the walkers in a given bin.
+    def resample(self, bin_, target_count):
+        """Resample the trajectories in a given bin.
 
         Parameters
         ----------
-        bin : Bin
+        bin_ : Bin
             Bin to resample.
         target_count : int
-            Target number of walkers for the bin.
+            Target number of trajectories for the bin.
 
         Returns
         -------
-        bin : Bin
+        bin_ : Bin
             Resampled bin.
 
         """
         ...
-
-    @staticmethod
-    def split_walker(bin, segment, m=2):
-        """Split a walker into two or more copies.
-
-        This method modifies `bin` by replacing the input `segment` with the
-        output `new_segments`.
-
-        Parameters
-        ----------
-        bin : Bin
-            Bin containing the walker.
-        segment : Segment
-            Walker to split.
-        m : int, default 2
-            Number of copies to split `segment` into.
-
-        Returns
-        -------
-        new_segments : set of Segment
-            New segments created by splitting `segment`.
-
-        """
-        if not isinstance(m, int):
-            raise TypeError("'m' must be an integer")
-        if not m >= 2:
-            raise ValueError("'m' must be greater than or equal to 2")
-
-        new_weight = segment.weight / m
-        new_segments = {segment.copy(weight=new_weight) for _ in range(m)}
-
-        bin.remove(segment)
-        bin |= new_segments
-
-        return new_segments
-
-    def merge_walkers(self, bin, segments, cumulative_weight=None):
-        """Merge multiple walkers into a single walker. The surviving walker
-        is chosen randomly according to weight.
-
-        This method modifies `bin` by replacing the input `segments` with the
-        output `new_segment`.
-
-        Parameters
-        ----------
-        bin : Bin
-            Bin containing the walkers.
-        segments : iterable of Segment
-            Walkers to merge.
-        cumulative_weight : 1-D array-like, optional
-            Cumulative sum of the walker weights. If not passed, the value will be
-            computed by this function.
-
-        Returns
-        -------
-        new_segment : Segment
-            New segment created by merging `segments`.
-
-        """
-        segments = list(segments)
-        weights = np.array(list(map(operator.attrgetter('weight'), segments)))
-
-        if cumulative_weight is None:
-            cumulative_weight = weights.cumsum()
-
-        idx = np.digitize(self.rng.uniform(0, cumulative_weight[-1]), cumulative_weight)
-
-        new_segment = segments[idx].copy(
-            weight=cumulative_weight[-1],
-            wtg_parent_ids=set.union(*(segment.wtg_parent_ids for segment in segments)),
-        )
-
-        bin -= segments
-        bin.add(new_segment)
-
-        return new_segment
 
     def _split_by_threshold(self, bin):
         index = bin.bisect_weights(self.largest_allowed_weight, side='right')
         to_split = bin[index:]
         for segment in to_split:
             m = math.ceil(segment.weight / self.largest_allowed_weight)
-            self.split_walker(bin, segment, m=m)
+            bin.split(segment, m=m)
 
     def _merge_by_threshold(self, bin):
         while True:
@@ -174,21 +100,22 @@ class ResamplerBase(abc.ABC):
             to_merge = bin[:index]
             if len(to_merge) < 2:
                 return
-            self.merge_walkers(bin, to_merge)
+            bin.merge(to_merge, rng=self.rng)
 
     def __call__(self, bin, target_count):
         if not bin:
-            return bin
+            return bin  # skip empty bins
 
-        initial_weight = bin.weight
+        bin_weight = bin.weight
 
         bin = self.resample(bin, target_count)
 
-        weights = bin.weights()
-        if (weights <= 0).any():
-            raise ConsistencyError('weights must be greater than 0')
-        if not math.isclose(weights.sum(), initial_weight, abs_tol=1e-12):  # TODO: What should this tolerance be?
-            raise ConsistencyError('resampling must preserve the total weight of the bin')
+        if self._check:
+            weights = bin.weights()
+            if (weights <= 0).any():
+                raise ConsistencyError('weights must be greater than 0')
+            if not np.isclose(weights.sum(), bin_weight):  # TODO: Specify tolerance (atol, rtol).
+                raise ConsistencyError('resampling must preserve the bin weight')
 
         if self.thresholds:
             self._split_by_threshold(bin)

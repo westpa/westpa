@@ -1,6 +1,7 @@
 import logging
 import operator
 from collections.abc import MutableSet, Sequence
+from functools import reduce
 
 import numpy as np
 from sortedcontainers import SortedSet
@@ -19,11 +20,11 @@ class Bin(MutableSet, Sequence):
     segments : iterable of Segment, optional
         Initial set of segments.
     label : str, optional
-        Bin label.
+        Descriptive label for the bin.
 
     Attributes
     ----------
-    label : str or None
+    label : str
         Bin label.
     weight : float
         Total weight of all the segments in the bin.
@@ -39,7 +40,7 @@ class Bin(MutableSet, Sequence):
     >>> bin_.weights()
     array([0.1, 0.2, 0.3])
 
-    Get the segment with the smallest or largest weight:
+    Get the segment with the lowest or highest weight:
 
     >>> bin_[0]
     <Segment n_iter=None, seg_id=None, weight=0.1, parent_id=None at 0x1056d2990>
@@ -50,7 +51,7 @@ class Bin(MutableSet, Sequence):
 
     def __init__(self, segments=None, label=None):
         self._segments = SortedSet(segments, key=operator.attrgetter('weight'))
-        self._label = label
+        self._label = str(label) if label else ''
 
     def __repr__(self):
         return f'<{type(self).__name__} label={self.label!r}, count={len(self)}, weight={self.weight} at {hex(id(self))}>'
@@ -112,6 +113,34 @@ class Bin(MutableSet, Sequence):
         """
         return np.array(list(map(self._segments.key, self)))
 
+    def reweight(self, new_weight):
+        """Reweight the bin by scaling the segment weights.
+
+        Parameters
+        ----------
+        new_weight : float
+            New bin weight after reweighting. Must be between 0 and 1.
+
+        Returns
+        -------
+        self : Bin
+            Reweighted bin.
+
+        """
+        if not (0 <= new_weight <= 1):
+            raise ValueError("'new_weight' must be between 0 and 1")
+
+        if len(self) == 0:
+            if new_weight > 0:
+                raise ValueError('cannot reweight empty bin')
+            return self
+
+        ratio = new_weight / self.weight
+        segments = [segment.copy(weight=ratio * segment.weight) for segment in self]
+        self._segments = SortedSet(segments, key=operator.attrgetter('weight'))
+
+        return self
+
     def bisect_weights(self, w, side='left'):
         """Find the index where `w` should be inserted in ``self.weights()`` to maintain sorted order.
 
@@ -138,28 +167,76 @@ class Bin(MutableSet, Sequence):
             case _:
                 raise ValueError("'side' must be either 'left' or 'right'")
 
-    def reweight(self, new_weight):
-        """Reweight the bin by scaling the segment weights.
+    def split(self, segment, m=2):
+        """Split a segment into two or more copies.
 
         Parameters
         ----------
-        new_weight : float
-            New bin weight after reweighting. Must be between 0 and 1.
+        segment : Segment
+            Segment to split. This segment is removed from the bin and
+            replaced by the returned segments.
+        m : int, default 2
+            Number of copies to split `segment` into.
 
         Returns
         -------
-        self : Bin
-            Reweighted bin.
+        new_segments : list of Segment
+            `m` copies of `segment`, each with weight ``segment.weight / m``.
 
         """
-        if not (0 <= new_weight <= 1):
-            raise ValueError("'new_weight' must be between 0 and 1")
+        if not isinstance(m, int):
+            raise TypeError("'m' must be an integer")
+        if not m >= 2:
+            raise ValueError("'m' must be greater than or equal to 2")
 
-        if len(self) == 0:
-            if new_weight > 0:
-                raise ValueError('cannot reweight empty bin')
-            return
+        new_weight = segment.weight / m
+        new_segments = [segment.copy(weight=new_weight) for _ in range(m)]
 
-        ratio = new_weight / self.weight
-        segments = [segment.copy(weight=ratio * segment.weight) for segment in self]
-        self._segments = SortedSet(segments, key=operator.attrgetter('weight'))
+        self.remove(segment)
+        self.update(new_segments)
+
+        return new_segments
+
+    def merge(self, segments, cumulative_weight=None, rng=None):
+        """Merge multiple segments into a copy of a single segment. The surviving
+        (copied) segment is chosen randomly according to weight.
+
+        Parameters
+        ----------
+        segments : iterable of Segment
+            Segments to merge. These segments are removed from the bin and
+            replaced by the returned segment.
+        cumulative_weight : 1-D array_like, optional
+            Cumulative sum of the segment weights. If not passed, the value
+            is computed by this method.
+        rng : numpy.random.Generator, int, or sequence of int, optional
+            Pseudorandom number generator (PRNG) to use, or a seed to
+            initialize the PRNG. Integer values must be nonnegative.
+            Defaults to ``numpy.random.default_rng()``.
+
+        Returns
+        -------
+        new_segment : Segment
+            Copy of the surviving segment, with weight equal to the combined
+            weight of `segments`.
+
+        """
+        rng = np.random.default_rng(rng)
+
+        segments = list(segments)
+        weights = np.array(list(map(operator.attrgetter('weight'), segments)))
+
+        if cumulative_weight is None:
+            cumulative_weight = weights.cumsum()
+
+        idx = np.digitize(rng.uniform(0, cumulative_weight[-1]), cumulative_weight)
+
+        new_segment = segments[idx].copy(
+            weight=cumulative_weight[-1],
+            wtg_parent_ids=reduce(operator.or_, (segment.wtg_parent_ids for segment in segments)),
+        )
+
+        self.difference_update(segments)
+        self.add(new_segment)
+
+        return new_segment

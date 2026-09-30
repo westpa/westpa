@@ -11,7 +11,7 @@ import numpy as np
 
 from .state import State
 from .segment import Segment
-from .binning import NopMapper
+from .binning import Bin, NopMapper
 from .resamplers import HuberKimResampler
 from .source_sink import Source, Sink
 from ._data_manager import DataManager
@@ -62,41 +62,28 @@ class Simulation:
     ----------
     datafile : path-like or io.BytesIO
         HDF5 file used to store simulation data.
-    propagator : Propagator
+    propagator : :class:`~westpa.Propagator`
         Routine for propagating trajectories forward in time.
-        See the :class:`~westpa.Propagator` protocol for details.
-    pcoord_calculator : callable, optional
-        Routine that computes the progress coordinate time series for
-        a given trajectory segment. It must accept arguments
-        ``(segment, parent)`` and return either a 2-D array (``pcoord``) or a
-        tuple of the form ``(pcoord, auxdata)``, where ``auxdata`` is a
-        dictionary of named arrays to store as auxiliary data.
-        If ``segment`` continues a trajectory, ``parent`` is the
-        preceding segment; otherwise it is None.
-        If `pcoord_calculator` is not specified, either `propagator` must set
-        the ``pcoord`` segment attribute, or else the raw
-        coordinates are used as progress coordinates, equivalent to passing::
-
-            def default_pcoord(segment, parent):
-                return numpy.stack(
-                    (segment.initial_state.coord, segment.final_state.coord)
-                )
-
-    bin_mapper : BinMapper, optional
-        Routine for assigning trajectories to bins. See the
-        :class:`~westpa.BinMapper` protocol for details. By default, all the
-        trajectories are grouped into a single bin.
+    pcoord_calculator : :class:`~westpa.PCoordCalculator`, optional
+        Routine for computing progress coordinates.
+        By default, the progress coordinates of a state are identical to
+        its raw coordinates (specified by the ``coord`` attribute), and the
+        progress coordinates of a segment are inferred from its initial and
+        final states.
+    bin_mapper : :class:`~westpa.BinMapper`, optional
+        Routine for assigning trajectories to bins. By default, all the
+        trajectories are assigned to a single bin.
     bin_target_counts : int or sequence of int, default 1
-        Target number of trajectories (allocation) for each bin. If an integer
-        is provided, the value is applied to all the bins. If a sequence
-        is provided, its length must match the output length of `bin_mapper`.
-    resampler : Resampler, optional
+        Target number of trajectories (allocation) for each bin. Value(s) must
+        be positive. If an integer is given, its value is applied to all the
+        bins. If a sequence is given, its length must match the number of bins
+        returned by `bin_mapper`.
+    resampler : :class:`~westpa.Resampler`, optional
         Routine for resampling the trajectories in each bin. Defaults to
-        ``HuberKimResampler()``.
+        :class:`~westpa.HuberKimResampler()`.
     source : Source, optional
         Set of states from which to reinitiate trajectories that reach a sink.
-        Must be provided together with `sink`. See the
-        :meth:`configure_recycling` method for more details.
+        Must be provided together with `sink`.
     sink : Sink or iterable of Sink, optional
         One or more sink (target) regions. Must be provided together with `source`.
     istate_generator : callable, optional
@@ -139,9 +126,8 @@ class Simulation:
     -------
     initialize
     run
-    configure_recycling
+    enable_recycling
     disable_recycling
-    register_callback
 
     """
 
@@ -187,7 +173,7 @@ class Simulation:
         if source or sink:
             if not (source and sink):
                 raise ValueError("'source' and 'sink' must be provided together")
-            self.configure_recycling(source, sink, istate_generator)
+            self.enable_recycling(source, sink, istate_generator)
 
         self.work_manager = work_manager or SerialWorkManager()
 
@@ -196,7 +182,7 @@ class Simulation:
         else:
             initialized = os.path.exists(datafile)
 
-        if initialized:  # open existing simulation
+        if initialized:  # existing simulation
             self._data_manager.open_backing()
             self._n_iter = self._data_manager.current_iteration
             self._segments = self._data_manager.get_segments()
@@ -377,15 +363,15 @@ class Simulation:
             else:
                 work_manager.run()
 
-    def configure_recycling(self, source, sink, istate_generator=None):
-        """Configure source-sink boundary conditions (recycling).
+    def enable_recycling(self, source, sink, istate_generator=None):
+        """Enable source-sink boundary conditions (recycling). This method
+        overwrites any previously defined source and sink(s).
 
         Parameters
         ----------
-        source : Source, optional
-            Set of states from which to reinitiate trajectories that reach a
-            sink.
-        sink : Sink or iterable of Sink, optional
+        source : Source
+            State(s) from which to reinitiate trajectories that reach a sink.
+        sink : Sink or iterable of Sink
             One or more sink (target) regions.
         istate_generator : callable, optional
             Routine for modifying the source distribution on the fly. It must
@@ -395,12 +381,16 @@ class Simulation:
         if not isinstance(source, Source):
             raise TypeError("'source' must be a Source object")
 
+        message = "'sink' must be a Sink object or an iterable of Sink objects"
         if isinstance(sink, Sink):
             sinks = (sink,)
         else:
-            sinks = sink
+            try:
+                sinks = tuple(sink)
+            except TypeError:
+                raise TypeError(message)
             if not all(isinstance(item, Sink) for item in sinks):
-                raise TypeError("'sink' must be a Sink object or an iterable of Sink objects")
+                raise TypeError(message)
 
         if istate_generator is not None and not callable(istate_generator):
             raise TypeError("'istate_generator' must be callable")
@@ -518,31 +508,28 @@ class Simulation:
         self._data_manager.write_auxdata(self._n_iter, self._segments)
 
     def _propagate(self):
-        if value := getattr(self.propagator, 'block_size', None):
-            propagator_block_size = value
-        else:
-            propagator_block_size = len(self._segments)
+        propagator_block_size = getattr(self.propagator, 'block_size', None)
 
         istate_futures = set()
         propagator_futures = set()
         pcoord_future_map = {}
 
-        # partition segments by status
-        unprepared_segments = []
-        prepared_segments = []
-        complete_segments = []
+        # Partition segments by status.
+        unset_segments = []  # need initial_state
+        prepared_segments = []  # need final_state
+        complete_segments = []  # may need pcoord
         for segment in self._segments:
             match segment.status:
                 case Segment.Status.UNSET:
-                    unprepared_segments.append(segment)
+                    unset_segments.append(segment)
                 case Segment.Status.PREPARED:
                     prepared_segments.append(segment)
                 case Segment.Status.COMPLETE:
                     complete_segments.append(segment)
 
-        # dispatch pending istate generation tasks
-        if unprepared_segments:
-            states = self.source.random_sample(len(unprepared_segments))
+        # Dispatch pending istate generation tasks.
+        if unset_segments:
+            states = self.source.random_sample(len(unset_segments))
             if self.istate_generator is not None:
                 for state in states:
                     future = self.work_manager.submit(self.istate_generator, args=(state,))
@@ -550,19 +537,19 @@ class Simulation:
             else:
                 segments = []
                 for state in states:
-                    segment = unprepared_segments.pop()
+                    segment = unset_segments.pop()
                     segment.initial_state = state
                     segments.append(segment)
                 self._data_manager.write_initial_states(self._n_iter, segments)
                 prepared_segments += segments
 
-        # dispatch pending propagation tasks
+        # Dispatch pending propagation tasks.
         for segments in batched(prepared_segments, propagator_block_size):
             future = self.work_manager.submit(self.propagator, args=(segments,))
             propagator_futures.add(future)
         prepared_segments.clear()
 
-        # dispatch pending pcoord calculation tasks
+        # Dispatch pending pcoord calculation tasks.
         if segments := [s for s in complete_segments if s.pcoord is None]:
             pcoord_future_map |= self._calculate_pcoords(segments)
 
@@ -576,9 +563,9 @@ class Simulation:
                 try:
                     state = future.get_result()
                 except Exception as e:
-                    raise RuntimeError("call to 'istate_generator' failed") from e
+                    raise RuntimeError("error in 'istate_generator' routine") from e
 
-                segment = unprepared_segments.pop()
+                segment = unset_segments.pop()
                 segment.initial_state = state
                 segment.status = Segment.Status.PREPARED
                 prepared_segments.append(segment)
@@ -596,7 +583,7 @@ class Simulation:
                 try:
                     segments = future.get_result()
                 except Exception as e:
-                    raise RuntimeError("call to 'propagator' failed") from e
+                    raise RuntimeError("error in 'propagator' routine") from e
 
                 for segment in segments:
                     segment.status = Segment.Status.COMPLETE
@@ -610,7 +597,7 @@ class Simulation:
                 try:
                     result = future.get_result()
                 except Exception as e:
-                    raise RuntimeError("call to 'pcoord_calculator' failed") from e
+                    raise RuntimeError("error in 'pcoord_calculator' routine") from e
 
                 if isinstance(result, tuple):
                     pcoord, auxdata = result
@@ -652,7 +639,11 @@ class Simulation:
         segments = [s.copy(wtg_parent_ids=[s.seg_id]) for s in self._segments]
 
         # Assign walkers to bins.
-        bins = self.bin_mapper(segments)
+        bins = [Bin(label=label) for label in self.bin_mapper.labels]
+        assignments = self.bin_mapper(segments)
+        for segment, idx in zip(segments, assignments):
+            bins[idx].add(segment)
+
         _report_bin_statistics(bins)
 
         if self.bin_target_counts.ndim == 0:
@@ -692,7 +683,7 @@ class Simulation:
         self._resampled_segments = list(itertools.chain(*resampled_bins))
 
     def _prepare_new_iteration(self):
-        # recycled walkers
+        # Recycled walkers
         for segment in self._segments:
             if segment.endpoint_type != Segment.EndPoint.RECYCLED:
                 continue
@@ -706,7 +697,7 @@ class Simulation:
             )
             self._next_iter_segments.append(new_segment)
 
-        # continuing walkers
+        # Continuing walkers
         for segment in self._resampled_segments:
             self._segments[segment.seg_id].endpoint_type = Segment.EndPoint.CONTINUES
 
@@ -720,7 +711,7 @@ class Simulation:
             )
             self._next_iter_segments.append(new_segment)
 
-        # pruned walkers
+        # Merged walkers
         for segment in self._segments:
             if segment.endpoint_type == Segment.EndPoint.UNSET:
                 segment.endpoint_type = Segment.EndPoint.MERGED

@@ -9,15 +9,15 @@ logger = logging.getLogger(__name__)
 
 
 class HuberKimResampler(ResamplerBase):
-    """Implements the splitting and merging technique of Huber and Kim (1996). [1]_
+    """Weighted ensemble method of Huber and Kim (1996). [1]_
 
     Parameters
     ----------
     adjust_counts : bool, default True
         Whether to adjust the number of walkers in occupied bins to exactly
         match the target count. This is a modification of the original
-        Huber-Kim method, which only ensures that the number of walkers is
-        close to the target count.
+        Huber-Kim method, which only keeps the number of walkers close to
+        the target count.
         Downward adjustments are made by iteratively merging the two
         lowest-weight walkers. Upward adjustments are made by iteratively
         splitting the highest-weight walker.
@@ -44,7 +44,7 @@ class HuberKimResampler(ResamplerBase):
         index = bin.bisect_weights(self.split_threshold * ideal_weight)
         to_split = bin[index:]
         for segment in to_split:
-            self.split_walker(bin, segment, m=math.ceil(segment.weight / ideal_weight))
+            bin.split(segment, m=math.ceil(segment.weight / ideal_weight))
 
     def _merge_by_weight(self, bin, ideal_weight):
         # Merge sets of walkers with combined weight <= merge_cutoff * ideal_weight.
@@ -54,15 +54,15 @@ class HuberKimResampler(ResamplerBase):
             to_merge = bin[:index]
             if len(to_merge) < 2:
                 break
-            self.merge_walkers(bin, to_merge, cumulative_weight[:index])
+            bin.merge(to_merge, cumulative_weight[:index], rng=self.rng)
 
     def _adjust_count(self, bin, target_count):
         while len(bin) < target_count:
             logger.debug('adjusting counts by splitting')
-            self.split_walker(bin, bin[-1])
+            bin.split(bin[-1])
         while len(bin) > target_count:
             logger.debug('adjusting counts by merging')
-            self.merge_walkers(bin, bin[:2])
+            bin.merge(bin[:2], rng=self.rng)
 
     def resample(self, bin, target_count):
         ideal_weight = bin.weight / target_count

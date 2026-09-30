@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class AmberPropagator(SerialPropagator):
-    """`Amber <https://ambermd.org/>`_ molecular dynamics propagator.
+    """`Amber <https://ambermd.org/>`_-based molecular dynamics propagator.
 
     To create an initial state for this propagator, pass the absolute path of
     an Amber coordinate file to the :class:`State` constructor's `file` parameter::

@@ -1,10 +1,12 @@
 Python API
 ==========
 
-Data types
-----------
+Representation
+--------------
 
 .. autosummary::
+   :caption: Representation
+   :toctree:
    :nosignatures:
 
    ~westpa.State
@@ -18,112 +20,78 @@ Simulation
 ----------
 
 .. autosummary::
+   :caption: Simulation
+   :toctree:
    :nosignatures:
 
    ~westpa.Simulation
-
 
 Analysis and visualization
 --------------------------
 
 .. autosummary::
+   :caption: Analysis and visualization
+   :toctree:
    :nosignatures:
+
 
    ~westpa.TrajectoryTree
    ~westpa.TrajectoryTreeView
 
-
 Propagators
 -----------
 
-Protocol
-~~~~~~~~
-
 .. autosummary::
+   :caption: Dynamics propagation
+   :toctree:
    :nosignatures:
 
    ~westpa.Propagator
-
-Base classes
-~~~~~~~~~~~~
-
-.. autosummary::
-   :nosignatures:
-
    ~westpa.SerialPropagator
    ~westpa.VectorizedPropagator
-
-Built-in implementations
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :nosignatures:
-
    ~westpa.AmberPropagator
    ~westpa.GROMACSPropagator
    ~westpa.OpenMMPropagator
 
-
-Bin mappers
------------
-
-Protocol
-~~~~~~~~
+Progress coordinates
+--------------------
 
 .. autosummary::
+   :caption: Progress coordinates
+   :toctree:
+   :nosignatures:
+
+   ~westpa.PCoordCalculator
+
+
+Binning
+-------
+
+.. autosummary::
+   :caption: Binning
+   :toctree:
    :nosignatures:
 
    ~westpa.BinMapper
-
-Built-in implementations
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :nosignatures:
-
+   ~westpa.BinMapperBase
    ~westpa.RectilinearBinMapper
-   ~westpa.MABBinMapper
    ~westpa.VoronoiBinMapper
-   ~westpa.AdaptiveVoronoiBinMapper
+   ~westpa.MABBinMapper
 
 
 Resamplers
 ----------
 
-Protocol
-~~~~~~~~
-
 .. autosummary::
+   :caption: Resamplers
+   :toctree:
    :nosignatures:
 
    ~westpa.Resampler
-
-Base class
-~~~~~~~~~~
-
-.. autosummary::
-   :nosignatures:
-
    ~westpa.ResamplerBase
-
-Built-in implementations
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :nosignatures:
-
    ~westpa.HuberKimResampler
    ~westpa.MultinomialResampler
    ~westpa.ResidualResampler
    ~westpa.StratifiedResampler
    ~westpa.SystematicResampler
 
-Work managers
--------------
-
-.. autosummary::
-   :nosignatures:
-
-   ~westpa.SerialWorkManager
-   ~westpa.ThreadsWorkManager
-   ~westpa.ProcessWorkManager

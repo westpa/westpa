@@ -176,7 +176,7 @@ class TestSimulationConstructor:
 
 
 # ---------------------------------------------------------------------------
-# configure_recycling + disable_recycling tests
+# enable_recycling / disable_recycling tests
 # ---------------------------------------------------------------------------
 
 
@@ -185,7 +185,7 @@ class TestConfigureRecycling:
         source = westpa.Source(westpa.State([0.0]))
         sink = westpa.Sink(lambda seg: seg.pcoord[-1, 0] > 1.0)
 
-        sim.configure_recycling(source, sink)
+        sim.enable_recycling(source, sink)
         assert sim.source is source
         assert sim.sinks[0] is sink
 
@@ -196,12 +196,12 @@ class TestConfigureRecycling:
     def test_invalid_source_type(self, sim):
         sink = westpa.Sink(lambda seg: seg.pcoord[-1, 0] > 1.0)
         with pytest.raises(TypeError, match="'source' must be a Source object"):
-            sim.configure_recycling("not_a_source", sink)
+            sim.enable_recycling("not_a_source", sink)
 
     def test_invalid_sink_type(self, sim):
         source = westpa.Source(westpa.State([0.0]))
         with pytest.raises(TypeError, match="'sink' must be a Sink object or an iterable of Sink objects"):
-            sim.configure_recycling(source, "not_a_sink")
+            sim.enable_recycling(source, "not_a_sink")
 
 
 # ---------------------------------------------------------------------------

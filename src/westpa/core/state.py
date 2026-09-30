@@ -2,16 +2,16 @@ import numpy as np
 
 
 class State:
-    """Represents a specific configuration of the model being simulated.
+    """Represents a particular state of the simulated model.
 
     Either `coord` or `file` must be specified. The required parameter and the
     significance of its value are determined by the `propagator <propagators.html>`_. If using a
-    built-in propagator type, see its documentation for details on creating
+    built-in propagator, see its documentation for details on creating
     compatible initial states.
 
     Parameters
     ----------
-    coord : 1-D array-like, optional
+    coord : 1-D array_like, optional
         Coordinate vector of the state. The array length (dimension of state
         space) and data type are determined by the propagator.
     file : str, optional
@@ -22,19 +22,21 @@ class State:
     Attributes
     ----------
     coord : numpy.ndarray or None
+        Coordinate vector (as a read-only array).
     file : str or None
+        File containing coordinate data.
 
     Examples
     --------
 
     >>> import westpa
 
-    Coordinates stored in memory:
+    Coordinates in memory:
 
     >>> westpa.State(coord=[0., 0.])
     State(coord=array([0., 0.]))
 
-    Coordinates stored on disk:
+    Coordinates on disk:
 
     >>> westpa.State(file='/path/to/file.xyz'))
     State(file='/path/to/file.xyz')
@@ -58,12 +60,10 @@ class State:
 
     @property
     def coord(self):
-        """Coordinate vector (as a read-only array)."""
         return self._coord
 
     @property
     def file(self):
-        """File containing coordinate data."""
         return self._file
 
     def __repr__(self):

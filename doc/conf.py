@@ -58,7 +58,7 @@ extensions = [
     'sphinx.ext.coverage',
 ]
 
-autosummary_generate = True
+autosummary_generate = False
 autoclass_content = "both"
 autodoc_member_order = "bysource"
 # autodoc_typehints = "none"

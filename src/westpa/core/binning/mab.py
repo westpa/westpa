@@ -9,14 +9,14 @@ log = logging.getLogger(__name__)
 
 
 class MABBinMapper(FuncBinMapper):
-    """Implements the minimal adaptive binning (MAB) scheme of Torrillo, Bogetti, and Chong (2021). [1]_
+    """Minimal adaptive binning (MAB) scheme of Torrillo, Bogetti, and Chong (2021). [1]_
 
     Parameters
     ----------
-    nbins : list of int
+    nbins : array_like of int
         Number of bins along each dimension (excluding extrema and bottleneck
         bins).
-    direction : list of int, optional
+    direction : array_like of int, optional
         Direction flag for each dimension:
 
         -  ``0``: Split at leading and lagging boundaries (default).
@@ -24,7 +24,7 @@ class MABBinMapper(FuncBinMapper):
         - ``-1``: Split at lagging boundary only.
         - ``86``: No splitting at either leading or lagging boundary (both bottlenecks included).
 
-    skip : list of bool, optional
+    skip : array_like of bool, optional
         Boolean mask indicating which dimensions to skip. By default, no
         dimensions are skipped.
     bottleneck : bool, default True
@@ -32,11 +32,24 @@ class MABBinMapper(FuncBinMapper):
     pca : bool, default False
         Whether to perform PCA on progress coordinates before bin assignment.
 
+    Attributes
+    ----------
+    labels : list of str
+        Bin labels.
+    nbins : int
+        Total number of bins mapped to.
+    ndim : int
+        Dimension
+
+
     Examples
     --------
     >>> import westpa
-    >>> westpa.MABBinMapper([5])
-    <MABBinMapper with 9 bins at 0x10466a3f0>
+    >>> bin_mapper = westpa.MABBinMapper(nbins=[5])
+    >>> bin_mapper.nbins
+    9
+    >>> bin_mapper.ndim
+    1
 
     References
     ----------
@@ -130,7 +143,7 @@ class MABBinMapper(FuncBinMapper):
                     n_total_bins += 2 * bottleneck
         return n_total_bins
 
-    def __call__(self, segments):
+    def __call__(self, segments, initial=False):
         pcoord_ndim = segments[0].pcoord.shape[1]
         pcoord_dtype = segments[0].pcoord.dtype
 
@@ -139,13 +152,10 @@ class MABBinMapper(FuncBinMapper):
             coords[iseg] = np.append(segment.pcoord[0], [segment.weight, 0])
             coords[len(segments) + iseg] = np.append(segment.pcoord[-1], [segment.weight, 1])
 
-        assignments = self.assign(coords)[len(segments) :]
-
-        bins = self.construct_bins()
-        for segment, idx in zip(segments, assignments):
-            bins[idx].add(segment)
-
-        return bins
+        if initial:
+            return self.assign(coords)[: len(segments)]
+        else:
+            return self.assign(coords)[len(segments) :]
 
 
 def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kwargs) -> List[int]:

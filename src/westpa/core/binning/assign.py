@@ -49,7 +49,7 @@ import numpy as np
 from .bins import Bin
 from ._assign import output_map, apply_down, apply_down_argmin_across, rectilinear_assign
 
-# All bin numbers are 16-bit unsigned ints, with one element (65525) reserved to
+# All bin numbers are 16-bit unsigned ints, with one element (65535) reserved to
 # indicate unknown or unassigned points. This allows up to 65,536 bins, making
 # rate and flux matrices up to 32 GB (2**32 elements * 8 bytes). If you need more
 # bins, change index_dtype here and index_dtype and index_t in _assign.pyx.
@@ -85,7 +85,7 @@ class BinMapper:
         """
         pkldat = pickle.dumps(self, pickle.HIGHEST_PROTOCOL)
         hash = hashlib.sha256(pkldat)
-        return (pkldat, hash.hexdigest())
+        return pkldat, hash.hexdigest()
 
     def __repr__(self):
         return '<{} with {:d} bins at 0x{:x}>'.format(self.__class__.__name__, self.nbins or 0, id(self))
@@ -121,15 +121,16 @@ class BinMapper:
 
         return output
 
-    def __call__(self, segments):
-        coords = np.array([segment.pcoord[-1] for segment in segments])
-        assignments = self.assign(coords)
+    def __call__(self, segments, initial=False):
+        pcoord_ndim = segments[0].pcoord.shape[1]
+        pcoord_dtype = segments[0].pcoord.dtype
 
-        bins = self.construct_bins()
-        for segment, idx in zip(segments, assignments):
-            bins[idx].add(segment)
+        pcoords = np.empty((len(segments), pcoord_ndim), pcoord_dtype)
+        n = 0 if initial else -1
+        for i, segment in enumerate(segments):
+            pcoords[i] = segment.pcoord[n]
 
-        return bins
+        return self.assign(pcoords)
 
 
 class NopMapper(BinMapper):
@@ -145,19 +146,33 @@ class NopMapper(BinMapper):
 
 
 class RectilinearBinMapper(BinMapper):
-    """Assigns segments to cells in a rectangular grid.
+    """Maps coordinates to cells in a rectangular grid.
 
     Parameters
     ----------
     boundaries : iterable of 1-D array-like
-        Bin boundaries along each progress coordinate dimension. The values
-        in each array must be monotonically increasing.
+        Bin boundaries along each coordinate axis. The values in each array
+        must be monotonically increasing.
+
+    Attributes
+    ----------
+    labels : list of str
+        Bin labels.
+    nbins : int
+        Number of bins (sites) mapped to.
+    ndim : int
+        Coordinate space dimension.
+    boundaries : iterable of 1-D array-like
+        Bin boundaries along each coordinate axis.
 
     Examples
     --------
     >>> import westpa
-    >>> westpa.RectilinearBinMapper([[0., 1., 2., 3., 4., 5.]])
-    <RectilinearBinMapper with 5 bins at 0x168170620>
+    >>> bin_mapper = westpa.RectilinearBinMapper([[0., 1., 2., 3., 4., 5.]])
+    >>> bin_mapper.nbins
+    5
+    >>> bin_mapper.ndim
+    1
 
     """
 
@@ -266,20 +281,37 @@ class VectorizingFuncBinMapper(BinMapper):
 
 
 class VoronoiBinMapper(BinMapper):
-    """Assigns segments to cells in a Voronoi diagram.
+    """Maps coordinates to cells in a Voronoi diagram.
 
     Parameters
     ----------
     dfunc : callable
-        Distance function. It must accept arguments ``(x, ys)`` and return
-        a 1-D array containing the distance of each point in ``ys`` to the
-        point ``x``.
+        Distance function. It must accept arguments
+        ``(coord, centers, *dfargs, **dfkwargs)`` and return a 1-D array
+        containing the distance of ``coord`` from each point in ``centers``.
     centers : 2-D array-like
         Voronoi sites.
     dfargs : tuple, optional
-        Optional arguments to pass to `dfunc`.
+        Extra positional arguments to pass to `dfunc`.
     dfkwargs : Mapping[str, Any], optional
-        Optional keyword arguments to pass to `dfunc`.
+        Extra keyword arguments to pass to `dfunc`.
+
+    Attributes
+    ----------
+    labels : list of str
+        Bin labels.
+    nbins : int
+        Number of bins (sites) mapped to.
+    ndim : int
+        Coordinate space dimension.
+    centers : 2-D numpy.ndarray
+        Voronoi sites.
+    dfunc : callable
+        Distance function.
+    dfargs : tuple
+        Extra positional arguments to pass to the distance function.
+    dfkwargs : Mapping[str, Any]
+        Extra keyword arguments to pass to the distance function.
 
     """
 
@@ -302,20 +334,7 @@ class VoronoiBinMapper(BinMapper):
 
 
 class RecursiveBinMapper(BinMapper):
-    """Nest mappers one within another.
-
-    Parameters
-    ----------
-    base_mapper : BinMapper
-        Base mapper within which to nest other bin mappers.
-    start_index : int, default 0
-        Initial bin index.
-
-    Methods
-    -------
-    add_mapper
-
-    """
+    """Nest mappers one within another."""
 
     def __init__(self, base_mapper, start_index=0):
         self.base_mapper = base_mapper
