@@ -281,8 +281,6 @@ class Segment:
                 raise TypeError("scalar type of 'pcoord' must be numeric")
             if value.ndim != 2:
                 raise ValueError("'pcoord' must be 2-D array")
-            if len(value) < 2:
-                raise ValueError("'pcoord' time series length must be at least 2")
         self._pcoord = value
 
     @property

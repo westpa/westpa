@@ -76,7 +76,7 @@ class PCoordCalculator(Protocol):
 
         Parameters
         ----------
-        obj : Segment | State
+        obj : Segment or State
             Segment or state for which to return progress coordinates.
 
         Returns
@@ -150,7 +150,7 @@ class BinMapper(Protocol):
     labels: Iterable[str]
 
     def __call__(self, segments: Sequence[Segment], initial: bool = False) -> ArrayLike:
-        """Assign the given segments to bins.
+        """Assign segments to bins.
 
         Parameters
         ----------
@@ -164,8 +164,8 @@ class BinMapper(Protocol):
         Returns
         -------
         assignments : array_like of integer type
-            Zero-based integer array containing the bin assignment for each
-            segment.
+            Array of zero-based integers indicating the bin assignment for
+            each segment.
 
         """
         ...

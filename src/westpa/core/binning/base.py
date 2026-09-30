@@ -8,13 +8,13 @@ from .bins import Bin
 
 class BinMapperBase(ABC):
     """Base class for user-defined bin mappers.
-    Subclasses must implement the :meth:`assign` method and the :attr:`labels` property.
+    Subclasses must implement the :meth:`map` method and the :attr:`labels` property.
 
     Parameters
     ----------
     coord_getter : callable, optional
-        Function that returns a segment's binning coordinates. Must accept a
-        segment and return a 2-D array (a time series). Defaults to
+        Function that returns the coordinate time series to use for binning a
+        segment. Must accept a segment and return a 2-D array. Defaults to
         ``attrgetter('pcoord')``.
 
     Attributes
@@ -48,8 +48,8 @@ class BinMapperBase(ABC):
 
     @property
     @abstractmethod
-    def labels(self):
-        pass
+    def labels(self):  # noqa (black/flake8 impasse)
+        ...
 
     @property
     def nbins(self):
@@ -77,8 +77,8 @@ class BinMapperBase(ABC):
         return [Bin(label=label) for label in self.labels]
 
     @abstractmethod
-    def assign(self, coords, weights, output):
-        """Assign walkers to bins, given their coordinates and weights.
+    def map(self, coords, weights, output):
+        """Map walkers to bins, given their coordinates and weights.
 
         Parameters
         ----------
@@ -110,4 +110,4 @@ class BinMapperBase(ABC):
         weights = np.array(list(map(attrgetter('weight'), segments)))
         output = np.repeat(self.UNKNOWN_INDEX, len(segments))
 
-        return self.assign(coords, weights, output)
+        return self.map(coords, weights, output)
