@@ -1,120 +1,147 @@
+'''Live progress dashboard for a running WESTPA simulation.'''
+
+import os
 import sys
 import time
+from datetime import datetime, timedelta
+
+import numpy as np
 
 import westpa
-from westpa.core.run_status import ACTIVE_RUN_STATES, RUN_STATE_COMPLETE, read_run_status
-from westpa.tools import WESTTool
-from westpa.tools.progress_status import (
-    progress_snapshot_from_run_status,
-    read_progress_snapshot,
-    render_progress,
-)
+from westpa.core.h5io import WESTPAH5File
+from westpa.core.segment import Segment
+from westpa.tools import WESTTool, WESTDataReader
+
+
+def read_progress(we_h5filename, max_total_iterations=None, n_recent=5):
+    '''Return a dict of progress info from ``we_h5filename``.
+
+    ETA is iterations left times the mean walltime of the last ``n_recent``
+    iterations. None if ``max_total_iterations`` isn't set or nothing has
+    finished yet.'''
+
+    # w_run keeps west.h5 locked while it runs. Open without locking and read
+    # whatever was last flushed.
+    with WESTPAH5File(we_h5filename, 'r', locking=False) as h5file:
+        n_iter = int(h5file.attrs['west_current_iteration'])
+        n_completed = max(n_iter - 1, 0)
+        summary = h5file['summary'][:n_completed]
+        try:
+            seg_status = h5file.get_iter_group(n_iter)['seg_index']['status']
+        except KeyError:
+            seg_status = np.empty((0,), dtype=np.uint8)
+
+    # Ignore NaN and zero walltimes (truncated runs can leave these)
+    walltimes = summary['walltime']
+    recent_walltimes = walltimes[np.isfinite(walltimes) & (walltimes > 0)][-n_recent:]
+    avg_walltime = float(recent_walltimes.mean()) if len(recent_walltimes) else None
+
+    eta = None
+    if max_total_iterations and avg_walltime is not None:
+        eta = max(max_total_iterations - n_completed, 0) * avg_walltime
+
+    return {
+        'mtime': os.path.getmtime(we_h5filename),
+        'n_iter': n_iter,
+        'n_completed': n_completed,
+        'max_total_iterations': max_total_iterations,
+        'n_segs': len(seg_status),
+        'n_complete': int(np.count_nonzero(seg_status == Segment.SEG_STATUS_COMPLETE)),
+        'n_failed': int(np.count_nonzero(seg_status == Segment.SEG_STATUS_FAILED)),
+        'n_particles': int(summary['n_particles'].sum()),
+        'walltime': float(np.nansum(walltimes)),
+        'recent_walltimes': recent_walltimes.tolist(),
+        'avg_walltime': avg_walltime,
+        'eta': eta,
+    }
+
+
+def _duration(seconds):
+    '''Format seconds as H:MM:SS, or 'unknown' for None.'''
+    if seconds is None:
+        return 'unknown'
+    return str(timedelta(seconds=round(seconds)))
+
+
+def format_progress(progress):
+    '''Build the dashboard text from a read_progress() dict.'''
+    n_completed = progress['n_completed']
+    max_total_iterations = progress['max_total_iterations']
+    if max_total_iterations:
+        percent = 100 * n_completed / max_total_iterations
+        completed = f'{n_completed} / {max_total_iterations} iterations ({percent:.1f}%)'
+    else:
+        completed = f'{n_completed} completed'
+
+    rows = [
+        ('Last written:', datetime.fromtimestamp(progress['mtime']).strftime('%Y-%m-%d %H:%M:%S')),
+        ('Current iteration:', progress['n_iter']),
+        ('Progress:', completed),
+        ('Segments complete:', f"{progress['n_complete']} / {progress['n_segs']}"),
+        ('Segments failed:', progress['n_failed']),
+        ('Recent walltimes:', ', '.join(map(_duration, progress['recent_walltimes'])) or 'unknown'),
+        ('Avg iteration time:', _duration(progress['avg_walltime'])),
+        ('Completed walltime:', _duration(progress['walltime'])),
+        ('Completed segments:', progress['n_particles']),
+        ('ETA:', _duration(progress['eta'])),
+    ]
+
+    width = 26
+    return ''.join(f'{label.ljust(width)} {value}\n' for label, value in rows)
 
 
 class WProgress(WESTTool):
+    '''Redraw a progress dashboard until Ctrl-C.'''
+
     prog = 'w_progress'
     description = 'Show a live progress dashboard for a WESTPA simulation.'
 
     def __init__(self):
         super().__init__()
-        self.we_h5filename = None
-        self.refresh_interval = 1.0
-        self.requested_total_iterations = None
+        self.data_reader = WESTDataReader()
+        self.max_total_iterations = None
+        self.refresh = None
 
     def add_args(self, parser):
-        group = parser.add_argument_group('WEST input data options')
-        group.add_argument(
-            '-W',
-            '--west-data',
-            dest='we_h5filename',
-            metavar='WEST_H5FILE',
-            help='Take WEST data from WEST_H5FILE (default: read from the HDF5 file specified in west.cfg).',
-        )
-        group.add_argument(
+        '''Add the -W and --refresh options.'''
+        self.data_reader.add_args(parser)
+        parser.add_argument(
             '--refresh',
-            dest='refresh_interval',
             type=float,
             default=1.0,
             metavar='SECONDS',
-            help='Refresh the dashboard every SECONDS seconds (default: 1.0).',
+            help='Redraw the dashboard every SECONDS seconds (default: %(default)s).',
         )
 
     def process_args(self, args):
-        if args.refresh_interval <= 0:
-            self.parser.error('--refresh must be greater than 0')
+        '''Get the HDF5 file and read max_total_iterations from west.cfg.'''
+        self.data_reader.process_args(args)
+        self.max_total_iterations = westpa.rc.config.get(['west', 'propagation', 'max_total_iterations'])
 
-        data_manager = westpa.rc.get_data_manager()
-        if args.we_h5filename:
-            data_manager.we_h5filename = args.we_h5filename
-
-        self.we_h5filename = data_manager.we_h5filename
-        self.refresh_interval = args.refresh_interval
-
-        requested_total = westpa.rc.config.get(['west', 'propagation', 'max_total_iterations'], None)
-        self.requested_total_iterations = int(requested_total) if requested_total is not None else None
-
-    @property
-    def should_clear(self):
-        return sys.stdout.isatty()
-
-    def snapshot(self):
-        return read_progress_snapshot(
-            self.we_h5filename,
-            requested_total_iterations=self.requested_total_iterations,
-            recent=5,
-        )
-
-    def sidecar_snapshot(self):
-        status_result = read_run_status(self.we_h5filename)
-        if status_result.status is None:
-            return None, status_result
-        return (
-            progress_snapshot_from_run_status(
-                status_result.status,
-                requested_total_iterations=self.requested_total_iterations,
-            ),
-            status_result,
-        )
-
-    def render_once(self, include_hint=True):
-        sidecar_snapshot, sidecar_status = self.sidecar_snapshot()
-        if sidecar_snapshot is not None and sidecar_snapshot.run_state in ACTIVE_RUN_STATES:
-            return render_progress(sidecar_snapshot, refresh_interval=self.refresh_interval, include_hint=include_hint)
-
-        snapshot = self.snapshot()
-        if snapshot.error is None:
-            return render_progress(snapshot, refresh_interval=self.refresh_interval, include_hint=include_hint)
-
-        if sidecar_snapshot is not None and sidecar_snapshot.run_state == RUN_STATE_COMPLETE:
-            return render_progress(
-                sidecar_snapshot,
-                refresh_interval=self.refresh_interval,
-                include_hint=include_hint,
-                status_message=f'Could not read west.h5 ({snapshot.error}); showing the last live status snapshot instead.',
-            )
-
-        if sidecar_status.error:
-            return render_progress(
-                snapshot,
-                refresh_interval=self.refresh_interval,
-                include_hint=include_hint,
-                status_message=sidecar_status.error,
-            )
-
-        return render_progress(snapshot, refresh_interval=self.refresh_interval, include_hint=include_hint)
+        if args.refresh <= 0:
+            self.parser.error('argument --refresh: must be greater than 0')
+        self.refresh = args.refresh
 
     def go(self):
+        '''Redraw the dashboard every --refresh seconds.'''
+        we_h5filename = self.data_reader.we_h5filename
+        body = ''
         try:
             while True:
-                if self.should_clear:
-                    sys.stdout.write('\033[H\033[J')
-                sys.stdout.write(self.render_once())
-                sys.stdout.flush()
-                time.sleep(self.refresh_interval)
+                try:
+                    body = format_progress(read_progress(we_h5filename, self.max_total_iterations))
+                    error = ''
+                except Exception as e:
+                    # A read can fail mid flush. Keep the last output and retry.
+                    error = f'Could not read {we_h5filename}: {e}\n'
+
+                if sys.stdout.isatty():
+                    print('\033[H\033[J', end='')  # clear the terminal
+                print(f'WESTPA progress for {we_h5filename} (updated {datetime.now():%H:%M:%S})\n')
+                print(body + error, end='', flush=True)
+                time.sleep(self.refresh)
         except KeyboardInterrupt:
-            if self.should_clear:
-                sys.stdout.write('\n')
-                sys.stdout.flush()
+            print()
 
 
 def entry_point():
