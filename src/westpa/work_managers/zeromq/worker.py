@@ -13,6 +13,7 @@ import threading
 from .core import ZMQCore, Message, ZMQWMTimeout, PassiveMultiTimer, Task, Result, TIMEOUT_MASTER_BEACON
 
 import zmq
+from zmq import ContextTerminated
 
 log = logging.getLogger(__name__)
 
@@ -48,6 +49,13 @@ class ZMQWorker(ZMQCore):
     @property
     def is_master(self):
         return False
+
+    @property
+    def is_closed(self):
+        try:
+            return self.context.closed
+        except AttributeError:
+            return True
 
     def update_master_info(self, msg):
         if self.master_id is None:
@@ -213,8 +221,7 @@ class ZMQWorker(ZMQCore):
             self.log.error('timeout communicating with peer; shutting down')
         finally:
             self.shutdown_executor()
-            self.executor_process.join()
-            self.context.destroy(linger=1)
+            self.context.destroy(linger=5)
             self.context = None
             self.remove_ipc_endpoints()
 
@@ -225,32 +232,41 @@ class ZMQWorker(ZMQCore):
                 task_socket = self.context.socket(zmq.PUSH)
                 task_socket.connect(self.task_endpoint)
                 self.send_message(task_socket, Message.SHUTDOWN)
-                task_socket.close(linger=1)
+                task_socket.close(linger=5)
             except Exception:
                 pass
 
-        pid = self.executor_process.pid
-        self.executor_process.join(self.shutdown_timeout)
-        # is_alive() is prone to a race condition so catch the case that the PID is already dead
-        if self.executor_process.is_alive():
-            self.log.debug('sending SIGTERM to worker process {:d}'.format(pid))
-            self.executor_process.terminate()
-            # try:
-            #     os.kill(self.executor_process.pid, signal.SIGINT)
-            # except ProcessLookupError:
-            #     self.log.debug('worker process {:d} already dead'.format(pid))
+        try:
+            pid = self.executor_process.pid
             self.executor_process.join(self.shutdown_timeout)
+            # is_alive() is prone to a race condition so catch the case that the PID is already dead
             if self.executor_process.is_alive():
-                self.executor_process.kill()
-                self.log.warning('sending SIGKILL to worker process {:d}'.format(pid))
-                # try:
-                #     os.kill(self.executor_process.pid, signal.SIGKILL)
-                # except ProcessLookupError:
-                #     self.log.debug('worker process {:d} already dead'.format(pid))
-            self.executor_process.join()
-            self.log.debug('worker process {:d} terminated'.format(pid))
-        else:
-            self.log.debug('worker process {:d} terminated gracefully with code {:d}'.format(pid, self.executor_process.exitcode))
+                self.log.debug('sending SIGTERM to worker process {:d}'.format(pid))
+                self.executor_process.terminate()
+                self.executor_process.join(self.shutdown_timeout)
+                if self.executor_process.is_alive():
+                    self.log.warning('sending SIGKILL to worker process {:d}'.format(pid))
+                    self.executor_process.kill()
+
+                # Exiting after timeout so we can shutdown forcefully later
+                self.executor_process.join(self.shutdown_timeout)
+                if self.executor_process.exitcode == 0:
+                    self.log.debug('worker process {:d} terminated'.format(pid))
+            else:
+                self.log.debug(
+                    'worker process {:d} terminated gracefully with code {:d}'.format(pid, self.executor_process.exitcode)
+                )
+        except (ValueError, AttributeError):
+            pass  # Already closed.
+
+        try:
+            self.executor_process.close()
+        except (ValueError, AttributeError):
+            try:
+                if self.executor_process.is_alive():
+                    self.log.debug('worker process {:d} could not be closed'.format(pid))
+            except (ValueError, AttributeError):
+                pass  # Already closed.
 
     def install_signal_handlers(self, signals=None):
         if not signals:
@@ -293,7 +309,7 @@ class ZMQExecutor(ZMQCore):
             while True:
                 try:
                     msg = self.recv_message(task_socket, timeout=100)
-                except KeyboardInterrupt:
+                except (KeyboardInterrupt, ContextTerminated):
                     break
                 except ZMQWMTimeout:
                     continue
@@ -305,8 +321,9 @@ class ZMQExecutor(ZMQCore):
                     elif msg.message == Message.SHUTDOWN:
                         break
         finally:
-            self.context.destroy(linger=0)
-            self.context = None
+            if self.context is not None:
+                self.context.destroy(linger=5)
+                self.context = None
 
     def startup(self, process_index=None):
         if process_index is not None:

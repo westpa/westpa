@@ -23,6 +23,7 @@ import uuid
 
 import zmq
 import numpy as np
+from zmq import ContextTerminated
 
 # Every ten seconds the master requests a status report from workers.
 # This also notifies workers that the master is still alive
@@ -323,6 +324,13 @@ class ZMQCore:
             return cls.make_tcp_endpoint()
 
     def __init__(self):
+        try:
+            if sys.platform in ['darwin', 'linux']:  # UNIX Platforms
+                multiprocessing.set_start_method('fork')
+                log.debug('setting multiprocessing start method to fork')
+        except RuntimeError:
+            log.debug('failed to set start method to fork')
+
         # Unique identifier of this ZMQ node
         self.node_id = uuid.uuid4()
 
@@ -447,8 +455,12 @@ class ZMQCore:
                 poll_results = dict(poller.poll(timeout=timeout))
                 if socket in poll_results:
                     message = socket.recv_pyobj(flags)
+                elif socket.closed:
+                    raise ContextTerminated
                 else:
                     raise ZMQWMTimeout('recv timed out')
+            except (KeyboardInterrupt, ContextTerminated):
+                return Message(message=Message.SHUTDOWN)
             finally:
                 poller.unregister(socket)
 
@@ -566,17 +578,25 @@ def shutdown_process(process, timeout=1.0):
     process.join(timeout)
     if process.is_alive():
         log.debug('sending SIGINT to process {:d}'.format(process.pid))
-        os.kill(process.pid, signal.SIGINT)
+        process.terminate()
         process.join(timeout)
         if process.is_alive():
             log.warning('sending SIGKILL to worker process {:d}'.format(process.pid))
-            os.kill(process.pid, signal.SIGKILL)
-            process.join()
-
+            process.kill()
+        process.join()
         log.debug('process {:d} terminated with code {:d}'.format(process.pid, process.exitcode))
     else:
         log.debug('worker process {:d} terminated gracefully with code {:d}'.format(process.pid, process.exitcode))
-    assert not process.is_alive()
+
+    try:
+        process.close()  # Release all resources
+    except ValueError:
+        try:
+            if process.is_alive():
+                log.debug('process {:d} unable to be closed'.format(process.pid))
+            assert not process.is_alive()
+        except ValueError:
+            pass
 
 
 class IsNode:
@@ -625,6 +645,11 @@ class IsNode:
         except AttributeError:
             shutdown_timeout = 1.0
 
+        # Graceful clean up by signaling shut down
+        for worker in self.local_workers:
+            worker.shutdown_executor()
+
+        # Messy clean up by shutting down processes
         for process in self.local_worker_processes:
             shutdown_process(process, shutdown_timeout)
 

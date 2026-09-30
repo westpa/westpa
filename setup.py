@@ -1,3 +1,4 @@
+import os
 import sys
 
 from setuptools import setup, Extension
@@ -14,6 +15,9 @@ def extensions():
     common_cflags = [
         '-O3',
     ]
+
+    # Flag to prevent nvc from throwing `nvc-Error-Unknown switch` errors
+    common_cflags += ['-noswitcherror'] if os.environ.get("CC", "").endswith('nvc') else []
 
     fasthist_module = Extension(
         'westpa.fasthist._fasthist',
@@ -95,6 +99,7 @@ console_scripts_tools = [
     'w_multi_west = westpa.cli.tools.w_multi_west:entry_point',
     'w_red = westpa.cli.tools.w_red:entry_point',
     'w_timings = westpa.cli.tools.w_timings:entry_point',
+    'w_reverse = westpa.cli.tools.w_reverse:entry_point',
 ]
 
 

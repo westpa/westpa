@@ -149,6 +149,8 @@ class BinlessODLDSystem(WESTSystem):
         self.pcoord_len = pcoord_len
 
         # self.bin_mapper = RectilinearBinMapper([[0,1.3] + list(np.arange(1.4, 10.1, 0.1)) + [float('inf')]])
-        self.bin_mapper = BinlessMapper(ngroups=10, ndims=1, group_function='westpa.core.we_driver._group_walkers_identity')
+        self.bin_mapper = BinlessMapper(
+            ngroups=10, ndims=1, group_function='westpa.core.binning.binless._binless_group_walkers_identity'
+        )
         self.bin_target_counts = np.empty((self.bin_mapper.nbins,), np.int_)
         self.bin_target_counts[...] = 10

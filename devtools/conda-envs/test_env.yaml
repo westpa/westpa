@@ -17,6 +17,8 @@ dependencies:
   - mdtraj
   - mdanalysis
   - openmm
+  - dask
+  - distributed
   # testing
   - pytest
   - pytest-cov

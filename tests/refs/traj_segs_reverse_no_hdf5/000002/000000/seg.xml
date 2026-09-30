@@ -1,0 +1,18 @@
+<?xml version="1.0" ?>
+<State openmmVersion="8.3.1" stepCount="1000" time="502.04000000166906" type="State" version="1">
+	<PeriodicBoxVectors>
+		<A x="3.7577269508326" y="0" z="0"/>
+		<B x="-1.2525001734567063" y="3.5428456292230206" z="0"/>
+		<C x="-1.2525001734567063" y="-1.7712627077138814" z="3.0682867487845136"/>
+	</PeriodicBoxVectors>
+	<Parameters MonteCarloPressure="1" MonteCarloTemperature="300"/>
+	<Positions>
+		<Position x=".6680884898331131" y="2.4620065041727988" z="1.4365758035640621"/>
+		<Position x=".8758887654035575" y="2.395063981139047" z="1.6843614937182692"/>
+	</Positions>
+	<Velocities>
+		<Velocity x="-1.0070851400843512" y=".510838063052012" z="-.45538015019110706"/>
+		<Velocity x=".6469821792955719" y="-.3040378432532249" z=".28128342503676607"/>
+	</Velocities>
+	<IntegratorParameters/>
+</State>
