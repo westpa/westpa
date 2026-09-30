@@ -16,8 +16,8 @@ __all__ = [
     'PCoordCalculator',
     'BinMapper',
     'RectilinearBinMapper',
-    'MABBinMapper',
     'VoronoiBinMapper',
+    'MABBinMapper',
     'BinMapperBase',
     'Resampler',
     'ResamplerBase',
@@ -41,12 +41,12 @@ import shutil
 from .core.state import State
 from .core.segment import Segment
 from .core.protocols import Propagator, PCoordCalculator, BinMapper, Resampler
-from .core.propagators import SerialPropagator, VectorizedPropagator
+from .core.propagators.base import SerialPropagator, VectorizedPropagator
 from .core.binning import (
     Bin,
     RectilinearBinMapper,
-    MABBinMapper,
     VoronoiBinMapper,
+    MABBinMapper,
 )
 from .core.binning.base import BinMapperBase
 from .core.resamplers import (
