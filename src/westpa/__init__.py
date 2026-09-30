@@ -36,8 +36,6 @@ __all__ = [
     '_rc',
 ]
 
-import shutil
-
 from .core.state import State
 from .core.segment import Segment
 from .core.protocols import Propagator, PCoordCalculator, BinMapper, Resampler
@@ -63,15 +61,8 @@ from .core.simulation import Simulation
 from .analysis import TrajectoryTree, TrajectoryTreeView
 from .work_managers import SerialWorkManager, ProcessWorkManager, ThreadsWorkManager, MPIWorkManager
 
-if shutil.which('sander'):
-    from .core.propagators._amber import AmberPropagator
-else:
-    AmberPropagator = None
-
-if shutil.which('gmx'):
-    from .core.propagators._gromacs import GROMACSPropagator
-else:
-    GROMACSPropagator = None
+from .core.propagators._amber import AmberPropagator
+from .core.propagators._gromacs import GROMACSPropagator
 
 try:
     from .core.propagators._openmm import OpenMMPropagator
