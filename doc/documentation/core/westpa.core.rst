@@ -46,15 +46,6 @@ westpa.core.progress module
    :show-inheritance:
    :imported-members:
 
-westpa.core.run\_status module
-------------------------------
-
-.. automodule:: westpa.core.run_status
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :imported-members:
-
 westpa.core.segment module
 --------------------------
 
