@@ -82,15 +82,6 @@ westpa.tools.progress module
    :show-inheritance:
    :imported-members:
 
-westpa.tools.progress\_status module
-------------------------------------
-
-.. automodule:: westpa.tools.progress_status
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :imported-members:
-
 westpa.tools.selected\_segs module
 ----------------------------------
 
