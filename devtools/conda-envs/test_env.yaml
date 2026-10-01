@@ -19,6 +19,8 @@ dependencies:
   - openmm
   - dask
   - distributed
+  - sortedcontainers
+  - f90nml
   # testing
   - pytest
   - pytest-cov

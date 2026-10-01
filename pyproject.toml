@@ -48,8 +48,6 @@ dependencies = [
     "tqdm",
     "tables",
     "sortedcontainers",
-    "networkx",
-    "pygraphviz >= 2.0.0",
     "f90nml",
 ]
 
