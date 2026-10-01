@@ -26,18 +26,6 @@ Simulation
 
    ~westpa.Simulation
 
-Analysis and visualization
---------------------------
-
-.. autosummary::
-   :caption: Analysis and visualization
-   :toctree:
-   :nosignatures:
-
-
-   ~westpa.TrajectoryTree
-   ~westpa.TrajectoryTreeView
-
 Propagators
 -----------
 

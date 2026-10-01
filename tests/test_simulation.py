@@ -356,8 +356,10 @@ class TestPCoordCalculator:
         sim.initialize(westpa.State(coord=[0.0]))
         sim.run(n_iters=1)
 
-        with westpa.TrajectoryTree(sim.datafile) as trajtree:
-            segment = trajtree.get_segment(1, 0)
+        data_manager = sim._data_manager  # noqa
+        data_manager.open_backing()
+        segment = data_manager.get_segments(1, [0])[0]
+        data_manager.close_backing()
 
         assert segment.pcoord.shape == (2, 1)
         assert np.allclose(segment.pcoord[0], segment.initial_state.coord)
@@ -377,8 +379,10 @@ class TestPCoordCalculator:
         sim.initialize(westpa.State(coord=[0.0]))
         sim.run(n_iters=2)
 
-        with westpa.TrajectoryTree(sim.datafile) as trajtree:
-            segment = trajtree.get_segment(1, 0)
+        data_manager = sim._data_manager  # noqa
+        data_manager.open_backing()
+        segment = data_manager.get_segments(1, [0])[0]
+        data_manager.close_backing()
 
         assert segment.pcoord.shape == (2, 1)
         assert np.allclose(segment.pcoord[0], segment.initial_state.coord)
@@ -399,8 +403,10 @@ class TestPCoordCalculator:
         sim.initialize(westpa.State(coord=[0.0]))
         sim.run(n_iters=2)
 
-        with westpa.TrajectoryTree(sim.datafile, load_auxdata=True) as trajtree:
-            segment = trajtree.get_segment(1, 0)
+        data_manager = sim._data_manager  # noqa
+        data_manager.open_backing()
+        segment = data_manager.get_segments(1, [0], load_auxdata=True)[0]
+        data_manager.close_backing()
 
         assert segment.pcoord.shape == (2, 1)
         assert np.allclose(segment.pcoord[0], segment.initial_state.coord)

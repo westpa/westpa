@@ -5,8 +5,6 @@ __all__ = [
     'Source',
     'Sink',
     'Simulation',
-    'TrajectoryTree',
-    'TrajectoryTreeView',
     'Propagator',
     'SerialPropagator',
     'VectorizedPropagator',
@@ -58,7 +56,6 @@ from .core.resamplers import (
 from .core.source_sink import Source, Sink
 from .core.simulation import Simulation
 
-from .analysis import TrajectoryTree, TrajectoryTreeView
 from .work_managers import SerialWorkManager, ProcessWorkManager, ThreadsWorkManager, MPIWorkManager
 
 from .core.propagators._amber import AmberPropagator
