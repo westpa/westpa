@@ -1,15 +1,21 @@
 import logging
+from os.path import expandvars
 from typing import List
+
 import numpy as np
+
 import westpa
 from westpa.core.binning import FuncBinMapper
-from os.path import expandvars
 
 log = logging.getLogger(__name__)
 
 
 class MABBinMapper(FuncBinMapper):
     """Minimal adaptive binning (MAB) scheme of Torrillo, Bogetti, and Chong (2021). [1]_
+
+    MAB adaptively places bins between the minimum and maximum progress
+    coordinate values along each dimension. Extrema and bottleneck segments
+    are assigned to their own bins.
 
     Parameters
     ----------
@@ -31,6 +37,12 @@ class MABBinMapper(FuncBinMapper):
         Whether to enable bottleneck walker splitting.
     pca : bool, default False
         Whether to perform PCA on progress coordinates before bin assignment.
+    mab_log : bool, default False
+        Whether to output MAB info to west.log.
+    bin_log : bool, default False
+        Whether to output MAB bin boundaries to a log file.
+    bin_log_path : str, optional
+        Path to output bin boundaries. Defaults to ``'binbounds.log'``.
 
     Attributes
     ----------
@@ -67,7 +79,9 @@ class MABBinMapper(FuncBinMapper):
         skip=None,
         bottleneck=True,
         pca=False,
-        **kwargs,
+        mab_log=False,
+        bin_log=False,
+        bin_log_path=None,
     ):
         # Verifying parameters
         if nbins is None:
@@ -84,12 +98,15 @@ class MABBinMapper(FuncBinMapper):
             skip = [0] * ndim
             log.warning("Skip list is not the correct dimensions, setting to defaults.")
 
-        kwargs.update(
+        kwargs = dict(
             nbins_per_dim=nbins,
             direction=direction,
             skip=skip,
             bottleneck=bottleneck,
             pca=pca,
+            mab_log=mab_log,
+            bin_log=bin_log,
+            bin_log_path=bin_log_path,
         )
 
         n_total_bins = self.determine_total_bins(**kwargs)
@@ -195,7 +212,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
     skip = kwargs.get("skip", [0] * ndim)
     mab_log = kwargs.get("mab_log", False)
     bin_log = kwargs.get("bin_log", False)
-    bin_log_path = kwargs.get("bin_log_path", "$WEST_SIM_ROOT/binbounds.log")
+    bin_log_path = kwargs.get("bin_log_path", "binbounds.log")
 
     if not np.any(mask):
         return output

@@ -48,7 +48,7 @@ class BinMapperBase(ABC):
 
     @property
     @abstractmethod
-    def labels(self):  # noqa (black/flake8 impasse)
+    def labels(self):  # noqa (black/flake8 one liner impasse)
         ...
 
     @property
@@ -98,10 +98,10 @@ class BinMapperBase(ABC):
         ...
 
     def _initial_coord(self, segment):
-        return self.coord_getter(segment)[0]  # noqa
+        return self.coord_getter(segment)[0]
 
     def _final_coord(self, segment):
-        return self.coord_getter(segment)[-1]  # noqa
+        return self.coord_getter(segment)[-1]
 
     def __call__(self, segments, initial=False):
         get_coord = self._initial_coord if initial else self._final_coord

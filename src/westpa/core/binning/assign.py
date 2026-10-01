@@ -64,6 +64,7 @@ log = logging.getLogger(__name__)
 
 
 class BinMapper:
+    hashfunc = hashlib.sha256
 
     def __init__(self):
         self.labels = None
@@ -84,7 +85,7 @@ class BinMapper:
         a topology change happened, even if one did not.
         """
         pkldat = pickle.dumps(self, pickle.HIGHEST_PROTOCOL)
-        hash = hashlib.sha256(pkldat)
+        hash = self.hasfunc(pkldat)
         return pkldat, hash.hexdigest()
 
     def __repr__(self):
@@ -95,7 +96,7 @@ class BinMapper:
 
     def assign(self, coords, mask=None, output=None):
         # Validate arguments and pass them to _assign(coords, mask, output),
-        # which handles the actual bin assignment.
+        # which handles the actual bin assignment in the subclasses below.
         try:
             passed_coord_dtype = coords.dtype
         except AttributeError:
@@ -159,7 +160,7 @@ class RectilinearBinMapper(BinMapper):
     labels : list of str
         Bin labels.
     nbins : int
-        Number of bins (sites) mapped to.
+        Number of bins mapped to.
     ndim : int
         Coordinate space dimension.
     boundaries : iterable of 1-D array-like
