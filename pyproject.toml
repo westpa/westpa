@@ -25,28 +25,30 @@ readme = {file = "README.rst", content-type = "text/x-rst"}
 keywords = []
 description = 'WESTPA is a package for constructing and running stochastic simulations using the "weighted ensemble" approach of Huber and Kim (1996).'
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
-  "Intended Audience :: Developers",
-  "Intended Audience :: Science/Research",
-  "Operating System :: POSIX",
-  "Programming Language :: Python",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Cython",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Cython",
 ]
 requires-python = ">=3.10"
 dependencies = [
-  "numpy >= 2.0.0,<3",
-  "scipy >= 1.13.0",
-  "h5py >= 3.0.0",
-  "mdtraj >= 1.10.2",
-  "pyyaml",
-  "pyzmq",
-  "matplotlib",
-  "blessings",
-  "ipykernel",
-  "pandas",
-  "tqdm",
-  "tables",
+    "numpy >= 2.0.0, <3",
+    "scipy >= 1.13.0",
+    "h5py >= 3.0.0",
+    "mdtraj >= 1.10.2",
+    "pyyaml",
+    "pyzmq",
+    "matplotlib",
+    "blessings",
+    "ipykernel",
+    "pandas",
+    "tqdm",
+    "tables",
+    "sortedcontainers",
+    "f90nml",
 ]
 
 [project.optional-dependencies]

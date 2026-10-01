@@ -1,55 +1,88 @@
 import logging
-from typing import List, Optional
+from os.path import expandvars
+from typing import List
+
 import numpy as np
+
 import westpa
 from westpa.core.binning import FuncBinMapper
-from os.path import expandvars
 
 log = logging.getLogger(__name__)
 
 
 class MABBinMapper(FuncBinMapper):
-    """
-    Adaptively place bins between minimum and maximum segments along
-    the progress coordinate. Extrema and bottleneck segments are assigned
-    to their own bins.
+    """Minimal adaptive binning (MAB) scheme of Torrillo, Bogetti, and Chong (2021). [1]_
+
+    MAB adaptively places bins between the minimum and maximum progress
+    coordinate values along each dimension. Extrema and bottleneck segments
+    are assigned to their own bins.
+
+    Parameters
+    ----------
+    nbins : array_like of int
+        Number of bins along each dimension (excluding extrema and bottleneck
+        bins).
+    direction : array_like of int, optional
+        Direction flag for each dimension:
+
+        -  ``0``: Split at leading and lagging boundaries (default).
+        -  ``1``: Split at leading boundary only.
+        - ``-1``: Split at lagging boundary only.
+        - ``86``: No splitting at either leading or lagging boundary (both bottlenecks included).
+
+    skip : array_like of bool, optional
+        Boolean mask indicating which dimensions to skip. By default, no
+        dimensions are skipped.
+    bottleneck : bool, default True
+        Whether to enable bottleneck walker splitting.
+    pca : bool, default False
+        Whether to perform PCA on progress coordinates before bin assignment.
+    mab_log : bool, default False
+        Whether to output MAB info to west.log.
+    bin_log : bool, default False
+        Whether to output MAB bin boundaries to a log file.
+    bin_log_path : str, optional
+        Path to output bin boundaries. Defaults to ``'binbounds.log'``.
+
+    Attributes
+    ----------
+    labels : list of str
+        Bin labels.
+    nbins : int
+        Total number of bins mapped to.
+    ndim : int
+        Dimension
+
+
+    Examples
+    --------
+    >>> import westpa
+    >>> bin_mapper = westpa.MABBinMapper(nbins=[5])
+    >>> bin_mapper.nbins
+    9
+    >>> bin_mapper.ndim
+    1
+
+    References
+    ----------
+    .. [1] P.A. Torrillo, A.T. Bogetti, L.T. Chong,
+       J Phys Chem A, Volume 125, Issue 7, 2021, Pages 1642-1649,
+       https://doi.org/10.1021/acs.jpca.0c10724.
+
+
     """
 
     def __init__(
         self,
-        nbins: List[int],
-        direction: Optional[List[int]] = None,
-        skip: Optional[List[int]] = None,
-        bottleneck: bool = True,
-        pca: bool = False,
-        mab_log: bool = False,
-        bin_log: bool = False,
-        bin_log_path: str = "$WEST_SIM_ROOT/binbounds.log",
+        nbins,
+        direction=None,
+        skip=None,
+        bottleneck=True,
+        pca=False,
+        mab_log=False,
+        bin_log=False,
+        bin_log_path=None,
     ):
-        """
-        Parameters
-        ----------
-        nbins : list of int
-            List of number of bins in each dimension.
-        direction : Optional[list of int], default: None
-            List of directions in each dimension. Direction options:
-                0   : default split at leading and lagging boundaries
-                1   : split at leading boundary only
-                -1  : split at lagging boundary only
-                86  : no splitting at either leading or lagging boundary (both bottlenecks included)
-        skip : Optional[list of int], default: None
-            List of skip flags for each dimension. Default None (no skipping).
-        bottleneck : bool, default: True
-            Whether to enable bottleneck walker splitting.
-        pca : bool, default: False
-            Whether to perform PCA on progress coordinates before bin assignment.
-        mab_log : bool, default: False
-            Whether to output MAB info to west.log.
-        bin_log : bool, default: False
-            Whether to output MAB bin boundaries to a log file.
-        bin_log_path : str, default: "$WEST_SIM_ROOT/binbounds.log"
-            Path to output bin boundaries.
-        """
         # Verifying parameters
         if nbins is None:
             raise ValueError("nbins is missing")
@@ -127,6 +160,20 @@ class MABBinMapper(FuncBinMapper):
                     n_total_bins += 2 * bottleneck
         return n_total_bins
 
+    def __call__(self, segments, initial=False):
+        pcoord_ndim = segments[0].pcoord.shape[1]
+        pcoord_dtype = segments[0].pcoord.dtype
+
+        coords = np.empty((len(segments) * 2, pcoord_ndim + 2), pcoord_dtype)
+        for iseg, segment in enumerate(segments):
+            coords[iseg] = np.append(segment.pcoord[0], [segment.weight, 0])
+            coords[len(segments) + iseg] = np.append(segment.pcoord[-1], [segment.weight, 1])
+
+        if initial:
+            return self.assign(coords)[: len(segments)]
+        else:
+            return self.assign(coords)[len(segments) :]
+
 
 def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kwargs) -> List[int]:
     """
@@ -165,7 +212,7 @@ def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kw
     skip = kwargs.get("skip", [0] * ndim)
     mab_log = kwargs.get("mab_log", False)
     bin_log = kwargs.get("bin_log", False)
-    bin_log_path = kwargs.get("bin_log_path", "$WEST_SIM_ROOT/binbounds.log")
+    bin_log_path = kwargs.get("bin_log_path", "binbounds.log")
 
     if not np.any(mask):
         return output

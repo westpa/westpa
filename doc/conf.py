@@ -20,6 +20,8 @@
 
 import sys
 import os
+from datetime import datetime
+
 import westpa
 
 sys.path.insert(0, os.path.abspath('../src/westpa'))
@@ -28,8 +30,8 @@ sys.path.insert(0, os.path.abspath('../src/westpa'))
 
 # General information about the project.
 project = 'WESTPA'
-copyright = '2013, Matthew C. Zwier and Lillian T. Chong'
-author = 'Matthew C. Zwier and Lillian T. Chong'
+copyright = f'2013-{datetime.now().year}, WESTPA Developers'
+author = 'WESTPA Developers'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -50,16 +52,17 @@ release = version
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autosummary',
+    'numpydoc',
     'sphinx.ext.autodoc',
-    'sphinx.ext.napoleon',
+    'sphinx.ext.autosummary',
     'sphinx.ext.coverage',
 ]
 
 autosummary_generate = False
 autoclass_content = "both"
 autodoc_member_order = "bysource"
-autodoc_default_flags = ["members", "undoc-members", "show-inheritence", "imported-members"]
+# autodoc_typehints = "none"
+numpydoc_show_class_members = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -123,7 +126,7 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'pydata_sphinx_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

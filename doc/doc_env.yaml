@@ -16,6 +16,10 @@ dependencies:
   - blessings
   - ipykernel
   - mpi4py
+  - openmm
+  - sortedcontainers
+  - f90nml
   - sphinx
-  - sphinx-rtd-theme
-  - pip
+  - sphinx-autobuild
+  - numpydoc
+  - pydata-sphinx-theme
