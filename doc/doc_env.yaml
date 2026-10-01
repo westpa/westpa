@@ -16,10 +16,9 @@ dependencies:
   - blessings
   - ipykernel
   - mpi4py
-  - networkx
   - openmm
-  - pygraphviz
   - sortedcontainers
+  - f90nml
   - sphinx
   - sphinx-autobuild
   - numpydoc
