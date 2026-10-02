@@ -4,40 +4,38 @@
 
 from __future__ import print_function,division
 import cython
-import numpy
 import numpy as np
 import h5py
 from scipy.sparse import csgraph
 import warnings
 from collections import Counter
-cimport numpy
 cimport numpy as np
 cimport scipy.linalg
 cimport scipy.linalg.cython_lapack as cl
 import scipy.linalg
 from libc.math cimport isnan
 
-ctypedef numpy.uint16_t index_t
-ctypedef numpy.float64_t weight_t
-ctypedef numpy.uint8_t bool_t
-ctypedef numpy.int64_t trans_t
-ctypedef numpy.uintp_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
+ctypedef np.uint16_t index_t
+ctypedef np.float64_t weight_t
+ctypedef np.uint8_t bool_t
+ctypedef np.int64_t trans_t
+ctypedef np.uintp_t uint_t # 32 bits on 32-bit systems, 64 bits on 64-bit systems
 ctypedef unsigned short Ushort
 ctypedef double complex Cdouble
 
-weight_dtype = numpy.float64
-index_dtype = numpy.uint16
-bool_dtype = numpy.bool_
-intc_dtype = numpy.intc
+weight_dtype = np.float64
+index_dtype = np.uint16
+bool_dtype = np.bool_
+intc_dtype = np.intc
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef stats_process(numpy.ndarray[index_t, ndim=2] bin_assignments,
-                    numpy.ndarray[weight_t, ndim=1] weights,
-                    numpy.ndarray[weight_t, ndim=2] fluxes,
-                    numpy.ndarray[weight_t, ndim=1] populations,
-                    numpy.ndarray[trans_t, ndim=2] trans,
-                    numpy.ndarray[index_t, ndim=2] mask,
+cpdef stats_process(np.ndarray[index_t, ndim=2] bin_assignments,
+                    np.ndarray[weight_t, ndim=1] weights,
+                    np.ndarray[weight_t, ndim=2] fluxes,
+                    np.ndarray[weight_t, ndim=1] populations,
+                    np.ndarray[trans_t, ndim=2] trans,
+                    np.ndarray[index_t, ndim=2] mask,
                     str interval='timepoint'                        ):
     cdef:
         Py_ssize_t i,k
@@ -125,7 +123,6 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
         #double[:,:] eigvecs, WORK
 
 
-
     # CREATE NUMPY ARRAYS
     # This is a temporary measure that fixes some segfaults, which implies I'm probably off by
     # a little bit.  Memory heavy, but whatever.
@@ -211,28 +208,28 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
 
     # This allows us to use the same function for all three types.
     # Return conditional fluxes.
-    if _return_obs == b'F':
+    if _return_obs == 'F':
         _return_value = _rw_state_flux[_istate,_jstate]
         if isnan(_return_value) is True:
             return 0.0
         else:
             return _return_value
     # Return state probabilities.
-    elif _return_obs == b'S':
+    elif _return_obs == 'S':
         _return_value = _rw_state_probs[_istate]
         if isnan(_return_value) is True:
             return 0.0
         else:
             return _return_value
     # Return color (ensemble) probabilities
-    elif _return_obs == b'C':
+    elif _return_obs == 'C':
         _return_value = _rw_color_probs[_istate]
         if isnan(_return_value) is True:
             return 0.0
         else:
             return _return_value
     # Return the rates.
-    elif _return_obs == b'R':
+    elif _return_obs == 'R':
         if _rw_color_probs[_istate] != 0.0:
             _return_value = (_rw_state_flux[_istate,_jstate] / (_rw_color_probs[_istate] / (_rw_color_probs[_istate] + _rw_color_probs[_jstate])))
             if isnan(_return_value) is True:
@@ -243,7 +240,7 @@ cpdef reweight_for_c(rows, cols, obs, flux, insert, indices, nstates, nbins, sta
             # We have no ensemble probability, and as such, cannot have a flux.
             return 0.0
     # Return the populations.
-    elif _return_obs == b'P':
+    elif _return_obs == 'P':
         return rw_bin_probs
 
 @cython.boundscheck(False)

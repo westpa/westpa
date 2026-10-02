@@ -13,7 +13,6 @@ from westpa.mclib import mcbs_ci_correl
 
 from westpa.core.reweight import reweight_for_c, FluxMatrix
 
-
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -92,7 +91,7 @@ def _pop_eval_block(
     do_correl,
     mcbs_enable,
     estimator_kwargs,
-    **kwargs
+    **kwargs,
 ):
     # As our reweighting estimator is a weird function, we can't use the general mclib block.
     # A little hack to make our estimator play nice, as jstate must be there.
@@ -680,7 +679,7 @@ Command-line options
                     name='Bin Population Evolution',
                     mcbs_enable=self.mcbs_enable,
                     data_input={},
-                    **submit_kwargs
+                    **submit_kwargs,
                 )
                 # print(future_kwargs)
                 futures.append(generate_future(self.work_manager, 'Bin Pop Evolution', _pop_eval_block, future_kwargs))

@@ -39,7 +39,7 @@ def randport():
 
 
 def randipc():
-    (fd, socket_path) = tempfile.mkstemp()
+    fd, socket_path = tempfile.mkstemp()
     os.close(fd)
     endpoint = 'ipc://{}'.format(socket_path)
     return endpoint
@@ -91,5 +91,5 @@ class ZMQTestBase:
 
     def tearDown(self):
         self.cleanup_endpoints()
-        self.test_context.destroy(linger=1)
+        self.test_context.destroy(linger=5)
         del self.test_context

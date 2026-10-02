@@ -44,7 +44,7 @@ class BinlessSimManager(WESimManager):
             segment_futures.add(future)
 
         while futures:
-            # TODO: add capacity for timeout or SIGINT here
+            # TODO: add capacity to timeout or SIGINT here
             future = self.work_manager.wait_any(futures)
             futures.remove(future)
 
@@ -84,7 +84,7 @@ class BinlessSimManager(WESimManager):
         futures.update(istate_gen_futures)
 
         # Wait for istate_gen_futures and catch untracked futures.
-        while futures:
+        while futures and self.work_manager.running:
             future = self.work_manager.wait_any(futures)
             futures.remove(future)
 

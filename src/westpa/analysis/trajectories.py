@@ -3,12 +3,15 @@ import functools
 import inspect
 import operator
 import os
-
-import mdtraj
-import numpy as np
-
-from tqdm import tqdm
 from typing import Callable
+
+try:
+    import mdtraj
+except ImportError:
+    mdtraj = None
+import numpy as np
+from tqdm import tqdm
+
 from westpa.analysis.core import Walker, Trace
 from westpa.core.states import InitialState
 from westpa.core.h5io import WESTIterationFile
@@ -96,7 +99,7 @@ class SegmentCollector:
         The trajectory to which the segment collector is attached.
     use_threads : bool, default False
         Whether to use a pool of threads to retrieve trajectory segments
-        asynchronously. Setting this parameter to True may be may be
+        asynchronously. Setting this parameter to True may be
         useful when segment retrieval is an I/O bound task.
     max_workers : int, optional
         Maximum number of threads to use. The default value is specified in the
@@ -219,6 +222,9 @@ class BasicMDTrajectory(Trajectory):
     """
 
     def __init__(self, top='bstate.pdb', traj_ext='.dcd', state_ext='.xml', sim_root='.'):
+        if mdtraj is None:
+            raise ImportError('MDTraj must be installed to use the BasicMDTrajectory reader')
+
         self.top = top
         self.traj_ext = traj_ext
         self.state_ext = state_ext
@@ -288,6 +294,9 @@ class HDF5MDTrajectory(Trajectory):
     """Trajectory reader for MD trajectories stored by the HDF5 framework."""
 
     def __init__(self):
+        if mdtraj is None:
+            raise ImportError('MDTraj must be installed to use the HDF5MDTrajectory reader')
+
         def fget(walker, include_initpoint=True, atom_indices=None):
             iteration = walker.iteration
 
@@ -355,6 +364,6 @@ def concatenate(segments):
     """
     if isinstance(segments[0], np.ndarray):
         return np.concatenate(segments)
-    if isinstance(segments[0], mdtraj.Trajectory):
+    if mdtraj is not None and isinstance(segments[0], mdtraj.Trajectory):
         return segments[0].join(segments[1:], check_topology=False)
     return functools.reduce(operator.concat, segments)

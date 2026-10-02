@@ -1,11 +1,14 @@
+import pytest
 import numpy as np
+from numpy.testing import assert_array_equal
 
 import westpa
 import westpa.core.yamlcfg as ycf
+from westpa.core.systems import WESTSystem
 from westpa.core.binning import RectilinearBinMapper
 
 
-class TESTSystem(ycf.YAMLSystem):
+class TESTSystem(WESTSystem):
     def initialize(self):
         self.pcoord_ndim = 1
         self.pcoord_dtype = np.float32
@@ -111,3 +114,33 @@ class TestYAMLFrontEnd:
         rc.config['west', 'propagation', 'max_total_iteration'] = 1000
 
         assert rc.config['west', 'propagation', 'max_total_iteration'] == 1000
+
+    def testSystemDefaults(self):
+        # First the objects that will be used for testing
+        testSystem = WESTSystem()
+
+        with pytest.raises(NotImplementedError):
+            testSystem.new_region_set()
+
+        # Test that the new pcoord array is of the correct shape
+        test_zero = np.zeros((2, 1), np.float32)
+        pcoord_array = testSystem.new_pcoord_array()
+        assert testSystem.pcoord_len == 2
+        assert_array_equal(test_zero, pcoord_array)
+
+        testSystem.initialize()
+        testSystem.prepare_run()
+        testSystem.finalize_run()
+
+
+class TestYAMLConfig:
+    def test_dubious_config_entry(self):
+        with pytest.warns(ycf.ConfigValueWarning):
+            ycf.warn_dubious_config_entry('1', 1, expected_type=str)
+            ycf.warn_dubious_config_entry('1', 1)
+
+    def test_check_bool(self):
+        with pytest.warns(ycf.ConfigValueWarning):
+            ycf.check_bool(100, action='warn')
+        with pytest.raises(ValueError):
+            ycf.check_bool(100, action='raise')

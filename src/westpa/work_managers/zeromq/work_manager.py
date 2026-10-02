@@ -511,7 +511,7 @@ class ZMQWorkManager(ZMQCore, WorkManager, IsNode):
                     self.send_nak(rr_socket, msg)
 
         finally:
-            self.context.destroy(linger=1)
+            self.context.destroy(linger=5)
             self.context = None
             self.remove_ipc_endpoints()
 

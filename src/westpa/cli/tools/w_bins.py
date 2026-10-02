@@ -8,7 +8,6 @@ import westpa
 
 from westpa.tools.binning import write_bin_info
 
-
 log = logging.getLogger('w_bins')
 
 

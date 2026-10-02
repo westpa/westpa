@@ -12,7 +12,6 @@ from westpa.tools.kinetics_tool import WESTKineticsBase, AverageCommands
 
 from westpa.mclib import mcbs_ci_correl, _1D_simple_eval_block, _2D_simple_eval_block
 
-
 # From w_stateprobs
 from westpa.core.binning import accumulate_state_populations_from_labeled
 

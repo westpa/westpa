@@ -12,7 +12,6 @@ import westpa
 from westpa.core.segment import Segment
 from westpa.core.states import BasisState, TargetState
 
-
 log = logging.getLogger('w_states')
 EPS = np.finfo(np.float64).eps
 
