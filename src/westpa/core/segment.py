@@ -46,7 +46,7 @@ class Segment:
         'Return the final progress coordinate point of this segment.'
         return segment.pcoord[-1]
 
-    def parent_segment(self, sim_manager=None, we_driver=None, data_manager=None):
+    def parent(self, sim_manager=None, we_driver=None, data_manager=None):
         '''Return equivalent segment object in we_driver.final_binning, or a (BasisState, InitialState) tuple if a recycled segment'''
         if self.n_iter is None or self.seg_id is None or self.parent_id is None:
             log.warning('A dummy segment with improper attributes. Returning itself.')
