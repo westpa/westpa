@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]  # macos-latest is arm64
-        python-version: [10, 11, 12, 13, 14] # sub-versions of Python
+        python-version: [11, 12, 13, 14] # sub-versions of Python
     
     steps:
       - uses: actions/checkout@v7
@@ -40,7 +40,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.2.1
         env:
-          CIBW_SKIP: "pp* *-musllinux* cp31?t-*"
+          CIBW_SKIP: "*-musllinux* cp31?t-*"
           CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
           CIBW_ARCHS_MACOS: "universal2" # universal2 wheel for macos
           CIBW_ARCHS_LINUX: "auto64" # x86_64 and arm64, depending on the os
