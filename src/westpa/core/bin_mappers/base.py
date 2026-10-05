@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
+from functools import partial
 from operator import attrgetter
 
 import numpy as np
 
-from .bins import Bin
-
 
 class BinMapperBase(ABC):
-    """Base class for user-defined bin mappers.
+    """Base class for bin mappers.
     Subclasses must implement the :meth:`map` method and the :attr:`labels` property.
 
     Parameters
@@ -41,8 +40,6 @@ class BinMapperBase(ABC):
 
     """
 
-    UNKNOWN_INDEX = np.uint16(65535)  #: Indicates an unassigned segment.
-
     def __init__(self, coord_getter=None):
         self.coord_getter = coord_getter or attrgetter('pcoord')
 
@@ -65,17 +62,6 @@ class BinMapperBase(ABC):
             raise TypeError("'coord_getter' must be callable")
         self._coord_getter = value
 
-    def construct_bins(self):
-        """Return a list of :attr:`nbins` empty bins.
-
-        Returns
-        -------
-        bins : list of Bin
-            List of empty bins, labeled according to :attr:`labels`.
-
-        """
-        return [Bin(label=label) for label in self.labels]
-
     @abstractmethod
     def map(self, coords, weights, output):
         """Map walkers to bins, given their coordinates and weights.
@@ -84,30 +70,27 @@ class BinMapperBase(ABC):
         ----------
         coords : 2-D numpy.ndarray
             Coordinates of each walker.
-        weights : 1-D numpy.ndarray of dtype float64
+        weights : 1-D numpy.ndarray of float
             Weight of each walker.
-        output : 1-D numpy.ndarray of dtype uint16
-            Array for storing output, initialized to ``UNKNOWN_INDEX``.
+        output : 1-D numpy.ndarray of int
+            Array for storing output, initialized to -1.
 
         Returns
         -------
-        output : 1-D numpy.ndarray of dtype uint16
+        output : 1-D numpy.ndarray of float
             Bin assignment of each walker.
 
         """
         ...
 
-    def _initial_coord(self, segment):
-        return self.coord_getter(segment)[0]
+    def _get_coord(self, segment, coord_index):
+        return self.coord_getter(segment)[coord_index]
 
-    def _final_coord(self, segment):
-        return self.coord_getter(segment)[-1]
-
-    def __call__(self, segments, initial=False):
-        get_coord = self._initial_coord if initial else self._final_coord
+    def __call__(self, segments, coord_index=-1):
+        get_coord = partial(self._get_coord, coord_index=coord_index)
 
         coords = np.array(list(map(get_coord, segments)))
         weights = np.array(list(map(attrgetter('weight'), segments)))
-        output = np.repeat(self.UNKNOWN_INDEX, len(segments))
+        output = np.full(len(segments), -1)
 
         return self.map(coords, weights, output)

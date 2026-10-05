@@ -133,7 +133,7 @@ class BinMapper(Protocol):
     --------
     No-op implementation (assigns all segments to a single bin):
 
-    >>> def nop_bin_mapper(segments, initial=False):
+    >>> def nop_bin_mapper(segments, coord_index=-1):
     ...     return [0] * len(segments)
     ...
     >>> nop_bin_mapper.nbins = 1
@@ -142,24 +142,23 @@ class BinMapper(Protocol):
     See Also
     --------
     BinMapperBase
-        Base class for user-defined bin mappers.
+        Base class for bin mappers.
 
     """
 
     nbins: int
     labels: Iterable[str]
 
-    def __call__(self, segments: Sequence[Segment], initial: bool = False) -> ArrayLike:
+    def __call__(self, segments: Sequence[Segment], coord_index: int = -1) -> ArrayLike:
         """Assign segments to bins.
 
         Parameters
         ----------
         segments : sequence of Segment
             Segments to be binned.
-        initial : bool, optional
-            If True, bin the segments based on their initial coordinates.
-            If False (the default), bin the segments based on their final
-            coordinates.
+        coord_index : int
+            Index of the coordinate point (in ``pcoord`` or an auxiliary
+            2-D array) to use for binning. Defaults to the final point.
 
         Returns
         -------

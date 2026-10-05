@@ -65,6 +65,7 @@ Binning
    ~westpa.RectilinearBinMapper
    ~westpa.VoronoiBinMapper
    ~westpa.MABBinMapper
+   ~westpa.RecursiveBinMapper
 
 
 Resamplers

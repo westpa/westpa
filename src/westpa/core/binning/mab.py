@@ -160,19 +160,16 @@ class MABBinMapper(FuncBinMapper):
                     n_total_bins += 2 * bottleneck
         return n_total_bins
 
-    def __call__(self, segments, initial=False):
+    def __call__(self, segments, coord_index=-1):
         pcoord_ndim = segments[0].pcoord.shape[1]
         pcoord_dtype = segments[0].pcoord.dtype
 
         coords = np.empty((len(segments) * 2, pcoord_ndim + 2), pcoord_dtype)
         for iseg, segment in enumerate(segments):
             coords[iseg] = np.append(segment.pcoord[0], [segment.weight, 0])
-            coords[len(segments) + iseg] = np.append(segment.pcoord[-1], [segment.weight, 1])
+            coords[len(segments) + iseg] = np.append(segment.pcoord[coord_index], [segment.weight, 1])
 
-        if initial:
-            return self.assign(coords)[: len(segments)]
-        else:
-            return self.assign(coords)[len(segments) :]
+        return self.assign(coords)[len(segments) :]
 
 
 def map_mab(coords: np.ndarray, mask: np.ndarray, output: List[int], *args, **kwargs) -> List[int]:

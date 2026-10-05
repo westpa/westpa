@@ -17,6 +17,7 @@ __all__ = [
     'VoronoiBinMapper',
     'MABBinMapper',
     'BinMapperBase',
+    'RecursiveBinMapper',
     'Resampler',
     'ResamplerBase',
     'HuberKimResampler',
@@ -40,7 +41,7 @@ from .core.binning import (
     VoronoiBinMapper,
     MABBinMapper,
 )
-from .core.binning.base import BinMapperBase
+from .core.bin_mappers import BinMapperBase, RecursiveBinMapper
 from .core.resamplers import (
     ResamplerBase,
     HuberKimResampler,

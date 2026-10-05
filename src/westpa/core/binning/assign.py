@@ -122,14 +122,13 @@ class BinMapper:
 
         return output
 
-    def __call__(self, segments, initial=False):
+    def __call__(self, segments, coord_index=-1):
         pcoord_ndim = segments[0].pcoord.shape[1]
         pcoord_dtype = segments[0].pcoord.dtype
 
         pcoords = np.empty((len(segments), pcoord_ndim), pcoord_dtype)
-        n = 0 if initial else -1
         for i, segment in enumerate(segments):
-            pcoords[i] = segment.pcoord[n]
+            pcoords[i] = segment.pcoord[coord_index]
 
         return self.assign(pcoords)
 
