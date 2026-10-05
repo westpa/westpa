@@ -156,7 +156,7 @@ class BinMapper(Protocol):
         ----------
         segments : sequence of Segment
             Segments to be binned.
-        coord_index : int
+        coord_index : int, default -1
             Index of the coordinate point (in ``pcoord`` or an auxiliary
             2-D array) to use for binning. Defaults to the final point.
 

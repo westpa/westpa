@@ -40,7 +40,7 @@ class RecursiveBinMapper:
     base_mapper : BinMapper
         Base bin mapper.
     nested_mappers : MutableMapping[int, BinMapper]
-        Nested bin mappers, keyed by ``base_mapper`` bin index.
+        Nested bin mappers.
 
     Examples
     --------
