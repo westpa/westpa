@@ -14,6 +14,7 @@ from .segment import Segment
 from .binning import Bin, NopMapper
 from .resamplers import HuberKimResampler
 from .source_sink import Source, Sink
+from .protocols import Propagator, PCoordCalculator, BinMapper, Resampler
 from ._data_manager import DataManager
 from ..work_managers import SerialWorkManager
 from ..work_managers.core import WorkManager
@@ -34,10 +35,13 @@ def batched(iterable, n, *, strict=False):
         yield batch
 
 
-def default_pcoord(segment):
-    if (state := segment.initial_state.coord) is None:
-        raise ValueError(f"can't use default progress coordinate: {state} doesn't have a 'coord' value")
-    return np.stack((segment.initial_state.coord, segment.final_state.coord))
+def default_pcoord_calculator(obj):
+    if isinstance(obj, State):
+        if obj.coord is None:
+            raise ValueError(f"can't use default progress coordinate: {obj} doesn't have a 'coord' value")
+        return obj.coord
+    else:
+        return np.stack((obj.initial_state.coord, obj.final_state.coord))
 
 
 def _report_bin_statistics(bins):
@@ -99,7 +103,7 @@ class Simulation:
         HDF5 data file.
     propagator : Propagator
         Propagator.
-    pcoord_calculator : callable or None
+    pcoord_calculator : PCoordCalculator
         Progress coordinate calculator.
     bin_mapper : BinMapper
         Bin mapper.
@@ -165,8 +169,8 @@ class Simulation:
         self._next_iter_segments = []  # populated by _prepare_new_iteration()
 
         self.propagator = propagator
-        self.pcoord_calculator = pcoord_calculator
-        self.bin_mapper = bin_mapper
+        self.pcoord_calculator = pcoord_calculator or default_pcoord_calculator
+        self.bin_mapper = bin_mapper or NopMapper()
         self.bin_target_counts = bin_target_counts
         self.resampler = resampler or HuberKimResampler()
 
@@ -200,8 +204,8 @@ class Simulation:
 
     @propagator.setter
     def propagator(self, value):
-        if not callable(value):
-            raise TypeError("'propagator' must be callable")
+        if not isinstance(value, Propagator):
+            raise TypeError("'propagator' must implement the Propagator protocol")
         self._propagator = value
 
     @property
@@ -210,8 +214,8 @@ class Simulation:
 
     @pcoord_calculator.setter
     def pcoord_calculator(self, value):
-        if value is not None and not callable(value):
-            raise TypeError("'pcoord_calculator' must be callable or None")
+        if not isinstance(value, PCoordCalculator):
+            raise TypeError("'pcoord_calculator' must implement the PCoordCalculator protocol")
         self._pcoord_calculator = value
 
     @property
@@ -220,10 +224,8 @@ class Simulation:
 
     @bin_mapper.setter
     def bin_mapper(self, value):
-        if value is None:
-            value = NopMapper()
-        elif not callable(value):
-            raise TypeError("'bin_mapper' must be callable or None")
+        if not isinstance(value, BinMapper):
+            raise TypeError("'bin_mapper' must implement the BinMapper protocol")
         self._bin_mapper = value
 
     @property
@@ -245,8 +247,8 @@ class Simulation:
 
     @resampler.setter
     def resampler(self, value):
-        if not callable(value):
-            raise TypeError("'resampler' must be callable")
+        if not isinstance(value, Resampler):
+            raise TypeError("'resampler' must implement the Resampler protocol")
         self._resampler = value
 
     @property
@@ -614,7 +616,7 @@ class Simulation:
     def _calculate_pcoords(self, segments):
         future_map = {}
 
-        if self.pcoord_calculator is not None:
+        if self.pcoord_calculator is not default_pcoord_calculator:
             for segment in segments:
                 if segment.initpoint_type == segment.InitPoint.CONTINUES:
                     parent = self._prev_iter_segments[segment.parent_id]
@@ -625,7 +627,7 @@ class Simulation:
                 future_map[future] = segment
         else:
             for segment in segments:
-                segment.pcoord = default_pcoord(segment)
+                segment.pcoord = default_pcoord_calculator(segment)
 
             self._segments[segment.seg_id] = segment
             self._data_manager.write_pcoords(self._n_iter, segments)

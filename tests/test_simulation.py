@@ -91,22 +91,22 @@ class TestSimulationConstructor:
         assert sim.istate_generator is None
 
     def test_invalid_propagator_type(self, datafile):
-        with pytest.raises(TypeError, match="'propagator' must be callable"):
+        with pytest.raises(TypeError):
             westpa.Simulation(
                 datafile=datafile,
                 propagator="not_a_propagator",
             )
 
-    def test_invalid_pcoord_calculator_not_callable(self, datafile, propagator):
-        with pytest.raises(TypeError, match="'pcoord_calculator' must be callable or None"):
+    def test_invalid_pcoord_calculator_type(self, datafile, propagator):
+        with pytest.raises(TypeError):
             westpa.Simulation(
                 datafile=datafile,
                 propagator=propagator,
-                pcoord_calculator="not_callable",
+                pcoord_calculator="not_a_pcoord_calculator",
             )
 
     def test_invalid_resampler_type(self, datafile, propagator):
-        with pytest.raises(TypeError, match="'resampler' must be callable"):
+        with pytest.raises(TypeError):
             westpa.Simulation(
                 datafile=datafile,
                 propagator=propagator,

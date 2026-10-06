@@ -5,8 +5,8 @@ class State:
     """Represents a particular state of the simulated model.
 
     Either `coord` or `file` must be specified. The required parameter and the
-    significance of its value are determined by the `propagator <propagators.html>`_. If using a
-    built-in propagator, see its documentation for details on creating
+    significance of its value are determined by the `propagator <index.html#propagators>`_.
+    If using a built-in propagator, see its documentation for details on creating
     compatible initial states.
 
     Parameters

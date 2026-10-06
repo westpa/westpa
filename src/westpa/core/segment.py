@@ -15,9 +15,10 @@ class _AuxiliaryData(UserDict):
     def __setitem__(self, key, value):
         if not isinstance(key, str):
             raise TypeError('keys must be strings, not ' + type(value).__name__)
-        value = np.asarray(value)
-        if value.dtype == object:
-            raise TypeError('object arrays are not supported')
+        if not key.startswith('iterh5/'):  # TODO: Remove this exception.
+            value = np.asarray(value)
+            if value.dtype == object:
+                raise TypeError('object arrays are not supported')
         super().__setitem__(key, value)
 
 

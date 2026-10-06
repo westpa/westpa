@@ -1,5 +1,5 @@
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Protocol
+from typing import runtime_checkable, Protocol
 
 from numpy.typing import ArrayLike
 
@@ -8,6 +8,7 @@ from westpa.core.segment import Segment
 from westpa.core.state import State
 
 
+@runtime_checkable
 class Propagator(Protocol):
     """Protocol for propagators.
 
@@ -62,6 +63,7 @@ class Propagator(Protocol):
         ...
 
 
+@runtime_checkable
 class PCoordCalculator(Protocol):
     """Protocol for progress coordinate calculators.
 
@@ -71,20 +73,20 @@ class PCoordCalculator(Protocol):
 
     """
 
-    def __call__(self, obj: Segment | State) -> ArrayLike | tuple[ArrayLike, Mapping[str, ArrayLike]]:
-        """Return the progress coordinates for a given segment or state.
+    def __call__(self, obj: State | Segment) -> ArrayLike | tuple[ArrayLike, Mapping[str, ArrayLike]]:
+        """Return the progress coordinates for a given state or segment.
 
         Parameters
         ----------
-        obj : Segment or State
-            Segment or state for which to return progress coordinates.
+        obj : State or Segment
+            State or segment for which to compute progress coordinates.
 
         Returns
         -------
         pcoord : array_like
-            If `obj` is a state, a coordinate vector (1-D array). If `obj`
-            is a segment, a time series (2-D array) with at least two frames,
-            corresponding to the initial and final states.
+            If `obj` is a state, a coordinate point (1-D array). If `obj`
+            is a segment, a time series (2-D array) with at least two points,
+            corresponding to the initial and final states of the segment.
         data : Mapping[str, array_like], optional
             Dictionary of named arrays to store as auxiliary data.
 
@@ -115,6 +117,7 @@ class PCoordCalculator(Protocol):
         ...
 
 
+@runtime_checkable
 class BinMapper(Protocol):
     """Protocol for bin mappers.
 
@@ -146,7 +149,6 @@ class BinMapper(Protocol):
 
     """
 
-    nbins: int
     labels: Iterable[str]
 
     def __call__(self, segments: Sequence[Segment], coord_index: int = -1) -> ArrayLike:
@@ -170,6 +172,7 @@ class BinMapper(Protocol):
         ...
 
 
+@runtime_checkable
 class Resampler(Protocol):
     """Protocol for resamplers.
 
