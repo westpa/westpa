@@ -41,7 +41,7 @@ from .core.binning import (
     VoronoiBinMapper,
     MABBinMapper,
 )
-from .core.bin_mappers import BinMapperBase, RecursiveBinMapper
+from .core.binning.mappers import BinMapperBase, RecursiveBinMapper
 from .core.resamplers import (
     ResamplerBase,
     HuberKimResampler,

@@ -151,18 +151,16 @@ class BinMapper(Protocol):
         segments : sequence of Segment
             Segments to be binned.
         coord_index : int, default -1
-            Index of the coordinate point to use for binning. Defaults to the
-            final point. It is up to the implementation whether `coord_index`
-            is used to index the ``pcoord`` attribute or an auxiliary time
-            series for each segment.
-            Bin mappers that do not depend on coordinates may ignore this parameter
-            (see, for instance, the no-op example above).
+            Index of the progress coordinate or auxiliary data point to use
+            for binning. Defaults to the final point. Bin mappers that do not
+            depend on coordinates may ignore this parameter (see, for instance,
+            the no-op example above).
 
         Returns
         -------
-        assignments : array_like of integer type
-            1-D array specifying the bin assignment for each segment.
-            Integer values (bin indices) must be in ``range(self.nbins)``.
+        assignments : 1-D array_like of integer type
+            Bin assignment for each segment. Integer values (bin indices) must be
+            in ``range(self.nbins)``.
 
         """
         ...
