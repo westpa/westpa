@@ -159,8 +159,8 @@ class BinMapper(Protocol):
         Returns
         -------
         assignments : 1-D array_like of integer type
-            Bin assignment for each segment. Integer values (bin indices) must be
-            in ``range(self.nbins)``.
+            Bin assignment for each segment. Array elements must be in
+            ``range(self.nbins)``.
 
         """
         ...

@@ -80,7 +80,8 @@ class BinMapperBase(ABC):
         Returns
         -------
         output : numpy.ndarray of shape (n,)
-            Bin assignments. Array elements must be in ``range(self.nbins)``.
+            Bin assignment for each walker. Array elements must be in
+            ``range(self.nbins)``.
 
         """
         ...
