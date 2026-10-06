@@ -25,11 +25,12 @@ class Propagator(Protocol):
 
     Notes
     -----
-    Optionally, a propagator may define a ``block_size`` attribute. Its
-    value indicates to the calling :class:`~westpa.Simulation` the maximum
-    number of segments to pass to the propagator in a single call.
-    If ``block_size`` is None (the default), no chunking of input is done
-    (i.e., prepared segments are all passed in a single call).
+    A propagator may optionally define a ``block_size`` attribute. Its value
+    (a positive integer or None) indicates to the calling
+    :class:`~westpa.Simulation` the maximum number of segments to pass to the
+    propagator in a single call. If ``block_size`` is None or undefined,
+    no chunking of input is done (i.e., prepared segments are all
+    passed in a single call).
 
     Examples
     --------
@@ -149,6 +150,7 @@ class BinMapper(Protocol):
 
     """
 
+    nbins: int
     labels: Iterable[str]
 
     def __call__(self, segments: Sequence[Segment], coord_index: int = -1) -> ArrayLike:
@@ -159,14 +161,17 @@ class BinMapper(Protocol):
         segments : sequence of Segment
             Segments to be binned.
         coord_index : int, default -1
-            Index of the coordinate point (in ``pcoord`` or an auxiliary
-            2-D array) to use for binning. Defaults to the final point.
+            Index of the coordinate point to use for binning. Defaults to the
+            final point. It is up to the implementation whether `coord_index`
+            is used to index ``pcoord`` or an auxiliary time series. Bin
+            mappers that do not depend on coordinates may ignore this parameter
+            (see, for instance, the no-op example above).
 
         Returns
         -------
         assignments : array_like of integer type
-            Array of zero-based integers indicating the bin assignment for
-            each segment.
+            1-D array specifying the bin assignment for each segment.
+            Integer values (bin indices) must be in ``range(self.nbins)``.
 
         """
         ...
