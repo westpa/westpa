@@ -93,26 +93,16 @@ class PCoordCalculator(Protocol):
 
         Examples
         --------
-        Implementation based on `MDTraj <https://mdtraj.org/>`_:
+        Use the raw coordinates as progress coordinates (default behavior):
 
-        >>> import mdtraj
-        >>> import numpy as np
         >>> import westpa
-        >>> class MDTrajPCoordCalculator:
-        ...     def __init__(self, top, func, **kwargs):
-        ...         self.top = mdtraj.load(top).topology if isinstance(top, str) else top
-        ...         self.func = func
-        ...         self.kwargs = kwargs
-        ...     def __call__(self, obj):
-        ...         if isinstance(obj, westpa.State):
-        ...             traj = mdtraj.load(obj.file, top=self.top)
-        ...             return self.func(traj, **self.kwargs)[0]
-        ...         elif isinstance(obj, westpa.Segment):
-        ...             return np.stack((self(obj.initial_state), self(obj.final_state)))
+        >>> def default_pcoord_calculator(obj):
+        ...     if isinstance(obj, westpa.State):
+        ...         return obj.coord
+        ...     else:
+        ...         return obj.initial_state.coord, obj.final_state.coord
         ...
-        >>> pcoord_calculator = MDTrajPCoordCalculator(
-        ...     'topology.pdb', mdtraj.compute_distances, atom_pairs=[[0, 1]]
-        ... )
+
 
         """
         ...
@@ -163,8 +153,9 @@ class BinMapper(Protocol):
         coord_index : int, default -1
             Index of the coordinate point to use for binning. Defaults to the
             final point. It is up to the implementation whether `coord_index`
-            is used to index ``pcoord`` or an auxiliary time series. Bin
-            mappers that do not depend on coordinates may ignore this parameter
+            is used to index the ``pcoord`` attribute or an auxiliary time
+            series for each segment.
+            Bin mappers that do not depend on coordinates may ignore this parameter
             (see, for instance, the no-op example above).
 
         Returns
