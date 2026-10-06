@@ -10,7 +10,7 @@ class RecursiveBinMapper:
     base_mapper : BinMapper
         Bin mapper in which to nest other bin mappers.
     recursion_targets : Mapping[int, RecursiveBinMapper], optional
-        Nested recursive bin mappers, keyed by `base_mapper` bin index.
+        Nested recursive mappers, keyed by `base_mapper` bin index.
 
     Attributes
     ----------
@@ -21,7 +21,7 @@ class RecursiveBinMapper:
     base_mapper : BinMapper
         Base bin mapper.
     recursion_targets : Mapping[int, RecursiveBinMapper]
-        Nested recursive bin mappers.
+        Nested recursive mappers.
 
     Examples
     --------
