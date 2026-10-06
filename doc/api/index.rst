@@ -26,8 +26,8 @@ Simulation
 
    ~westpa.Simulation
 
-Propagators
------------
+Dynamics propagation
+--------------------
 
 .. autosummary::
    :caption: Dynamics propagation
@@ -41,11 +41,11 @@ Propagators
    ~westpa.GROMACSPropagator
    ~westpa.OpenMMPropagator
 
-Progress coordinates
---------------------
+Calculating progress coordinates
+--------------------------------
 
 .. autosummary::
-   :caption: Progress coordinates
+   :caption: Calculating progress coordinates
    :toctree:
    :nosignatures:
 
@@ -68,11 +68,11 @@ Binning
    ~westpa.RecursiveBinMapper
 
 
-Resamplers
+Resampling
 ----------
 
 .. autosummary::
-   :caption: Resamplers
+   :caption: Resampling
    :toctree:
    :nosignatures:
 

@@ -75,7 +75,8 @@ class TestRecursiveBinMapper:
         outer_mapper = FuncBinMapper(self.fn1, 2)
         inner_mapper = FuncBinMapper(self.fn2, 2)
 
-        rmapper = RecursiveBinMapper(outer_mapper, nested_mappers={0: inner_mapper})
+        rmapper = RecursiveBinMapper(outer_mapper)
+        rmapper.add_mapper(inner_mapper, replaces_bin=0)
 
         assert rmapper.nbins == 3
         coords = np.array([[0.1], [0.2], [0.3], [0.4], [0.6], [1.1]])
@@ -101,10 +102,9 @@ class TestRecursiveBinMapper:
         middle_mapper = FuncBinMapper(self.fn2, 2)
         inner_mapper = FuncBinMapper(self.fn3, 2)
 
-        rmapper = RecursiveBinMapper(
-            outer_mapper,
-            nested_mappers={0: RecursiveBinMapper(middle_mapper, nested_mappers={0: inner_mapper})},
-        )
+        rmapper = RecursiveBinMapper(outer_mapper)
+        rmapper.add_mapper(middle_mapper, replaces_bin=0)
+        rmapper.add_mapper(inner_mapper, replaces_bin=1)
 
         assert rmapper.nbins == 4
         coords = np.array([[0.1], [0.2], [0.3], [0.4], [0.6], [1.1]])
@@ -129,10 +129,9 @@ class TestRecursiveBinMapper:
         middle_mapper1 = FuncBinMapper(self.fn2, 2)
         middle_mapper2 = FuncBinMapper(self.fn4, 2)
 
-        rmapper = RecursiveBinMapper(
-            outer_mapper,
-            nested_mappers={0: middle_mapper1, 1: middle_mapper2},
-        )
+        rmapper = RecursiveBinMapper(outer_mapper)
+        rmapper.add_mapper(middle_mapper1, replaces_bin=0)
+        rmapper.add_mapper(middle_mapper2, replaces_bin=0)
 
         assert rmapper.nbins == 4
         coords = np.array([[0.1], [0.2], [0.3], [0.4], [0.6], [1.1], [1.6]])
@@ -158,13 +157,10 @@ class TestRecursiveBinMapper:
         middle_mapper2 = FuncBinMapper(self.fn4, 2)
         inner_mapper = FuncBinMapper(self.fn3, 2)
 
-        rmapper = RecursiveBinMapper(
-            outer_mapper,
-            nested_mappers={
-                0: RecursiveBinMapper(middle_mapper1, nested_mappers={0: inner_mapper}),
-                1: middle_mapper2,
-            },
-        )
+        rmapper = RecursiveBinMapper(outer_mapper)
+        rmapper.add_mapper(middle_mapper1, replaces_bin=0)
+        rmapper.add_mapper(inner_mapper, replaces_bin=1)
+        rmapper.add_mapper(middle_mapper2, replaces_bin=0)
 
         assert rmapper.nbins == 5
         coords = np.array([[0.1], [0.2], [0.3], [0.4], [0.6], [1.1], [1.6]])
@@ -199,10 +195,9 @@ class TestRecursiveBinMapper:
         upper_right_mapper = RectilinearBinMapper([[1, 1.5, 2], [0, 1]])
         lower_left_mapper = RectilinearBinMapper([[0, 0.5, 1], [1, 2]])
 
-        rmapper = RecursiveBinMapper(
-            outer_mapper,
-            nested_mappers={1: lower_left_mapper, 2: upper_right_mapper},
-        )
+        rmapper = RecursiveBinMapper(outer_mapper)
+        rmapper.add_mapper(upper_right_mapper, replaces_bin=2)
+        rmapper.add_mapper(lower_left_mapper, replaces_bin=1)
 
         pairs = [(0.5, 0.5), (1.25, 0.5), (1.75, 0.5), (0.25, 1.5), (0.75, 1.5), (1.5, 1.5)]
         segments = [Segment(pcoord=[(0.0, 0.0), pair]) for pair in pairs]
