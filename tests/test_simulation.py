@@ -5,7 +5,7 @@ import numpy as np
 import westpa
 
 from westpa.core.binning import NopMapper
-from westpa.work_managers import SerialWorkManager
+from westpa.work_managers.executors import SerialExecutor
 
 # ---------------------------------------------------------------------------
 # Test helpers
@@ -78,8 +78,8 @@ class TestSimulationConstructor:
     def test_default_resampler_is_huber_kim(self, sim):
         assert isinstance(sim.resampler, westpa.HuberKimResampler)
 
-    def test_default_work_manager_is_serial(self, sim):
-        assert isinstance(sim.work_manager, SerialWorkManager)
+    def test_default_executor_is_serial(self, sim):
+        assert isinstance(sim.executor, SerialExecutor)
 
     def test_default_source_is_none(self, sim):
         assert sim.source is None
@@ -113,12 +113,12 @@ class TestSimulationConstructor:
                 resampler="not_a_resampler",
             )
 
-    def test_invalid_work_manager_type(self, datafile, propagator):
-        with pytest.raises(TypeError, match="'work_manager' must be a WorkManager object"):
+    def test_invalid_executor_type(self, datafile, propagator):
+        with pytest.raises(TypeError, match="'executor' must be a concurrent.futures.Executor object"):
             westpa.Simulation(
                 datafile=datafile,
                 propagator=propagator,
-                work_manager="not_a_work_manager",
+                executor="not_an_executor",
             )
 
     def test_source_without_sink_raises(self, datafile, propagator):

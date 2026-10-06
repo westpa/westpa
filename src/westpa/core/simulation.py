@@ -5,6 +5,7 @@ import math
 import operator
 import os
 import time
+from concurrent.futures import FIRST_COMPLETED, Executor, wait
 from datetime import timedelta
 
 import numpy as np
@@ -16,8 +17,7 @@ from .resamplers import HuberKimResampler
 from .source_sink import Source, Sink
 from .protocols import Propagator, PCoordCalculator, BinMapper, Resampler
 from ._data_manager import DataManager
-from ..work_managers import SerialWorkManager
-from ..work_managers.core import WorkManager
+from ..work_managers.executors import SerialExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +93,18 @@ class Simulation:
     istate_generator : callable, optional
         Routine for modifying the source distribution on the fly. It must
         accept a state from `source` as input and return a new state.
-    work_manager : WorkManager, optional
-        Work manager for executing calls to `propagator`, `pcoord_calculator`, and
-        `istate_generator`. By default, calls are executed serially.
+    executor : concurrent.futures.Executor, optional
+        Executor for dispatching calls to `propagator`, `pcoord_calculator`, and
+        `istate_generator`. Any :mod:`concurrent.futures` executor may be used,
+        including :class:`~concurrent.futures.ThreadPoolExecutor` and
+        :class:`~concurrent.futures.ProcessPoolExecutor`. Defaults to
+        :class:`~westpa.work_managers.executors.SerialExecutor`, which runs
+        each call immediately in the calling thread.
+
+        The executor is not shut down by :meth:`run`, so a caller-supplied
+        executor may be reused across runs and remains the caller's to close.
+        With :class:`~concurrent.futures.ProcessPoolExecutor`, the callables and
+        every :class:`Segment` passed to them must be picklable.
 
     Attributes
     ----------
@@ -117,8 +126,8 @@ class Simulation:
         Sink region(s).
     istate_generator : callable or None
         Initial state generator.
-    work_manager : WorkManager
-        Work manager.
+    executor : concurrent.futures.Executor
+        Executor.
     n_iter : int or None
         Current iteration number.
     initialized : bool
@@ -146,7 +155,7 @@ class Simulation:
         source=None,
         sink=None,
         istate_generator=None,
-        work_manager=None,
+        executor=None,
     ):
         self._data_manager = DataManager(datafile)
 
@@ -160,7 +169,7 @@ class Simulation:
         self._sinks = ()
         self._istate_generator = None
 
-        self._work_manager = None
+        self._executor = None
 
         self._n_iter = None
         self._prev_iter_segments = []
@@ -179,7 +188,7 @@ class Simulation:
                 raise ValueError("'source' and 'sink' must be provided together")
             self.enable_recycling(source, sink, istate_generator)
 
-        self.work_manager = work_manager or SerialWorkManager()
+        self.executor = executor or SerialExecutor()
 
         if isinstance(datafile, io.BytesIO):
             initialized = bool(datafile.getbuffer().nbytes)
@@ -264,14 +273,14 @@ class Simulation:
         return self._istate_generator
 
     @property
-    def work_manager(self):
-        return self._work_manager
+    def executor(self):
+        return self._executor
 
-    @work_manager.setter
-    def work_manager(self, value):
-        if not isinstance(value, WorkManager):
-            raise TypeError("'work_manager' must be a WorkManager object")
-        self._work_manager = value
+    @executor.setter
+    def executor(self, value):
+        if not isinstance(value, Executor):
+            raise TypeError("'executor' must be a concurrent.futures.Executor object")
+        self._executor = value
 
     @property
     def n_iter(self):
@@ -358,12 +367,7 @@ class Simulation:
         if not self.initialized:
             raise RuntimeError('simulation must be initialized before calling run()')
 
-        with self.work_manager as work_manager:
-            if work_manager.is_master:
-                work_manager.install_sigint_handler()
-                self._run(n_iters, max_walltime)
-            else:
-                work_manager.run()
+        self._run(n_iters, max_walltime)
 
     def enable_recycling(self, source, sink, istate_generator=None):
         """Enable source-sink boundary conditions (recycling). This method
@@ -534,7 +538,7 @@ class Simulation:
             states = self.source.random_sample(len(unset_segments))
             if self.istate_generator is not None:
                 for state in states:
-                    future = self.work_manager.submit(self.istate_generator, args=(state,))
+                    future = self.executor.submit(self.istate_generator, state)
                     istate_futures.add(future)
             else:
                 segments = []
@@ -547,7 +551,7 @@ class Simulation:
 
         # Dispatch pending propagation tasks.
         for segments in batched(prepared_segments, propagator_block_size):
-            future = self.work_manager.submit(self.propagator, args=(segments,))
+            future = self.executor.submit(self.propagator, segments)
             propagator_futures.add(future)
         prepared_segments.clear()
 
@@ -558,12 +562,13 @@ class Simulation:
         logger.info('Waiting for segments to complete...')
 
         while futures := istate_futures | propagator_futures | pcoord_future_map.keys():
-            future = self.work_manager.wait_any(futures)
+            done, _ = wait(futures, return_when=FIRST_COMPLETED)
+            future = done.pop()
 
             if future in istate_futures:
                 istate_futures.remove(future)
                 try:
-                    state = future.get_result()
+                    state = future.result()
                 except Exception as e:
                     raise RuntimeError("error in 'istate_generator' routine") from e
 
@@ -576,14 +581,17 @@ class Simulation:
                 self._data_manager.write_initial_states(self._n_iter, segments=[segment])
 
                 if len(prepared_segments) == propagator_block_size or not istate_futures:
-                    future = self.work_manager.submit(self.propagator, args=(prepared_segments,))
+                    # Submit a copy: `prepared_segments` is cleared below, and a
+                    # propagator returns the same sequence it was handed, so
+                    # submitting the list itself would empty the future's result.
+                    future = self.executor.submit(self.propagator, prepared_segments.copy())
                     propagator_futures.add(future)
                     prepared_segments.clear()
 
             elif future in propagator_futures:
                 propagator_futures.remove(future)
                 try:
-                    segments = future.get_result()
+                    segments = future.result()
                 except Exception as e:
                     raise RuntimeError("error in 'propagator' routine") from e
 
@@ -597,7 +605,7 @@ class Simulation:
             elif future in pcoord_future_map:
                 segment = pcoord_future_map.pop(future)
                 try:
-                    result = future.get_result()
+                    result = future.result()
                 except Exception as e:
                     raise RuntimeError("error in 'pcoord_calculator' routine") from e
 
@@ -623,7 +631,7 @@ class Simulation:
                 else:
                     parent = None
 
-                future = self.work_manager.submit(self.pcoord_calculator, args=(segment, parent))
+                future = self.executor.submit(self.pcoord_calculator, segment, parent)
                 future_map[future] = segment
         else:
             for segment in segments:
