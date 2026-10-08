@@ -354,12 +354,11 @@ class RecursiveBinMapper(BinMapper):
 
     @property
     def labels(self):
-        for ilabel in range(self.base_mapper.nbins):
-            if self._recursion_map[ilabel]:
-                for label in self._recursion_targets[ilabel].labels:
-                    yield label
-            else:
-                yield self.base_mapper.labels[ilabel]
+        for ilabel in np.flatnonzero(~self._recursion_map):
+            yield self.base_mapper.labels[ilabel]
+        for mapper in self._recursion_targets.values():
+            for label in mapper.labels:
+                yield label
 
     @property
     def start_index(self):
@@ -392,10 +391,8 @@ class RecursiveBinMapper(BinMapper):
         specified ``mapper``.'''
 
         replaces_bin_at = np.require(replaces_bin_at, dtype=coord_dtype)
-        if replaces_bin_at.ndim < 1:
-            replaces_bin_at.shape = (1, 1)
-        elif replaces_bin_at.ndim < 2:
-            replaces_bin_at.shape = (1, replaces_bin_at.shape[0])
+        if replaces_bin_at.ndim < 2:
+            replaces_bin_at = np.atleast_2d(replaces_bin_at)
         elif replaces_bin_at.ndim > 2 or replaces_bin_at.shape[1] > 1:
             raise TypeError('a single coordinate vector is required')
 

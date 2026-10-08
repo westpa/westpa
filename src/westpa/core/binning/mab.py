@@ -332,13 +332,14 @@ def detect_bottlenecks(unmasked_coords, unmasked_weights, n_coords, n):
 
 
 def log_mab_stats(minlist, maxlist, direction, skip):
-    westpa.rc.pstatus("################ MAB stats ################")
-    westpa.rc.pstatus(f"minima in each dimension:      {minlist}")
-    westpa.rc.pstatus(f"maxima in each dimension:      {maxlist}")
-    westpa.rc.pstatus(f"direction in each dimension:   {direction}")
-    westpa.rc.pstatus(f"skip in each dimension:        {skip}")
-    westpa.rc.pstatus("###########################################")
-    westpa.rc.pflush()
+    with np.printoptions(legacy='1.25'):
+        westpa.rc.pstatus("################ MAB stats ################")
+        westpa.rc.pstatus(f"minima in each dimension:      {minlist}")
+        westpa.rc.pstatus(f"maxima in each dimension:      {maxlist}")
+        westpa.rc.pstatus(f"direction in each dimension:   {direction}")
+        westpa.rc.pstatus(f"skip in each dimension:        {skip}")
+        westpa.rc.pstatus("###########################################")
+        westpa.rc.pflush()
 
 
 def bin_assignment(
@@ -498,9 +499,9 @@ def log_bin_boundaries(
             bb_file.write(f'Number of bottleneck bins filled: {n_bottleneck_filled} / {max_bottleneck}\n')
             for n in active_dims:
                 if direction[n] in [0, 1, 86]:
-                    bb_file.write(f'Dimension {n} forward bottleneck walker at: {list(bottlenecks_forward[n])}\n')
+                    bb_file.write(f'Dimension {n} forward bottleneck walker at: {[bottlenecks_forward[n]]}\n')
                 if direction[n] in [0, -1, 86]:
-                    bb_file.write(f'Dimension {n} backward bottleneck walker at: {list(bottlenecks_reverse[n])}\n')
+                    bb_file.write(f'Dimension {n} backward bottleneck walker at: {[bottlenecks_reverse[n]]}\n')
             bb_file.write('\n')
         else:
             bb_file.write('\n')

@@ -202,7 +202,7 @@ class Manager(MPIWorkManager):
             # are we waiting on any results?
             while self.nPending:
                 stat = MPI.Status()
-                (tid, msg, val) = self.comm.recv(source=MPI.ANY_SOURCE, tag=self.result_tag, status=stat)
+                tid, msg, val = self.comm.recv(source=MPI.ANY_SOURCE, tag=self.result_tag, status=stat)
                 log.debug('Manager._receiver received task: %s' % tid)
 
                 # update future

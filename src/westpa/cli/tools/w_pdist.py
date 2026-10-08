@@ -15,7 +15,6 @@ from westpa.tools import (
 from westpa.fasthist import histnd, normhistnd
 from westpa.core import h5io
 
-
 log = logging.getLogger('w_pdist')
 
 

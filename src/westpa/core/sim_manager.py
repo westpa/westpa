@@ -17,7 +17,6 @@ from .states import InitialState
 from . import extloader
 from . import wm_ops
 
-
 log = logging.getLogger(__name__)
 
 EPS = np.finfo(weight_dtype).eps
@@ -55,19 +54,17 @@ class WESimManager:
 
         # A table of function -> list of (priority, name, callback) tuples
         self._callback_table = {}
-        self._valid_callbacks = set(
-            (
-                self.prepare_run,
-                self.finalize_run,
-                self.prepare_iteration,
-                self.finalize_iteration,
-                self.pre_propagation,
-                self.post_propagation,
-                self.pre_we,
-                self.post_we,
-                self.prepare_new_iteration,
-            )
-        )
+        self._valid_callbacks = {
+            self.prepare_run,
+            self.finalize_run,
+            self.prepare_iteration,
+            self.finalize_iteration,
+            self.pre_propagation,
+            self.post_propagation,
+            self.pre_we,
+            self.post_we,
+            self.prepare_new_iteration,
+        }
         self._callbacks_by_name = {fn.__name__: fn for fn in self._valid_callbacks}
         self.n_propagated = 0
 
@@ -306,7 +303,7 @@ class WESimManager:
 
         # Process start states
         # Unlike the above, does not create an ibstate group.
-        # TODO: Should it? I don't think so, if needed it can be traced back through basis_auxref
+        # Should it? I don't think so, if needed it can be traced back through basis_auxref
 
         # Here, we are trying to assign a state_id to the start state to be initialized, without actually
         # saving it to the ibstates records in any of the h5 files. It might actually be a problem
@@ -610,7 +607,7 @@ class WESimManager:
             segment_futures.add(future)
 
         while futures:
-            # TODO: add capacity for timeout or SIGINT here
+            # TODO: add capacity to timeout or SIGINT here
             future = self.work_manager.wait_any(futures)
             futures.remove(future)
 

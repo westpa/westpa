@@ -71,7 +71,6 @@ cpdef rectilinear_assign(coord_t[:,:] coords,
 
             # backwards iteration needs signed values, so that the final != -1 works
             for idim in range(ndim-1,-1,-1):
-                found = 0
                 cval = coords[icoord,idim]
                 boundlen = boundlens[idim]
                 bvec = <coord_t*> boundvecs[idim]

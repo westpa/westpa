@@ -84,7 +84,7 @@ class CommonPloterrs(WESTSubcommand):
 
     def parse_range(self, rangespec):
         try:
-            (lbt, ubt) = rangespec.split(',')
+            lbt, ubt = rangespec.split(',')
             return float(lbt), float(ubt)
         except (ValueError, TypeError) as e:
             raise ValueError('invalid range specification {!r}: {!s}'.format(rangespec, e))
@@ -170,7 +170,7 @@ Command-line arguments
 
     def process_args(self, args):
         self.output_filename = args.output
-        (pathname, slicestr) = re.search(r'([^[]+)(\[[^\]]+\])?$', args.dsspec).groups()
+        pathname, slicestr = re.search(r'([^[]+)(\[[^\]]+\])?$', args.dsspec).groups()
         if slicestr:
             sl = eval('np.index_exp' + slicestr)
         else:

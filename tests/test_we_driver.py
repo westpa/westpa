@@ -245,11 +245,56 @@ class TestWEDriver(TestCase):
         self.we_driver.populate_initial([istate], [prob], system=self.system)
         assert len(self.we_driver.next_iter_binning[0]) == target_counts
 
-    @pytest.mark.skip
     def test_populate_initial(self):
         for prob in [0.1, 1.0 / 3.0, 0.9999999999970001, 1.0]:
             for tcount in range(30, 60):
-                yield self.check_populate_initial, prob, tcount
+                self.check_populate_initial(prob, tcount)
+
+    def test_merge_by_threshold(self):
+        # Create the segments
+        segments = [self.segment(0.0, 0.5, weight=0.25) for i in range(4)]
+        self.we_driver.smallest_allowed_weight = 0.5
+
+        # Create the bins
+        self.we_driver.new_iteration()
+        self.we_driver.assign(segments)
+        self.we_driver.construct_next()
+
+        for ibin, bin in enumerate(self.we_driver.next_iter_binning):
+            subgroup = self.we_driver.subgroup_function(self.we_driver, ibin, **self.we_driver.subgroup_function_kwargs)
+
+            if len(bin) > 0:
+                # Occupied bin
+                self.we_driver._merge_by_threshold(bin, subgroup[ibin])
+
+                assert len(self.we_driver.next_iter_binning[ibin]) == 1
+                assert np.allclose([seg.weight for seg in self.we_driver.next_iter_binning[0]], [1])
+            else:
+                # Unoccupied bins
+                assert len(self.we_driver.next_iter_binning[ibin]) == 0
+
+    def test_split_by_threshold(self):
+        # Create the segments
+        segments = [self.segment(0.0, 0.5, weight=1)]
+        self.we_driver.largest_allowed_weight = 0.125
+
+        # Create the bins
+        self.we_driver.new_iteration()
+        self.we_driver.assign(segments)
+        self.we_driver.construct_next()
+
+        for ibin, bin in enumerate(self.we_driver.next_iter_binning):
+            subgroup = self.we_driver.subgroup_function(self.we_driver, ibin, **self.we_driver.subgroup_function_kwargs)
+
+            if len(bin) > 0:
+                # Occupied bin
+                self.we_driver._split_by_threshold(bin, subgroup[ibin])
+
+                assert len(self.we_driver.next_iter_binning[ibin]) == 8
+                assert np.allclose([seg.weight for seg in self.we_driver.next_iter_binning[0]], [0.125 for _i in range(8)])
+            else:
+                # Unoccupied bins
+                assert len(self.we_driver.next_iter_binning[ibin]) == 0
 
     # TODO: add test for seeding the flux matrix based on recycling
     # TODO: add test for split after merge in adjust count

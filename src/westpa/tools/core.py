@@ -9,7 +9,6 @@ import westpa
 from westpa import work_managers
 from westpa.core import h5io
 
-
 log = logging.getLogger(__name__)
 
 

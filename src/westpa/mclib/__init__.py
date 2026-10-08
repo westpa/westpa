@@ -204,7 +204,7 @@ def _1D_simple_eval_block(
     do_correl,
     mcbs_enable,
     subsample=np.mean,
-    **extra
+    **extra,
 ):
     # This is actually appropriate for anything with a directly measured, 1D dataset, i.e.,
     # Fluxes, color populations, and state populations.
@@ -242,7 +242,7 @@ def _2D_simple_eval_block(
     do_correl,
     mcbs_enable,
     subsample=np.mean,
-    **extra
+    **extra,
 ):
     # This is really just a simple 2D block for less complex datasets, but there it is.
     # It's probably limited in this use case to conditional_fluxes, but anything that's an i to j process that is directly measured

@@ -318,7 +318,7 @@ Command-line options
         states = []
         for istring, state_string in enumerate(state_strings):
             try:
-                (label, coord_str) = state_string.split(':')
+                label, coord_str = state_string.split(':')
             except ValueError:
                 label = 'state{}'.format(istring)
                 coord_str = state_string

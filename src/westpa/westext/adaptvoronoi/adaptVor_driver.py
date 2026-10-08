@@ -127,10 +127,8 @@ class AdaptiveVoronoiDriver:
                 centers = bin_mapper.centers
 
             except Exception:
-                log.warning(
-                    'Initializing voronoi centers from data failed; \
-                        Using definition in system instead.'
-                )
+                log.warning('Initializing voronoi centers from data failed; \
+                        Using definition in system instead.')
                 centers = self.system.bin_mapper.centers
 
         self.data_manager.close_backing()
@@ -158,12 +156,8 @@ class AdaptiveVoronoiDriver:
             new_target_counts[...] = self.walk_count
             self.system.bin_target_counts = new_target_counts
         except (ValueError, TypeError) as e:
-            log.error(
-                'AdaptiveVoronoiDriver Error: \
-                    Failed updating the bin mapper: {}'.format(
-                    e
-                )
-            )
+            log.error('AdaptiveVoronoiDriver Error: \
+                    Failed updating the bin mapper: {}'.format(e))
             raise
 
     def update_centers(self, iter_group):

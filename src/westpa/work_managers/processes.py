@@ -27,7 +27,7 @@ class ProcessWorkManager(WorkManager):
     -----
 
     On MacOS, as of Python 3.8 the default start method for multiprocessing launching new processes was changed from fork to spawn.
-    On Linux, as of Python 3.14, the default start method for multiprocessing launching new processes was changed from fork to spawn.
+    On Linux, as of Python 3.14, the default start method for multiprocessing launching new processes was changed from fork to forkserver.
     In general, spawn is more robust and efficient, however it requires serializability of everything being passed to the child process.
     In contrast, fork is much less memory efficient, as it makes a full copy of everything in the parent process.
     However, it does not require picklability.
@@ -77,7 +77,10 @@ class ProcessWorkManager(WorkManager):
 
         while not self.shutdown_received.is_set():
             if not self.task_queue.empty():
-                message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
+                try:
+                    message, task_id, fn, args, kwargs = self.task_queue.get()[:5]
+                except EOFError:
+                    pass  # Take into account of delays between if and get()
 
                 if message == 'shutdown':
                     break
@@ -95,7 +98,10 @@ class ProcessWorkManager(WorkManager):
     def results_loop(self):
         while not self.shutdown_received.is_set():
             if not self.result_queue.empty():
-                message, task_id, payload = self.result_queue.get()[:3]
+                try:
+                    message, task_id, payload = self.result_queue.get()[:3]
+                except EOFError:
+                    pass  # Take into account of delays between if and get()
 
                 if message == 'shutdown':
                     break
@@ -109,6 +115,7 @@ class ProcessWorkManager(WorkManager):
                     raise AssertionError('unknown message {!r}'.format((message, task_id, payload)))
 
         log.debug('exiting results_loop')
+        return
 
     def submit(self, fn, args=None, kwargs=None):
         ft = WMFuture()
@@ -148,25 +155,30 @@ class ProcessWorkManager(WorkManager):
         try:
             while True:
                 self.task_queue.get_nowait()
-        except Empty:
-            pass
+        except (Empty, ValueError):
+            log.debug('Empty task_queue')
 
         try:
             while True:
                 self.result_queue.get_nowait()
-        except Empty:
-            pass
+        except (Empty, ValueError):
+            log.debug('Empty result_queue')
 
     def shutdown(self):
         while self.running:
             log.debug('shutting down {!r}'.format(self))
+
+            # Empty queues
+            self._empty_queues()
+            for _i in range(self.n_workers):
+                self.task_queue.put_nowait(task_shutdown_sentinel)
+            self.result_queue.put_nowait(result_shutdown_sentinel)
+
+            # Signal shutdown Event to stop queue loops
             self.shutdown_received.set()
             self._empty_queues()
 
-            # Send shutdown signal
-            for _i in range(self.n_workers):
-                self.task_queue.put_nowait(task_shutdown_sentinel)
-
+            # Terminating all workers
             for worker in self.workers:
                 worker.join(self.shutdown_timeout)
                 if worker.is_alive():
@@ -191,7 +203,5 @@ class ProcessWorkManager(WorkManager):
                     except ValueError:
                         pass  # Already closed.
 
-            self._empty_queues()
-            self.result_queue.put(result_shutdown_sentinel)
-
             self.running = False
+            log.debug('Done shutting down the processes work manager')

@@ -11,7 +11,6 @@ from westpa.core.binning import index_dtype
 from westpa.core.kinetics._kinetics import _fast_transition_state_copy  # @UnresolvedImport
 from westpa.core.kinetics import find_macrostate_transitions
 
-
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)

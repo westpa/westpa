@@ -10,7 +10,6 @@ from westpa.core.yamlcfg import check_bool, ConfigItemMissing
 
 from westpa.westext.stringmethod import WESTStringMethod, DefaultStringMethod
 
-
 log = logging.getLogger(__name__)
 
 
@@ -51,12 +50,8 @@ class StringDriver:
         try:
             sm_params = self.system.sm_params
         except AttributeError as e:
-            log.error(
-                'String Driver Error: system does not define sm_params. \
-                        This is required and should be added to the system definition; {}'.format(
-                    e
-                )
-            )
+            log.error('String Driver Error: system does not define sm_params. \
+                        This is required and should be added to the system definition; {}'.format(e))
             raise
 
         # Initialize the string

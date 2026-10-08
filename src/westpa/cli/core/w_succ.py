@@ -32,15 +32,13 @@ class WSucc(CommonOutputMixin, WESTDataReaderMixin, WESTAnalysisTool):
         }
 
         if not self.output_suppress_headers:
-            self.output_file.write(
-                '''\
+            self.output_file.write('''\
 # successful (recycled) segments
 # column 0:    iteration
 # column 1:    seg_id
 # column 2:    weight
 # column>2:    final progress coordinate value
-'''
-            )
+''')
         for n_iter in range(1, self.data_manager.current_iteration):
             seg_index = self.get_seg_index(n_iter)
             all_seg_ids = np.arange(len(seg_index), dtype=np.int_)

@@ -1,12 +1,8 @@
 from h5py import File as H5File
 import numpy as np
-from westpa import rc
-from westpa.tools import WESTParallelTool
 
-try:
-    from numpy import trapezoid
-except ImportError:
-    from numpy import trapz as trapezoid
+import westpa
+from westpa.tools import WESTParallelTool
 
 
 class DurationCorrector(object):
@@ -133,9 +129,9 @@ class DurationCorrector(object):
 
         for i, tau in enumerate(taugrid):
             if i > 0 and tau < maxduration:
-                integral1[i] = trapezoid(f_tilde[: i + 1], taugrid[: i + 1])
+                integral1[i] = np.trapezoid(f_tilde[: i + 1], taugrid[: i + 1])
 
-        integral2 = trapezoid(integral1, taugrid)
+        integral2 = np.trapezoid(integral1, taugrid)
 
         if integral2 == 0:
             return 0.0
@@ -405,38 +401,36 @@ contained in the assign.h5 and direct.h5 files in ANALYSIS/DEFAULT.
         super().__init__()
 
     def go(self):
+        config = westpa.rc.config
         try:
-            rc.config['west']['analysis']['red']
-        except Exception:
+            config['west']['analysis']['red']
+        except KeyError:
             raise ValueError('No RED parameters are specified in west.cfg.')
         try:
-            rc.config['west']['analysis']['red']['scheme']
-        except Exception:
+            config['west']['analysis']['red']['scheme']
+        except KeyError:
             raise ValueError('No scheme specified for RED calculation in west.cfg.')
         try:
-            rc.config['west']['analysis']['red']['istate_label']
-        except Exception:
+            config['west']['analysis']['red']['istate_label']
+        except KeyError:
             raise ValueError('No intial state label specified for RED calculation in west.cfg.')
         try:
-            rc.config['west']['analysis']['red']['fstate_label']
-        except Exception:
+            config['west']['analysis']['red']['fstate_label']
+        except KeyError:
             raise ValueError('No final state label specified for RED calculation in west.cfg.')
         try:
-            rc.config['west']['analysis']['red']['nstiter']
-        except Exception:
+            config['west']['analysis']['red']['nstiter']
+        except KeyError:
             raise ValueError('Time step not specified in west.cfg.')
         try:
-            rc.config['west']['analysis']['red']['nstrep']
-        except Exception:
+            config['west']['analysis']['red']['nstrep']
+        except KeyError:
             raise ValueError('Time step not specified in west.cfg.')
 
-        if rc.config['west']['analysis']['kinetics']['evolution'] == "cumulative":
-            pass
-        else:
+        if config['west']['analysis']['kinetics']['evolution'] != "cumulative":
             print("Only RED estimates with cumulative averaging are supported at this time.")
             exit()
 
-        config = rc.config
         adir = config.get(['west', 'analysis', 'directory'])
         name = config.get(['west', 'analysis', 'red', 'scheme'])
         istate = config.get(['west', 'analysis', 'red', 'istate_label'])
@@ -470,7 +464,7 @@ contained in the assign.h5 and direct.h5 files in ANALYSIS/DEFAULT.
             try:
                 dest_file.create_dataset('red_flux_evolution', data=rates)
                 print('saved RED fluxes to red_flux_evolution in ANALYSIS/%s/direct.h5' % name)
-            except Exception:
+            except ValueError:
                 warning = input('Dataset already exists! Overwrite? (y/n)')
                 if warning == "y":
                     dest_file['red_flux_evolution'][...] = rates

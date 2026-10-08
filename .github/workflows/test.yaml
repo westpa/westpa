@@ -19,37 +19,36 @@ on:
       - 'westpa2'
       - 'develop'
 
+concurrency:
+  # test runs from newer commits in PRs will cancel older, in-progress runs
+  # copied from https://stackoverflow.com/a/75403978/17047865
+  group: ${{ github.workflow }}-${{ github.head_ref && github.ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
         with:
-          python-version: 3.12
+          python-version: 3.13
       - name: Linting
         run: |
           pip install pre-commit
           pre-commit run --all-files
 
   test:
-    name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}, Numpy ${{ matrix.numpy-version }}
+    name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: "${{ matrix.os }}"
+    continue-on-error: true  # better to finish some jobs than none
     strategy:
       matrix:
-        os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-        numpy-version: ["1", "2"]
-        exclude:
-          - python-version: "3.13"
-            numpy-version: "1"
-          - os: "ubuntu-24.04-arm"
-            python-version: "3.10"
-          - os: "ubuntu-24.04-arm"
-            numpy-version: "1"
+        os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-15-intel", "macos-latest"]  # macos-15-intel is x86-64, macos-latest is arm64
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: 
           fetch-depth: 2
   
@@ -61,18 +60,17 @@ jobs:
           ulimit -a
   
       # More info on options: https://github.com/conda-incubator/setup-miniconda
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: conda-incubator/setup-miniconda@v4
         with:
           python-version: ${{ matrix.python-version }}
-          environment-file: devtools/conda-envs/test_env_numpy${{ matrix.numpy-version }}.yaml
+          environment-file: devtools/conda-envs/test_env.yaml
           activate-environment: test_env
           miniforge-version: latest
           channel-priority: true
           auto-update-conda: true
-          auto-activate-base: false
           show-channel-urls: true
           conda-remove-defaults: true
-  
+
       - name: Install package
         # conda setup requires this special shell
         shell: bash -l {0}
@@ -90,7 +88,7 @@ jobs:
           pytest -v --cov=westpa --cov-report=xml --color=yes tests
   
       - name: CodeCov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: ./coverage.xml
           flags: unittests
@@ -102,16 +100,16 @@ jobs:
   install-dev:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-13", "macos-latest"]  # macos-13 is x86-64, macos-latest is arm64
+        os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-15-intel", "macos-latest"]  # macos-15-intel is x86-64, macos-latest is arm64
 
     name: "Verify dev env"
     runs-on: "${{ matrix.os }}"
 
     steps:
-      - uses: "actions/checkout@v4"
-      - uses: "actions/setup-python@v5"
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - name: "Install HDF5 with brew if macos-arm64"
         if: ${{ matrix.os == 'macos-latest' }}
         run: "brew install hdf5"

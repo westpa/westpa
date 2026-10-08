@@ -1,7 +1,8 @@
 import itertools
+import sys
+
 import numpy as np
 import pandas as pd
-import sys
 
 from westpa.core.binning.assign import BinMapper
 from westpa.core.h5io import WESTPAH5File, tostr
@@ -81,7 +82,7 @@ class Run:
     def num_iterations(self):
         """int: Number of completed iterations."""
         if not hasattr(self, '_num_iterations'):
-            current = self.h5file.attrs['west_current_iteration']
+            current = int(self.h5file.attrs['west_current_iteration'])
             grp = self.h5file.get_iter_group(current)
             if (grp['seg_index']['status'] == Segment.SEG_STATUS_COMPLETE).all():
                 self._num_iterations = current
@@ -144,8 +145,10 @@ class Run:
     def __iter__(self):
         return iter(self.iterations)
 
-    def __contains__(self, iteration):
-        return iteration.run == self
+    def __contains__(self, item):
+        if not isinstance(item, (Iteration, Walker)):
+            return False
+        return item.run == self
 
     def __eq__(self, other):
         return self.h5file == other.h5file
@@ -234,7 +237,7 @@ class Iteration:
 
     @property
     def bin_target_counts(self):
-        """1D ndarray, dtype=uint64: Target count for each bin."""
+        """1D ndarray or None: Target count for each bin."""
         val = self.h5group.get('bin_target_counts')
         if val is None:
             return None
@@ -242,7 +245,7 @@ class Iteration:
 
     @property
     def bin_mapper(self):
-        """BinMapper: Bin mapper used in the iteration."""
+        """BinMapper or None: Bin mapper used in the iteration."""
         if self.bin_target_counts is None:
             return None
         mapper, _, _ = mapper_from_hdf5(self.run.h5file['bin_topologies'], self.h5group.attrs['binhash'])
@@ -251,9 +254,7 @@ class Iteration:
     @property
     def num_bins(self):
         """int: Number of bins."""
-        if self.number == 1:
-            return 1
-        return self.bin_target_counts.shape[0]
+        return 0 if self.bin_target_counts is None else self.bin_target_counts.shape[0]
 
     @property
     def bins(self):
@@ -434,8 +435,10 @@ class Iteration:
     def __iter__(self):
         return iter(self.walkers)
 
-    def __contains__(self, walker):
-        return walker.iteration == self
+    def __contains__(self, item):
+        if not isinstance(item, Walker):
+            return False
+        return item.iteration == self
 
     def __eq__(self, other):
         return self.number == other.number and self.run == other.run
@@ -480,7 +483,7 @@ class Walker:
 
     @property
     def num_snapshots(self):
-        """int: Number of snapshots."""
+        """int: Number of progress coordinate snapshots (i.e., ``pcoord_len``)."""
         return self.pcoords.shape[0]
 
     @property
