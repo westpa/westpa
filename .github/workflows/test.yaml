@@ -45,8 +45,8 @@ jobs:
     continue-on-error: true  # better to finish some jobs than none
     strategy:
       matrix:
-        os: ['ubuntu-latest', 'ubuntu-24.04-arm', 'macos-15-intel', 'macos-latest']  # macos-15-intel is x86-64, macos-latest is arm64
-        python-version: ['3.11', '3.12', '3.13', '3.14', '3.15']
+        os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-15-intel", "macos-latest"]  # macos-15-intel is x86-64, macos-latest is arm64
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@v7
         with: 
