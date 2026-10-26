@@ -17,6 +17,6 @@ dependencies:
   - mpi4py
   - dask
   - distributed
-  - sphinx
+  - sphinx<=9.1.1
   - sphinx-rtd-theme
   - pip
