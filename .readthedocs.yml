@@ -8,6 +8,9 @@ build:
   os: ubuntu-lts-latest
   tools:
     python: miniforge3-latest
+  jobs:
+    pre_build:
+      - conda list
 
 sphinx:
   configuration: doc/conf.py
