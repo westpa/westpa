@@ -46,7 +46,7 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-15-intel", "macos-latest"]  # macos-15-intel is x86-64, macos-latest is arm64
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@v7
         with: 
@@ -60,10 +60,25 @@ jobs:
           ulimit -a
   
       # More info on options: https://github.com/conda-incubator/setup-miniconda
-      - uses: conda-incubator/setup-miniconda@v4
+      - name: Setup miniforge (python <= 3.14)
+        uses: conda-incubator/setup-miniconda@v4
+        if: matrix.python-version != '3.15'
         with:
           python-version: ${{ matrix.python-version }}
           environment-file: devtools/conda-envs/test_env.yaml
+          activate-environment: test_env
+          miniforge-version: latest
+          channel-priority: true
+          auto-update-conda: true
+          show-channel-urls: true
+          conda-remove-defaults: true
+
+      - name: Setup miniforge (python == 3.15)
+        uses: conda-incubator/setup-miniconda@v4
+        if: matrix.python-version == '3.15'
+        with:
+          python-version: ${{ matrix.python-version }}
+          environment-file: devtools/conda-envs/test_env_py315.yaml
           activate-environment: test_env
           miniforge-version: latest
           channel-priority: true

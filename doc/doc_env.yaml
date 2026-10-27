@@ -1,9 +1,8 @@
 name: doc_env
 channels:
   - conda-forge
-  - defaults
 dependencies:
-  - python
+  - python==3.14.*
   - cython
   - numpy
   - scipy
@@ -16,6 +15,8 @@ dependencies:
   - blessings
   - ipykernel
   - mpi4py
+  - dask
+  - distributed
   - sphinx
   - sphinx-rtd-theme
   - pip
